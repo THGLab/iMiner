@@ -74,13 +74,13 @@ class BaseProject:
 
         # process the ligand file according to the format
         if format == 'smiles':
-            self.ligands.append(_process_smiles(smiles_or_path, os.path.join(self.project_path, 'ligands', ligand_name)))
+            self.ligands.append(self._process_smiles(smiles_or_path, os.path.join(self.project_path, 'ligands', ligand_name)))
         elif format == 'sdf':
             # directly copy the sdf file to the corresponding position
             shutil.copy(smiles_or_path, os.path.join(self.project_path, 'ligands', ligand_name))
             self.ligands.append(os.path.join(self.project_path, 'ligands', ligand_name))
         elif format == 'pdb':
-            self.ligands.append(_process_pdb(smiles_or_path, os.path.join(self.project_path, 'ligands', ligand_name)))
+            self.ligands.append(self._process_pdb(smiles_or_path, os.path.join(self.project_path, 'ligands', ligand_name)))
 
     def _process_smiles(self, smiles, save_path):
         '''
@@ -93,13 +93,13 @@ class BaseProject:
         '''
         mol = MolFromSmiles(smiles)
         # assert valid smiles
-        if m is None:
+        if mol is None:
             raise RuntimeError(smiles + ' is not a valid smile string')
-        mh = AddHs(m)
+        mh = AddHs(mol)
         embed = AllChem.EmbedMolecule(mh, useRandomCoords=False)
 
         # make sure embedding is successful
-        if embed! = 0:
+        if embed != 0:
             raise RuntimeError('RDkit fails to embed molecule ' + smiles)
 
         # save the ligand file to the corresponding position
