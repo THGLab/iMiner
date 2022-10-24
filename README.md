@@ -12,3 +12,4 @@ Inhibitor Mining protocol (iMiner) including Consensus Docking and MD Analysis
 * `iMiner.core`: Core functions for iMiner
 * `iMiner.docking`: Docking protocol base class and implementations using different docking software
 * `iMiner.tools`: Useful tools for running iMiner protocol
+* `iMiner.md`: GROMACS-based MD simulation module to evaluate ligand binding stability
