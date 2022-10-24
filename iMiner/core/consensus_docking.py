@@ -5,7 +5,7 @@ Date Created: Oct 21, 2022
 A consensus docking module for iMiner
 '''
 
-from project import BaseProject
+from iMiner.core.project import BaseProject
 
 class ConsensusDocking(BaseProject):
     def __init__(self, project_name, project_path=None, docking_protocols=None) -> None:
