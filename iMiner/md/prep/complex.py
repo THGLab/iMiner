@@ -1,5 +1,9 @@
 import os
+import shutil
+from pathlib import Path
 from typing import Optional
+
+from iMiner.cmd import set_directory
 
 
 def split_top(top: os.PathLike, atp: os.PathLike, itp: os.PathLike):
@@ -47,6 +51,23 @@ def merge_gro(pgro: os.PathLike, lgro: os.PathLike, cgro: os.PathLike):
     lgrof.close()
 
 
-# split_top("../protein/protein.amb2gmx/protein_GMX.top", "protein.atp", "protein.itp")
-# split_top("MOL.acpype/MOL_GMX.itp", "MOL.atp", "MOL.itp")
-# merge_gro("../protein/protein.amb2gmx/protein_GMX.gro", "MOL.gro", "complex.gro")
+def make_complex(
+    protein_top: os.PathLike, 
+    ligand_top: os.PathLike, 
+    protein_gro: os.PathLike,
+    ligand_gro: os.PathLike,
+    complex_dir: os.PathLike
+):
+    """
+    Make protein-ligand complex topology and coordinate
+    """
+    protein_top = Path(protein_top).resolve()
+    ligand_top = Path(ligand_top).resolve()
+    protein_gro = Path(protein_gro).resolve()
+    ligand_gro = Path(ligand_gro).resolve()
+    with set_directory(complex_dir):
+        split_top(protein_top, "protein.atp", "protein.itp")
+        split_top(ligand_top, "MOL.atp", "MOL.itp")
+        merge_gro(protein_gro, ligand_gro, "complex.gro")
+        shutil.copyfile(Path(__file__).with_name("topol_template.top"), "topol.top")
+        shutil.copyfile(Path(__file__).with_name("water_and_ions.atp"), "water_and_ions.atp")

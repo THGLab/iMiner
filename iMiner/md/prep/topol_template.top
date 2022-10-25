@@ -1,0 +1,24 @@
+[ defaults ]
+; nbfunc        comb-rule       gen-pairs       fudgeLJ fudgeQQ
+1               2               yes             0.5     0.8333
+
+#include "protein.atp"
+
+#include "water_and_ions.atp"
+
+#include "MOL.atp"
+
+#include "MOL.itp"
+
+#include "protein.itp"
+
+#include "amber99sb.ff/tip3p.itp"
+
+#include "amber99sb.ff/ions.itp"
+
+[ system ]
+ Complex
+
+[ molecules ]
+MOL           1
+protein       1
