@@ -1,3 +1,9 @@
+"""
+Author: Eric Wang
+Date Created: 10/24/2022
+
+This package contains functions to run gromacs
+"""
 import os
 import shutil
 from pathlib import Path
@@ -8,6 +14,33 @@ from iMiner.cmd import run_command, find_executable, set_directory
 
 
 MAXWARN = 10
+
+
+def run_preprocess_workflow(
+    top: os.PathLike,
+    gro: os.PathLike,
+    wdir: os.PathLike = Path.cwd()
+):
+    """
+    Run preprocess workflow: add box with 1 nm buffer region, add water, add ions
+
+    Parameters
+    ----------
+    top: os.PathLike
+        topology file (-p)
+    gro: os.PathLike
+        coordinate file (-c)
+    wdir: os.PathLike
+        working directory where `gmx` is executed
+    """
+    gmx = find_executable(['gmx_mpi', 'gmx'])
+    mdp = Path(__file__).with_name("em.mdp").resolve()
+    with set_directory(wdir):
+        run_command([gmx, "editconf", "-f", gro, "-o", "newbox.gro", "-c", "-d", str(1.0), "-bt", "dodecahedron"])
+        run_command([gmx, "solvate", "-cp", "newbox.gro", "-cs", "spc216.gro", "-o", "solv.gro", "-p", top])
+        run_command([gmx, "grompp" "-f", mdp, "-c", "solv.gro", "-p", top, "-o", "ions.tpr", "-maxwarn", MAXWARN])
+        run_command([gmx, "genion", "-s", "ions.tpr", "-o", "ions.gro", "-p", top, "-pname", "NA", "-nname", "CL", "-neutral"], input="SOL")
+        run_command([gmx, "grompp", "-c", "ions.gro", "-f", mdp, "-p", top, "-pp", "processed.top"])
 
 
 def run_md(
@@ -36,7 +69,7 @@ def run_md(
     deffnm: str
         default file name (-deffnm)
     wdir: os.PathLike
-        working directory of `gmx` is execuated
+        working directory where `gmx` is executed
     cpt: os.PathLike, optional
         checkpoint file (-t)
     restr_gro: os.PathLike, optional
@@ -112,4 +145,3 @@ def run_md_workflow(
                 enforce_gpu = bool(i) if enforce_gpu else False
             )
             gro = Path(w / stage / f"{stage}.gro")
-            
