@@ -130,3 +130,6 @@ dmypy.json
 
 # old project files
 covid_project
+
+# macOS cache
+.DS_Store
