@@ -1,0 +1,6 @@
+source leaprc.protein.{protein_ff}
+source leaprc.water.{water_ff}
+protein = loadpdb {pdb}
+check protein
+saveamberparm protein {prmtop} {inpcrd}
+quit
