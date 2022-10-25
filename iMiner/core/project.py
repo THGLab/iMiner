@@ -44,9 +44,12 @@ class BaseProject:
         '''
         Add a protein with corresponding binding site definition to the project
 
-        :param name: str, the name of the protein + pocket
-        :param protein_file_path: str, path to the protein file
+        :param name: the name of the protein + pocket
+        :param protein_file_path: path to the protein file
         :param binding_site: (xmin, ymin, zmin, xmax, ymax, zmax), the binding site definition
+        :type name: str
+        :type protein_file_path: str
+        :type binding_site: tuple
         '''
         self.binding_sites[name] = binding_site
         # preprocess the protein file and save the clean file to project_path/proteins
@@ -56,8 +59,10 @@ class BaseProject:
         '''
         Add a ligand to the project
 
-        :param smiles_or_path: str, either the smiles string of the ligand or the path to the ligand file
-        :param format: one of ['inferred', 'smiles', 'sdf', 'pdb']. If format is 'inferred', the format will be inferred from the file extension
+        :param smiles_or_path: Either the smiles string of the ligand or the path to the ligand file
+        :param format: One of ['inferred', 'smiles', 'sdf', 'pdb']. If format is 'inferred', the format will be inferred from the file extension
+        :type smiles_or_path: str
+        :type format: str
         '''
 
         # decide the file format
