@@ -2,11 +2,15 @@ import os
 from pathlib import Path
 from typing import List, Optional
 
-from openmm.app import PDBFile
-from pdbfixer import PDBFixer
-
+from iMiner.log import LOGGER
 from iMiner.cmd import run_command, find_executable, set_directory
 
+try:
+    from pdbfixer import PDBFixer
+except ImportError:
+    LOGGER.warn("PDBFIXER is not installed, pre-process protein will be disabled")
+
+from openmm.app import PDBFile
 
 def fix_protein(
     in_pdb: os.PathLike, 
