@@ -56,7 +56,9 @@ def make_complex(
     ligand_top: os.PathLike, 
     protein_gro: os.PathLike,
     ligand_gro: os.PathLike,
-    complex_dir: os.PathLike
+    complex_dir: os.PathLike,
+    complex_top_name: str = "topol.top",
+    complex_gro_name: str = "complex.gro"
 ):
     """
     Make protein-ligand complex topology and coordinate
@@ -68,6 +70,6 @@ def make_complex(
     with set_directory(complex_dir):
         split_top(protein_top, "protein.atp", "protein.itp")
         split_top(ligand_top, "MOL.atp", "MOL.itp")
-        merge_gro(protein_gro, ligand_gro, "complex.gro")
-        shutil.copyfile(Path(__file__).with_name("topol_template.top"), "topol.top")
+        merge_gro(protein_gro, ligand_gro, complex_gro_name)
+        shutil.copyfile(Path(__file__).with_name("topol_template.top"), complex_top_name)
         shutil.copyfile(Path(__file__).with_name("water_and_ions.atp"), "water_and_ions.atp")
