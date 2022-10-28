@@ -26,14 +26,14 @@ class BaseProject:
         # setup project folders
         if project_path is None:
             project_path = Path.cwd() / project_name
-        self.project_path = Path(project_path)
+        self.project_path = Path(project_path).resolve()
         self.project_path.mkdir(exist_ok=True, parents=True)
         
         # setup ligands and proteins directory
         self.ligands_path = self.project_path  / "ligands"
         self.ligands_path.mkdir(exist_ok=True, parents=True)
         self.proteins_path = self.project_path / "proteins"
-        self.project_path.mkdir(exist_ok=True, parents=True)
+        self.proteins_path.mkdir(exist_ok=True, parents=True)
 
         # prepare temp path
         self.temp_path = self.project_path / 'tmp'
