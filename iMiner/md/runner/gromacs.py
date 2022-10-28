@@ -10,6 +10,8 @@ from pathlib import Path
 from tabnanny import verbose
 from typing import Dict, Any, Optional
 
+import gromacs
+gromacs.config.setup(Path(gromacs.__file__).parent / "templates/gromacswrapper.cfg")
 from gromacs.fileformats.mdp import MDP
 from iMiner.cmd import run_command, find_executable, set_directory
 from iMiner.log import LOGGER
@@ -43,10 +45,10 @@ def run_preprocess_workflow(
     with set_directory(wdir):
         if verbose: LOGGER.info("Adding box...")
         run_command([gmx, "editconf", "-f", gro, "-o", "newbox.gro", "-c", "-d", str(1.0), "-bt", "dodecahedron"])
-        if verbose: LOGGER.info("Adding box...")
+        if verbose: LOGGER.info("Adding water...")
         run_command([gmx, "solvate", "-cp", "newbox.gro", "-cs", "spc216.gro", "-o", "solv.gro", "-p", top])
-        if verbose: LOGGER.info("Add ions")
-        run_command([gmx, "grompp" "-f", mdp, "-c", "solv.gro", "-p", top, "-o", "ions.tpr", "-maxwarn", MAXWARN])
+        if verbose: LOGGER.info("Add ions...")
+        run_command([gmx, "grompp", "-f", mdp, "-c", "solv.gro", "-p", top, "-o", "ions.tpr", "-maxwarn", MAXWARN])
         run_command([gmx, "genion", "-s", "ions.tpr", "-o", "ions.gro", "-p", top, "-pname", "NA", "-nname", "CL", "-neutral"], input="SOL")
         run_command([gmx, "grompp", "-c", "ions.gro", "-f", mdp, "-p", top, "-pp", "processed.top"])
 
@@ -91,11 +93,10 @@ def run_md(
     """
     gmx = find_executable(["gmx_mpi", "gmx"])
 
-    mdp_file = MDP(mdp)
-    for key, value in params.items():
-        mdp_file[key] = value
-
     with set_directory(wdir):
+        mdp_file = MDP(mdp)
+        for key, value in params.items():
+            mdp_file[key] = value
         # update mdp
         if Path.is_file(mdp):
             shutil.copyfile(mdp, Path(mdp).with_name(f'{mdp.stem}.mdp.backup'))
@@ -141,11 +142,12 @@ def run_md_workflow(
     with set_directory(wdir, mkdir=True) as w:
         for i, stage in enumerate(stages):
             Path.mkdir(w / stage, parents=True, exist_ok=True)
+            shutil.copyfile(Path(__file__).with_name(f"{stage}.mdp"), w / stage / f"{stage}.mdp")
             if verbose: LOGGER.info(f"Running {stage}...")
             run_md(
                 top = Path(top).resolve(),
-                gro = gro,
-                mdp = Path(__file__).with_name(f"{stage}.mdp"),
+                gro = Path(gro).resolve(),
+                mdp = w / stage / f"{stage}.mdp",
                 deffnm = stage,
                 wdir = Path.resolve(w / stage),
                 cpt = f"../{stages[i-1]}/{stages[i-1]}.cpt" if i >= 2 else None,

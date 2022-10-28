@@ -78,7 +78,6 @@ def run_tleap(
         water forcefield
     """
     tleap = find_executable("tleap")
-
     with open(Path(__file__).with_name("leap.in"), 'r') as f:
         leap_in = f.read()
     
@@ -88,5 +87,3 @@ def run_tleap(
         with open("leap.in", 'w') as f:
             f.write(leap_in)
         return_code, err, out = run_command([tleap, '-f', "leap.in"], raise_error=True)
-
-    
