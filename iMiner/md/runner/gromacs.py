@@ -4,6 +4,7 @@ Date Created: 10/24/2022
 
 This package contains functions to run gromacs
 """
+from genericpath import isfile
 import os
 import shutil
 from pathlib import Path
@@ -98,7 +99,7 @@ def run_md(
         for key, value in params.items():
             mdp_file[key] = value
         # update mdp
-        if Path.is_file(mdp):
+        if os.path.isfile(mdp):
             shutil.copyfile(mdp, Path(mdp).with_name(f'{mdp.stem}.mdp.backup'))
         mdp_file.write(str(mdp))
         # run grompp
@@ -120,7 +121,7 @@ def run_md(
 
         # run md
         mdrun_cmds = [gmx, 'mdrun']
-        if restart and Path.is_file(f"{deffnm}.cpt"):
+        if restart and os.path.isfile(f"{deffnm}.cpt"):
             mdrun_cmds += ['-s', f'{deffnm}.tpr', '-cpi', f'{deffnm}.cpt']
         if enforce_gpu:
             mdrun_cmds += ['-update', 'gpu', '-nb', 'gpu', '-bonded', 'gpu']
