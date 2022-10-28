@@ -10,11 +10,13 @@ import os
 import shutil
 from pathlib import Path
 from collections import OrderedDict
+from typing import Optional
+
 from rdkit.Chem import MolFromSmiles, AddHs, AllChem, SDWriter
 
 
 class BaseProject:
-    def __init__(self, project_name, project_path=None) -> None:
+    def __init__(self, project_name: str, project_path: Optional[os.PathLike] = None) -> None:
         '''
         Initialize a project with a project name and a project path
 
@@ -23,16 +25,19 @@ class BaseProject:
         '''
         # setup project folders
         if project_path is None:
-            project_path = os.path.join(os.getcwd(), project_name)
-        self.project_path = project_path
-        if not os.path.exists(project_path):
-            os.makedirs(project_path)
-        os.mkdir(os.path.join(project_path, 'proteins'))
-        os.mkdir(os.path.join(project_path, 'ligands'))
+            project_path = Path.cwd() / project_name
+        self.project_path = Path(project_path)
+        self.project_path.mkdir(exist_ok=True, parents=True)
+        
+        # setup ligands and proteins directory
+        self.ligands_path = self.project_path  / "ligands"
+        self.ligands_path.mkdir(exist_ok=True, parents=True)
+        self.proteins_path = self.project_path / "proteins"
+        self.project_path.mkdir(exist_ok=True, parents=True)
 
         # prepare temp path
-        self.temp_path = os.path.join(project_path, 'tmp')
-        os.mkdir(self.temp_path)
+        self.temp_path = self.project_path / 'tmp'
+        self.temp_path.mkdir(exist_ok=True, parents=True)
 
         # prepare protein (with binding sites) mapping dicts that map names to the corresponding file paths
         # because ligands do not have names, the ligand paths are saved as a list
