@@ -1,0 +1,20 @@
+{
+    "md": {
+        "enforce_gpu": true,
+        "em": {
+            "nsteps": 500
+        },
+        "nvt": {
+            "nsteps": 1000,
+            "nstxout-compressed": 100
+        },
+        "npt": {
+            "nsteps": 1000,
+            "nstxout-compressed": 100
+        },
+        "prod": {
+            "nsteps": 5000,
+            "nstxout-compressed": 500
+        }
+    }
+}
