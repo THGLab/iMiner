@@ -133,3 +133,6 @@ covid_project
 
 # macOS cache
 .DS_Store
+
+# examples
+examples/*/*/

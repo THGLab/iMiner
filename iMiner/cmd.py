@@ -127,7 +127,7 @@ def run_command(
     return_code = sub.poll()
     out = out.decode(sys.stdin.encoding)
     err = err.decode(sys.stdin.encoding)
-    if raise_error:
+    if raise_error and return_code != 0:
         raise CommandExecuteError("Command %s failed: \n%s" % (cmd, err))
     return return_code, out, err
 
