@@ -1,11 +1,16 @@
 '''
-Author: Jie Li
+Author: Jie Li, Oliver Sun
 Date Created: Oct 31, 2022
 
 Implementation of the autodock docking protocol, including Autodock4, Autodock Vina, and Autodock Vina GPU
 '''
 
 from iMiner.docking.base import BaseDocking
+import numpy as np
+from pathlib import Path
+import re
+import subprocess
+import os
 
 class AutoDockBaseDocking(BaseDocking):
     def __init__(self, protein_pdb, docking_box) -> None:
@@ -15,16 +20,43 @@ class AutoDockBaseDocking(BaseDocking):
         :param protein_pdb: str, path to the protein pdb file
         :param docking_box: (xmin, ymin, zmin, xmax, ymax, zmax), the docking box definition
         '''
+        pass
 
 
-    def convert_pdb_to_pdbqt(self, pdb_path, output_path):
+    def convert_pdb_to_pdbqt(self, pdb_path, output_path, add_h = True):
         '''
         Convert a pdb file to a pdbqt file that can be used for AutoDock docking
 
         :param pdb_path: str, path to the pdb file
         :param output_path: str, path to the output pdbqt file
         '''
-        pass
+        protein_path = Path(pdb_path)
+        protein_name = protein_path.stem
+        protein_folder = protein_path.parent
+
+        # preprocess the protein by removing water & heteroatoms
+        with open(pdb_path, "r") as f:
+            protein_file = f.read().split("\n")
+        new_file = [i for i in protein_file if not i.startswith('HETATM')]
+        processed_fp = os.path.join(protein_folder, "{}-processed.pdb".format(protein_name))
+        with open(processed_fp, "w") as f1:
+            f1.write("\n".join(new_file))
+        
+        # run protein preparation depending on if there's need to add H
+        if add_h:
+            try:
+                out = subprocess.run(['prepare_receptor', '-r', processed_fp, '-o', output_path,\
+                '-A', 'checkhydrogens'])
+            except subprocess.CalledProcessError as e:
+                print(e.output)
+        
+        else:
+            try:
+                out = subprocess.run(['prepare_receptor', '-r', processed_fp, '-o', output_path,])
+            except subprocess.CalledProcessError as e:
+                print(e.output)
+        
+        return out
 
     def convert_sdf_to_pdbqt(self, sdf_path, output_path):
         '''
