@@ -12,35 +12,6 @@ import os
 import re
 import subprocess
 
-supported_atypes = set(['HD', 'C', 'A', 'N', 'NA', 'OA', 'F', 'P', 'SA', 'S',
-                    'Cl', 'Br', 'I', 'Mg', 'Ca', 'Mn', 'Fe', 'Zn'])
-
-gpf = """npts NPTS_X NPTS_Y NPTS_Z
-gridfld PREFIX.maps.fld
-spacing 0.375
-receptor_types RECTYPES
-ligand_types HD C A N NA OA F P SA S Cl Br I
-receptor REC
-gridcenter CENTER_X CENTER_Y CENTER_Z
-smooth 0.5
-map         PREFIX.HD.map
-map         PREFIX.C.map
-map         PREFIX.A.map
-map         PREFIX.N.map
-map         PREFIX.NA.map
-map         PREFIX.OA.map
-map         PREFIX.F.map
-map         PREFIX.P.map
-map         PREFIX.SA.map
-map         PREFIX.S.map
-map         PREFIX.Cl.map
-map         PREFIX.Br.map
-map         PREFIX.I.map
-elecmap     PREFIX.e.map
-dsolvmap    PREFIX.d.map
-dielectric -0.1465
-"""
-
 class AD4Docking(AutoDockBaseDocking):
     """
     Run AutoDock4 with predefined binding pocket for ligands.
@@ -58,19 +29,21 @@ class AD4Docking(AutoDockBaseDocking):
         self.protein_path = Path(protein_pdbqt).resolve()
         self.protein_folder = self.protein_path.parent
         self.protein_name = self.protein_path.stem
-        self.ad4dir = os.mkdir(os.path.join(self.protein_folder, "{}-ad4".format(self.protein_name)))
+        self.ad4dir = os.path.join(self.protein_folder, "{}-ad4".format(self.protein_name))
+        os.makedirs(self.ad4dir, exist_ok = True)
+        self.docking_box = docking_box
 
-    def write_gpf_file(self, docking_box, spacing = 0.375):
+    def write_gpf_file(self, spacing = 0.375):
         """
         write autodock4 configuration file with the given docking box infomation
 
         @param docking_box: (xmin, ymin, zmin, xmax, ymax, zmax), the docking box definition
         @param spacing: float, spacing of the protein grid, default 0.375 angstroms
 
-        @return: str, filepath to the successfully written gpf
+        @return: path, filepath to the successfully written gpf
         """
         # convert the box information into gpf-required information
-        xmin, ymin, zmin, xmax, ymax, zmax = docking_box
+        xmin, ymin, zmin, xmax, ymax, zmax = self.docking_box
         center_x = (xmin + xmax) / 2.0
         center_y = (ymin + ymax) / 2.0
         center_z = (zmin + zmax) / 2.0
@@ -78,6 +51,9 @@ class AD4Docking(AutoDockBaseDocking):
         npts_y = 2 * int((ymax - ymin) / (2*spacing))
         npts_z = 2 * int((zmax - zmin) / (2*spacing))
 
+        # allowed recptor types
+        supported_atypes = set(['HD', 'C', 'A', 'N', 'NA', 'OA', 'F', 'P', 'SA', 'S',
+                    'Cl', 'Br', 'I', 'Mg', 'Ca', 'Mn', 'Fe', 'Zn'])
         # extract the receptor types from the pdbqt file
         command = 'cut -c 77-79 %s | sort -u' % self.protein_path
         try:
@@ -88,10 +64,36 @@ class AD4Docking(AutoDockBaseDocking):
         except subprocess.CalledProcessError as e:
             return e.output
 
+        # gpf file template
+        gpf = """npts NPTS_X NPTS_Y NPTS_Z
+        gridfld PREFIX.maps.fld
+        spacing 0.375
+        receptor_types RECTYPES
+        ligand_types HD C A N NA OA F P SA S Cl Br I
+        receptor REC
+        gridcenter CENTER_X CENTER_Y CENTER_Z
+        smooth 0.5
+        map         PREFIX.HD.map
+        map         PREFIX.C.map
+        map         PREFIX.A.map
+        map         PREFIX.N.map
+        map         PREFIX.NA.map
+        map         PREFIX.OA.map
+        map         PREFIX.F.map
+        map         PREFIX.P.map
+        map         PREFIX.SA.map
+        map         PREFIX.S.map
+        map         PREFIX.Cl.map
+        map         PREFIX.Br.map
+        map         PREFIX.I.map
+        elecmap     PREFIX.e.map
+        dsolvmap    PREFIX.d.map
+        dielectric -0.1465
+        """
         # fill in the necessary information
         gpf = gpf.replace('RECTYPES',   rectypes)
         gpf = gpf.replace('PREFIX',     self.protein_name)
-        gpf = gpf.replace('REC',        self.protein_path)
+        gpf = gpf.replace('REC',        str(self.protein_path))
         gpf = gpf.replace('NPTS_X',     '%d' % npts_x)
         gpf = gpf.replace('NPTS_Y',     '%d' % npts_y)
         gpf = gpf.replace('NPTS_Z',     '%d' % npts_z)
@@ -103,8 +105,20 @@ class AD4Docking(AutoDockBaseDocking):
         gpf_path = os.path.join(self.ad4dir, "{}.gpf".format(self.protein_name))
         with open(gpf_path, "w") as f:
             f.write(gpf)
-        
+
         return gpf_path
+    
+    def run_autogrid4(self, gpf_path):
+        """
+        running autogrid4 to generate calculated grid based on the gpf file.
+
+        @param gpf_path: path, path to the gpf file for grid generation
+
+        @return fld_path: path, path to the prepared protein file for AD4. 
+        """
+
+        raise NotImplementedError()
+
 
         
         
