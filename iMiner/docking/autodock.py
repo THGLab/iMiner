@@ -29,12 +29,15 @@ class AutoDockBaseDocking(BaseDocking):
 
         :param pdb_path: str, path to the pdb file
         :param output_path: str, path to the output pdbqt file
+
+        :return: the message for completing the conversion
         '''
         protein_path = Path(pdb_path).resolve()
         protein_name = protein_path.stem
         protein_folder = protein_path.parent
 
         # preprocess the protein by removing water & heteroatoms
+        # save the processed protein in the same folder as original pdb file
         with open(pdb_path, "r") as f:
             protein_file = f.read().split("\n")
         new_file = [i for i in protein_file if not i.startswith('HETATM')]
@@ -45,14 +48,13 @@ class AutoDockBaseDocking(BaseDocking):
         # run protein preparation depending on if there's need to add H
         if add_h:
             try:
-                out = subprocess.run([protein_path, '-r', processed_fp, '-o', output_path,\
+                out = subprocess.run([protein_prep_path, '-r', processed_fp, '-o', output_path,\
                 '-A', 'checkhydrogens'])
             except subprocess.CalledProcessError as e:
                 print(e.output)
-        
         else:
             try:
-                out = subprocess.run(['prepare_receptor', '-r', processed_fp, '-o', output_path,])
+                out = subprocess.run([protein_prep_path, '-r', processed_fp, '-o', output_path,])
             except subprocess.CalledProcessError as e:
                 print(e.output)
         

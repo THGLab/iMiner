@@ -45,14 +45,16 @@ class AD4Docking(AutoDockBaseDocking):
     """
     Run AutoDock4 with predefined binding pocket for ligands.
     """
-    def __init__(self, protein_pdbqt, docking_box):
+    def __init__(self, protein_pdb, protein_pdbqt, docking_box):
         """
         Initialize autodock4 with a protein and a docking box
 
+        @param protein_pdb: str, path to the protein pdb file
         @param protein_pdbqt: str, path to the protein pdbqt file
         @param docking_box: (xmin, ymin, zmin, xmax, ymax, zmax), the docking box definition
         """
-        super().__init__(protein_pdbqt, docking_box)
+        super().__init__(protein_pdb, docking_box)
+        self.convert_pdb_to_pdbqt(protein_pdb, protein_pdbqt)
         self.protein_path = Path(protein_pdbqt).resolve()
         self.protein_folder = self.protein_path.parent
         self.protein_name = self.protein_path.stem
