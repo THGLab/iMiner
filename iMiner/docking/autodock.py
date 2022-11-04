@@ -10,17 +10,18 @@ from pathlib import Path
 import subprocess
 import os
 
+
 protein_prep_path = '/global/home/groups/co_armada2/local/ADFRsuite/bin/prepare_receptor'
 
 class AutoDockBaseDocking(BaseDocking):
-    def __init__(self, protein_pdb, docking_box):
+    def __init__(self, protein_pdb, docking_box, temp_path=None, **kwargs) -> None:
         '''
         Initialize a docking protocol with a protein and a docking box
 
         :param protein_pdb: str, path to the protein pdb file
         :param docking_box: (xmin, ymin, zmin, xmax, ymax, zmax), the docking box definition
         '''
-        pass
+        super().__init__(protein_pdb, docking_box, temp_path, **kwargs)
 
 
     def convert_pdb_to_pdbqt(self, pdb_path, output_path, add_h = True):
@@ -68,3 +69,14 @@ class AutoDockBaseDocking(BaseDocking):
         :param output_path: str, path to the output pdbqt file
         '''
         pass
+
+    def convert_pdbqt_to_sdf(self, pdbqt_path, output_path):
+        '''
+        Convert a pdbqt file to a sdf file for standard file formatting
+
+        :param pdbqt_path: str, path to the pdbqt file
+        :param output_path: str, path to the output sdf file
+        '''
+        pass
+
+    

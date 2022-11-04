@@ -26,9 +26,7 @@ class AD4Docking(AutoDockBaseDocking):
         """
         super().__init__(protein_pdb, docking_box)
         self.convert_pdb_to_pdbqt(protein_pdb, protein_pdbqt)
-        self.protein_path = Path(protein_pdbqt).resolve()
-        self.protein_folder = self.protein_path.parent
-        self.protein_name = self.protein_path.stem
+        
         self.ad4dir = os.path.join(self.protein_folder, "{}-ad4".format(self.protein_name))
         os.makedirs(self.ad4dir, exist_ok = True)
         self.docking_box = docking_box
