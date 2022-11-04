@@ -10,9 +10,10 @@ from pathlib import Path
 import subprocess
 import os
 
-
 protein_prep_path = '/global/home/groups/co_armada2/local/ADFRsuite/bin/prepare_receptor'
-meeko_ligprep_path = "/global/home/groups/co_armada2/local/Meeko/scripts/mk_prepare_ligand.py"
+# need to first go in the virtual env named vina
+meeko_ligprep_path = "/global/home/users/kysun/.conda/envs/vina/bin/mk_prepare_ligand.py"
+meeko_ligconv_path = "/global/home/users/kysun/.conda/envs/vina/bin/mk_copy_coords.py"
 
 class AutoDockBaseDocking(BaseDocking):
     def __init__(self, protein_pdb, docking_box, temp_path=None, **kwargs) -> None:
@@ -76,13 +77,18 @@ class AutoDockBaseDocking(BaseDocking):
         
         return True
 
-    def convert_pdbqt_to_sdf(self, pdbqt_path, output_path):
+    def convert_adresult_to_sdf(self, adresult_path, output_path):
         '''
-        Convert a pdbqt file to a sdf file for standard file formatting
+        Convert a pdbqt/dlg file to a sdf file for standard file formatting
 
-        :param pdbqt_path: str, path to the pdbqt file
+        :param adresult_path: str, path to the pdbqt/dlg file
         :param output_path: str, path to the output sdf file
         '''
-        pass
+        try:
+            out = subprocess.run([meeko_ligconv_path, '-i', adresult_path, '-o', output_path])
+        except subprocess.CalledProcessError as e:
+            return e.output
+        
+        return True
 
     
