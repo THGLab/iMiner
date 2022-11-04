@@ -82,7 +82,7 @@ class VinaDocking(AutoDockBaseDocking):
             # execute vina docking under the working directory
             with set_directory(self.working_path):
                 cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt " + \
-                    "--out {ligand_work_name}_out.pdbqt --log {ligand_work_name}_log.txt"
+                    f"--out {ligand_work_name}_out.pdbqt --log {ligand_work_name}_log.txt"
                 code, out, err = run_command(cmd)
 
             # obtain docking score from the results
