@@ -62,7 +62,7 @@ class BaseProject:
         :type binding_site: tuple
         '''
         self.binding_sites[name] = binding_site
-        name = str(len(self.proteins.items) + 1) if name is None else name
+        name = str(len(self.proteins.items()) + 1) if name is None else name
         protein_path = os.path.join(self.project_path, "proteins", f"{name}.pdb")
         if preprocess:
             raise NotImplementedError()
