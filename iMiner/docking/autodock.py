@@ -11,6 +11,7 @@ import subprocess
 import os
 
 protein_prep_path = '/global/home/groups/co_armada2/local/ADFRsuite/bin/prepare_receptor'
+meeko_ligprep_path = "/global/home/groups/co_armada2/local/Meeko/scripts/mk_prepare_ligand.py"
 
 class AutoDockBaseDocking(BaseDocking):
     def __init__(self, protein_pdb, docking_box):
@@ -51,14 +52,14 @@ class AutoDockBaseDocking(BaseDocking):
                 out = subprocess.run([protein_prep_path, '-r', processed_fp, '-o', output_path,\
                 '-A', 'checkhydrogens'])
             except subprocess.CalledProcessError as e:
-                print(e.output)
+                return e.output
         else:
             try:
                 out = subprocess.run([protein_prep_path, '-r', processed_fp, '-o', output_path,])
             except subprocess.CalledProcessError as e:
-                print(e.output)
+                return e.output
         
-        return out
+        return True
 
     def convert_sdf_to_pdbqt(self, sdf_path, output_path):
         '''
@@ -67,4 +68,9 @@ class AutoDockBaseDocking(BaseDocking):
         :param sdf_path: str, path to the sdf file
         :param output_path: str, path to the output pdbqt file
         '''
-        pass
+        try:
+            out = subprocess.run([meeko_ligprep_path, '-i', sdf_path, '-o', output_path])
+        except subprocess.CalledProcessError as e:
+            return e.output
+        
+        return True
