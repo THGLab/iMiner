@@ -48,3 +48,16 @@ def timestamp(hashed=False) -> str:
     if hashed:
         value = hash_str(value)
     return value
+
+def box_from_center_and_size(center, size):
+    '''
+    Generate a box definition (xmin, ymin, zmin, xmax, ymax, zmax)
+    from center (x, y, z) and size (size_x, size_y, size_z)
+    '''
+    xmin = center[0] - size[0] / 2
+    ymin = center[1] - size[1] / 2
+    zmin = center[2] - size[2] / 2
+    xmax = center[0] + size[0] / 2
+    ymax = center[1] + size[1] / 2
+    zmax = center[2] + size[2] / 2
+    return (xmin, ymin, zmin, xmax, ymax, zmax)
