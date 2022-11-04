@@ -89,7 +89,7 @@ class AutoDockBaseDocking(BaseDocking):
         :return: True, if the run is successful
         '''
         try:
-            out = subprocess.run([meeko_ligconv_path, '-i', adresult_path, '-o', output_path])
+            out = subprocess.run([meeko_ligconv_path, adresult_path, '-o', output_path])
         except subprocess.CalledProcessError as e:
             return e.output
         
