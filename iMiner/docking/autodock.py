@@ -12,8 +12,8 @@ import os
 
 protein_prep_path = '/global/home/groups/co_armada2/local/ADFRsuite/bin/prepare_receptor'
 # need to first go in the virtual env named vina
-meeko_ligprep_path = "/global/home/users/kysun/.conda/envs/vina/bin/mk_prepare_ligand.py"
-meeko_ligconv_path = "/global/home/users/kysun/.conda/envs/vina/bin/mk_copy_coords.py"
+meeko_ligprep_path = "/global/home/groups/co_armada2/conda_envs/vina/bin/mk_prepare_ligand.py"
+meeko_ligconv_path = "/global/home/groups/co_armada2/conda_envs/vina/bin/mk_copy_coords.py"
 
 class AutoDockBaseDocking(BaseDocking):
     def __init__(self, protein_pdb, docking_box, temp_path=None, **kwargs) -> None:
@@ -33,7 +33,7 @@ class AutoDockBaseDocking(BaseDocking):
         :param pdb_path: str, path to the pdb file
         :param output_path: str, path to the output pdbqt file
 
-        :return: the message for completing the conversion
+        :return: True if the run is successful
         '''
         protein_path = Path(pdb_path).resolve()
         protein_name = protein_path.stem
@@ -69,6 +69,8 @@ class AutoDockBaseDocking(BaseDocking):
 
         :param sdf_path: str, path to the sdf file
         :param output_path: str, path to the output pdbqt file
+
+        :return: True, if the run is successful
         '''
         try:
             out = subprocess.run([meeko_ligprep_path, '-i', sdf_path, '-o', output_path])
@@ -83,6 +85,8 @@ class AutoDockBaseDocking(BaseDocking):
 
         :param adresult_path: str, path to the pdbqt/dlg file
         :param output_path: str, path to the output sdf file
+
+        :return: True, if the run is successful
         '''
         try:
             out = subprocess.run([meeko_ligconv_path, '-i', adresult_path, '-o', output_path])

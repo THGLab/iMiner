@@ -42,14 +42,14 @@ dielectric -0.1465
 
 class AD4Docking(AutoDockBaseDocking):
     """
-    Run AutoDock4 with predefined binding pocket for ligands.
+    Run AutoDock4 with predefined binding pocket for ligands
     """
     def __init__(self, protein_pdb, ligand_fd, protein_ad4_fd, docking_box, name = None):
         """
         Initialize autodock4 with a protein and a docking box
 
         @param protein_pdb: str, path to the protein pdb file
-        @param ligand_fd: str, path to the folder that stores all ligands.
+        @param ligand_fd: str, path to the folder that stores all ligands
         @param protein_ad4_fd: str, path to the autodock4 prepared protein folder
         @param docking_box: (xmin, ymin, zmin, xmax, ymax, zmax), the docking box definition
         @param name: str or none, name of the protein 
@@ -94,7 +94,7 @@ class AD4Docking(AutoDockBaseDocking):
         @param docking_box: (xmin, ymin, zmin, xmax, ymax, zmax), the docking box definition
         @param spacing: float, spacing of the protein grid, default 0.375 angstroms
 
-        @return: path, filepath to the successfully written gpf
+        @return: True, when the run is successful
         """
         # convert the box information into gpf-required information
         xmin, ymin, zmin, xmax, ymax, zmax = self.docking_box
@@ -138,17 +138,18 @@ class AD4Docking(AutoDockBaseDocking):
     
     def run_autogrid4(self):
         """
-        running autogrid4 to generate calculated grid based on the gpf file.
+        running autogrid4 to generate calculated grid based on the gpf file
 
         @param gpf_path: path, path to the gpf file for grid generation
 
-        @return fld_path: path, path to the prepared protein file for AD4. 
+        @return True when the run is successful
         """
         try:
             out = subprocess.run([autogrid_path, '-p', self.gpf_path])
         except subprocess.CalledProcessError as e:
             return e.output
         
+        # find the maps.fld file for autodock4
         fld_file = self.grid_path / "{}.maps.fld".format(self.protein_name)
         if fld_file.is_file():
             self.fld_file = fld_file
