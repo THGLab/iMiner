@@ -12,23 +12,28 @@ import os
 import re
 import subprocess
 
+autogrid_path = '/global/home/groups/co_armada2/local/ADFRsuite/bin/autogrid4'
+
 class AD4Docking(AutoDockBaseDocking):
     """
     Run AutoDock4 with predefined binding pocket for ligands.
     """
-    def __init__(self, protein_pdb, protein_pdbqt, docking_box):
+    def __init__(self, protein_pdb, protein_ad4_fd, docking_box):
         """
         Initialize autodock4 with a protein and a docking box
 
         @param protein_pdb: str, path to the protein pdb file
-        @param protein_pdbqt: str, path to the protein pdbqt file
+        @param protein_ad4_fd: str, path to the autodock4 prepared protein folder
         @param docking_box: (xmin, ymin, zmin, xmax, ymax, zmax), the docking box definition
         """
         super().__init__(protein_pdb, docking_box)
-        self.convert_pdb_to_pdbqt(protein_pdb, protein_pdbqt)
-        
-        self.ad4dir = os.path.join(self.protein_folder, "{}-ad4".format(self.protein_name))
-        os.makedirs(self.ad4dir, exist_ok = True)
+        self.ad4dir = Path(protein_ad4_fd)
+        if self.ad4dir.exists() and self.ad4dir.is_dir():
+            shutil.rmtree(self.ad4dir)  
+        self.ad4dir.mkdir(parent = True, exist_ok = True)
+        self.protein_name = Path(protein_pdb).resolve().stem
+        self.protein_path = os.path.join(self.ad4dir, "{}.pdbqt".format(self.protein_name))
+        self.convert_pdb_to_pdbqt(protein_pdb, self.protein_path)
         self.docking_box = docking_box
 
     def write_gpf_file(self, spacing = 0.375):
