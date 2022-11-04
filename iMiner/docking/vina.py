@@ -72,6 +72,9 @@ class VinaDocking(AutoDockBaseDocking):
         # First make sure output_dir exists
         os.makedirs(output_dir, exist_ok = True)
 
+        # convert output_dir to Path object
+        output_dir = Path(output_dir)
+
         for ligand in ligands:
             ligand_name = Path(ligand).stem
             ligand_work_name = ligand_name + "_" + timestamp(hashed=True)
@@ -102,7 +105,7 @@ class VinaDocking(AutoDockBaseDocking):
                     while os.path.exists(output_dir / f"{ligand_name}_{i}.sdf"):
                         i += 1
                     ligand_name = f"{ligand_name}_{i}"
-                self.convert_pdbqt_to_sdf(self.working_path / "{}_out.pdbqt".format(ligand_work_name),
+                self.convert_adresult_to_sdf(self.working_path / "{}_out.pdbqt".format(ligand_work_name),
                         output_dir / "{}.sdf".format(ligand_name))
                 ligand_conformation_paths.append(str(output_dir / "{}.sdf".format(ligand_name)))
             else:
@@ -199,7 +202,7 @@ class VinaGPUDocking(AutoDockBaseDocking):
                     while os.path.exists(output_dir / f"{ligand_name}_{i}.sdf"):
                         i += 1
                     ligand_name = f"{ligand_name}_{i}"
-                self.convert_pdbqt_to_sdf(self.working_path / "{}_out.pdbqt".format(ligand_work_name),
+                self.convert_adresult_to_sdf(self.working_path / "{}_out.pdbqt".format(ligand_work_name),
                         output_dir / "{}.sdf".format(ligand_name))
                 ligand_conformation_paths.append(str(output_dir / "{}.sdf".format(ligand_name)))
             else:
