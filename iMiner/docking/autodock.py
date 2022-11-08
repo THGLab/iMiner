@@ -94,5 +94,3 @@ class AutoDockBaseDocking(BaseDocking):
             return e.output
         
         return True
-
-    
