@@ -73,6 +73,7 @@ class AD4Docking(AutoDockBaseDocking):
         self.result_path.mkdir(parents=True)
         self.best_pose_path = self.ad4dir / "best-pose"
         self.best_pose_path.mkdir(parents=True)
+        self.ligand_name_smile_dict = {}
 
         # define name and convert pdb to pdbqt
         if name == None:
@@ -89,6 +90,7 @@ class AD4Docking(AutoDockBaseDocking):
                 ligand_name = ligand_input.stem
                 ligand_output = self.ligands_path / "{}.pdbqt".format(ligand_name)
                 self.convert_sdf_to_pdbqt(ligand_input, ligand_output)
+                self.ligand_name_smile_dict[ligand_name] = self.convert_sdf_to_smiles(str(ligand_input))
         
         # docking box information
         self.docking_box = docking_box
@@ -208,15 +210,16 @@ class AD4Docking(AutoDockBaseDocking):
         
         return True
     
-    def dlg_analysis_rmsd(self, dlg_file):
+    def dlg_analysis(self, dlg_file):
         """
-        Take in a dlg filepath and return a rmsd dataframe with x, y, z center of the ligand
+        Take in a dlg filepath and return necessary information for the best docked pose
 
         @param dlg_file: str or path, path to the dlg file from running autodock4
 
-        @return dataframe that carries information for all poses of a single ligand
+        @return a row of dataframe that has information of the best pose of a ligand
         """
-        ligand_name = dlg_file.stem
+        ligand_name = Path(dlg_file).stem
+        smile = self.ligand_name_smile_dict[ligand_name]
         with open(dlg_file, "r") as f:
             file = f.read()
         
@@ -229,47 +232,25 @@ class AD4Docking(AutoDockBaseDocking):
                         "y","z", "vdw", "Electrostatic", "q", "Type"]
         rmsd_table = file.split(rmsd_pattern)[-1].split("\n")[:-4]
         
-        # write out the rmsd dataframe for further analysis
+        # write out the rmsd dataframe and extract lowest energy run
         with open("rmsd_table.txt","w") as f:
             f.write("\n".join(rmsd_table))
         rmsd_df = pd.read_csv("rmsd_table.txt", sep='\s+', \
                             names = rmsd_columns, engine = 'python')
         os.remove("rmsd_table.txt")
-        rmsd_df['center_x'] = 0
-        rmsd_df['center_y'] = 0
-        rmsd_df['center_z'] = 0
-        
-        # generate pdbqt files & calculate center x,y,z coordinates for docked poses
-        docked_lst = file.split\
-        ("    FINAL DOCKED STATE:\n    ________________________")[1:]
-        
-        for pose in docked_lst:
-            coordinates = re.findall\
-            ("DOCKED: MODEL[\s\S]+DOCKED: TER", pose)[0].split("\n")
-            num_run = int(re.findall("Run = (\d+)", pose)[0])
-            mol_coor = [i[12:] for i in coordinates if "DOCKED: ATOM" in i]
-            
-            # calculate the geometric average center of the molecule
-            with open("mol_coor.txt", "w") as f:
-                f.write("\n".join(mol_coor))
-            coor = pd.read_csv("mol_coor.txt", sep = '\s+', \
-                        engine = 'python', index_col = 0, names = coor_columns)
-            os.remove("mol_coor.txt")
-            
-            center = coor[['x', 'y', 'z']].mean()
-            rmsd_df.loc[rmsd_df['Run'] == num_run, 'center_x'] = center['x']
-            rmsd_df.loc[rmsd_df['Run'] == num_run, 'center_y'] = center['y']
-            rmsd_df.loc[rmsd_df['Run'] == num_run, 'center_z'] = center['z']
-            
-            # write out the all docked poses of the ligand
-            all_ligands = self.result_path / ligand_name
-            all_ligands.mkdir(exist_ok=True, parents=True)
-            path = all_ligands / "docked_{}.pdbqt".format(num_run)
-            pdbqt = [i[8:] for i in coordinates]
-            with open(path, "w") as f:
-                f.write("\n".join(pdbqt))
+        best_score = rmsd_df.set_index('Run')['Binding Energy'].min()
+        num_run = rmsd_df.set_index('Run')['Binding Energy'].idxmin()
+
+        # convert the output file to sdf and extract the pose from the best run
+        converted_sdf = self.result_path / "{}.sdf".format(ligand_name)
+        self.convert_adresult_to_sdf(dlg_file, converted_sdf)
+        with open(converted_sdf, "r") as f:
+            all_sdf = f.read().split("$$$$\n")
+        ligand_best_pose = self.best_pose_path / "{}-best-pose.sdf".format(ligand_name)
+        with open(ligand_best_pose, "w") as f1:
+            f1.write(all_sdf[num_run-1])
     
-        return rmsd_df
+        return [ligand_name, smile, best_score, ligand_best_pose]
 
     def ad4result_analysis(self, spacing = 0.375, nrun = 200):
         """
@@ -285,13 +266,6 @@ class AD4Docking(AutoDockBaseDocking):
         analysis_df = pd.DataFrame(columns=['Index', 'Smile', 'Best Energy', 'Path to Best Pose'])
         for file in os.listdir(self.result_path):
             if file.endswith(".dlg"):
-                ligand_name = Path(file).stem
-                df = self.dlg_analysis_rmsd(self.result_path / file)
-                run = df.set_index('Run')['Binding Energy'].idxmin()
-                best_pose_path = self.best_pose_path / "{}-best-pose.pdbqt".format(ligand_name)
-                shutil.copyfile(self.result_path / ligand_name/ 'docked_{}.pdbqt'.format(run), best_pose_path)
-                shutil.rmtree(self.result_path / ligand_name)
-                best_score = df['Binding Energy'].min()
-                analysis_df.loc[len(analysis_df.index)] = [ligand_name, '', best_score, best_pose_path]
+                analysis_df.loc[len(analysis_df.index)] = self.dlg_analysis(self.result_path / file)
         
         return analysis_df
