@@ -119,8 +119,8 @@ class VinaDocking(AutoDockBaseDocking):
                 ligand_conformation_paths.append(None)
         
         # generate the final pandas dataframe and return
-        df = pd.DataFrame({"smiles": ligand_smiles, "score": ligand_scores, "path": ligand_conformation_paths})
-        df["index"] = df.index
+        df = pd.DataFrame({"original_names": ligands, "smiles": ligand_smiles,
+             "score": ligand_scores, "path": ligand_conformation_paths})
         return df
             
 

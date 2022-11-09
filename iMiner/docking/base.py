@@ -32,7 +32,7 @@ class BaseDocking:
         :param output_dir: str, path to the output directory
         :param single_job_timeout: int, timeout for each job in seconds
 
-        :return: pd.DataFrame with columns ["index", "smiles", "score", "path"], path is the path to the docked conformation
+        :return: pd.DataFrame with columns ["original_name", "smiles", "score", "path"], path is the path to the docked conformation
         '''
         raise NotImplementedError()
 
@@ -45,14 +45,13 @@ class BaseDocking:
         :param n_jobs: int, number of jobs to run in parallel
         :param single_job_timeout: int, timeout for each job in seconds
 
-        :return: pd.DataFrame with columns ["index", "smiles", "score", "path"], path is the path to the docked conformation
+        :return: pd.DataFrame with columns ["original_name", "smiles", "score", "path"], path is the path to the docked conformation
         '''
         pool = multiprocessing.Pool(n_jobs)
         zipped_args = zip(ligands, [output_dir] * len(ligands), [single_job_timeout] * len(ligands))
         results = pool.starmap(self.dock, zipped_args)
         final_results = pd.concat(results)
         final_results.reset_index(inplace=True)
-        final_results["index"] = final_results.index
         return final_results
         
 
