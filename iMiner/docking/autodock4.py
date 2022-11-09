@@ -125,8 +125,8 @@ class AD4Docking(AutoDockBaseDocking):
 
         # fill in the necessary information
         gpf_final = gpf.replace('RECTYPES',   rectypes)
-        gpf_final = gpf_final.replace('PREFIX',     str(self.grid_path/self.protein_name))
-        gpf_final = gpf_final.replace('REC',        str(self.protein_path))
+        gpf_final = gpf_final.replace('PREFIX',     str(self.protein_name))
+        gpf_final = gpf_final.replace('REC',         "{}.pdbqt".format(self.protein_name))
         gpf_final = gpf_final.replace('NPTS_X',     '%d' % npts_x)
         gpf_final = gpf_final.replace('NPTS_Y',     '%d' % npts_y)
         gpf_final = gpf_final.replace('NPTS_Z',     '%d' % npts_z)
@@ -149,11 +149,13 @@ class AD4Docking(AutoDockBaseDocking):
 
         @return: file path to the fld file, when the run is successful
         """
-        try:
-            out = subprocess.run([autogrid_path, '-p', gpf_file])
-        except subprocess.CalledProcessError as e:
-            return e.output
-
+        with set_directory(self.grid_path):
+            try:
+                out = subprocess.run([autogrid_path, '-p', gpf_file], stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT)
+            except subprocess.CalledProcessError as e:
+                return e.output
+    
         # find the maps.fld file for autodock4
         fld_file = list(self.grid_path.glob('*.maps.fld'))[0]
         return fld_file
@@ -199,7 +201,8 @@ class AD4Docking(AutoDockBaseDocking):
 
         try:
             out = subprocess.run([ad4gpu_path, '--filelist', batch_file,\
-                "--nrun", str(nrun), "-x", "0"])
+                "--nrun", str(nrun), "-x", "0"], stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             return e.output
         
