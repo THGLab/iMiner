@@ -48,6 +48,7 @@ class BaseDocking:
         :return: pd.DataFrame with columns ["original_name", "smiles", "score", "path"], path is the path to the docked conformation
         '''
         pool = multiprocessing.Pool(n_jobs)
+        ligands = [[ligand] for ligand in ligands]
         zipped_args = zip(ligands, [output_dir] * len(ligands), [single_job_timeout] * len(ligands))
         results = pool.starmap(self.dock, zipped_args)
         final_results = pd.concat(results)
