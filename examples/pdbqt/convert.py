@@ -6,7 +6,7 @@ import os, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from iMiner.md.prep.ligand import LigandPDBQT
+from iMiner.docking.autodock import LigandPDBQT
 
 
 def convert_pdbqt_to_sdf(template_sdf, template_pdbqt, input_pdbqt, output_sdf):
