@@ -7,6 +7,8 @@ This file defines the BaseDocking class with interfaces to be realized by differ
 
 from pathlib import Path
 from rdkit import Chem
+import multiprocessing
+import pandas as pd
 
 class BaseDocking:
     def __init__(self, protein_pdb, docking_box, temp_path=None, **kwargs) -> None:
@@ -45,7 +47,13 @@ class BaseDocking:
 
         :return: pd.DataFrame with columns ["index", "smiles", "score", "path"], path is the path to the docked conformation
         '''
-        raise NotImplementedError()
+        pool = multiprocessing.Pool(n_jobs)
+        zipped_args = zip(ligands, [output_dir] * len(ligands), [single_job_timeout] * len(ligands))
+        results = pool.starmap(self.dock, zipped_args)
+        final_results = pd.concat(results)
+        final_results.reset_index(inplace=True)
+        final_results["index"] = final_results.index
+        return final_results
         
 
     def rescore(self, ligands):
