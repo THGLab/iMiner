@@ -22,16 +22,31 @@ class BaseDocking:
         self.protein_name = self.protein_path.stem
 
 
-    def dock(self, ligands, output_dir):
+    def dock(self, ligands, output_dir, single_job_timeout=120):
         '''
         Dock a list of ligands to the pocket in the protein
 
         :param ligands: list of ligands, each ligand is a path to the corresponding .sdf file
         :param output_dir: str, path to the output directory
+        :param single_job_timeout: int, timeout for each job in seconds
 
         :return: pd.DataFrame with columns ["index", "smiles", "score", "path"], path is the path to the docked conformation
         '''
-        pass
+        raise NotImplementedError()
+
+    def dock_parallel(self, ligands, output_dir, n_jobs=1, single_job_timeout=120):
+        '''
+        Dock a list of ligands to the pocket in the protein in parallel
+
+        :param ligands: list of ligands, each ligand is a path to the corresponding .sdf file
+        :param output_dir: str, path to the output directory
+        :param n_jobs: int, number of jobs to run in parallel
+        :param single_job_timeout: int, timeout for each job in seconds
+
+        :return: pd.DataFrame with columns ["index", "smiles", "score", "path"], path is the path to the docked conformation
+        '''
+        raise NotImplementedError()
+        
 
     def rescore(self, ligands):
         '''

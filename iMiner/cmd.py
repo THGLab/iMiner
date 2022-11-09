@@ -79,6 +79,7 @@ def run_command(
     cmd: Union[List[str], str],
     raise_error: bool = True,
     input: Optional[str] = None,
+    timeout: Optional[int] = None,
     **kwargs,
 ) -> Tuple[int, str, str]:
     """
@@ -92,6 +93,8 @@ def run_command(
         Wheter to raise an error if the command failed
     input: str, optional
         Input string for the command
+    timeout: int, optional
+        Timeout for the command
     **kwargs:
         Arguments in subprocess.Popen
     
@@ -123,8 +126,13 @@ def run_command(
     )
     if input is not None:
         sub.stdin.write(bytes(input, encoding=sys.stdin.encoding))
-    out, err = sub.communicate()
-    return_code = sub.poll()
+    try:
+        out, err = sub.communicate(timeout=timeout)
+        return_code = sub.poll()
+    except subprocess.TimeoutExpired:
+        sub.kill()
+        print("Command %s timeout after %d seconds" % (cmd, timeout))
+        return 999, "", ""  # 999 is a special return code for timeout
     out = out.decode(sys.stdin.encoding)
     err = err.decode(sys.stdin.encoding)
     if raise_error and return_code != 0:

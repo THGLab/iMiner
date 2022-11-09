@@ -57,12 +57,13 @@ class VinaDocking(AutoDockBaseDocking):
         with open(config_fp, "w") as f:
             f.write("\n".join(lines))
 
-    def dock(self, ligands, output_dir):
+    def dock(self, ligands, output_dir, single_job_timeout=None):
         '''
         Run actual Autodock Vina docking
 
         :param ligands: list of ligands, each ligand is a path (str or os.PathLike) to the corresponding .sdf file
         :param output_dir: str, path to the output directory where sdf files for the docked conformations will be saved
+        :param single_job_timeout: int, timeout for each docking job in seconds. When it is None, no timeout will be set
         '''
         # prepare lists to record results
         ligand_smiles = []
@@ -86,7 +87,13 @@ class VinaDocking(AutoDockBaseDocking):
             with set_directory(self.working_path):
                 cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt " + \
                     f"--out {ligand_work_name}_out.pdbqt --log {ligand_work_name}_log.txt"
-                code, out, err = run_command(cmd)
+                code, out, err = run_command(cmd, timeout=single_job_timeout)
+
+            # special handling if calculation job times out
+            if code == 999:
+                ligand_scores.append(np.nan)
+                ligand_conformation_paths.append("calculation timed out!")
+                continue
 
             # obtain docking score from the results
             energy = np.nan
