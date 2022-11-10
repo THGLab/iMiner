@@ -48,12 +48,11 @@ class AD4Docking(AutoDockBaseDocking):
     """
     Run AutoDock4 with predefined binding pocket for ligands
     """
-    def __init__(self, protein_pdb, ligand_fd, protein_ad4_fd, docking_box, name = None):
+    def __init__(self, protein_pdb, protein_ad4_fd, docking_box, name = None):
         """
         Initialize autodock4 with a protein and a docking box
 
         @param protein_pdb: str, path to the protein pdb file
-        @param ligand_fd: str, path to the folder that stores all ligands
         @param protein_ad4_fd: str, path to the autodock4 prepared protein folder
         @param docking_box: (xmin, ymin, zmin, xmax, ymax, zmax), the docking box definition
         @param name: str or None, name of the protein 
@@ -71,8 +70,6 @@ class AD4Docking(AutoDockBaseDocking):
         self.grid_path.mkdir(parents=True)
         self.result_path = self.ad4dir / "result"
         self.result_path.mkdir(parents=True)
-        self.best_pose_path = self.ad4dir / "best-pose"
-        self.best_pose_path.mkdir(parents=True)
         self.ligand_name_smile_dict = {}
 
         # define name and convert pdb to pdbqt
@@ -82,15 +79,6 @@ class AD4Docking(AutoDockBaseDocking):
             self.protein_name = name
         self.protein_path = self.grid_path / "{}.pdbqt".format(self.protein_name)
         self.convert_pdb_to_pdbqt(protein_pdb, self.protein_path)
-
-        # convert ligands into their pdbqts
-        for file in os.listdir(ligand_fd):
-            if file.endswith(".sdf"):
-                ligand_input = Path(ligand_fd) / file
-                ligand_name = ligand_input.stem
-                ligand_output = self.ligands_path / "{}.pdbqt".format(ligand_name)
-                self.convert_sdf_to_pdbqt(ligand_input, ligand_output)
-                self.ligand_name_smile_dict[ligand_name] = self.convert_sdf_to_smiles(str(ligand_input))
         
         # docking box information
         self.docking_box = docking_box
@@ -210,7 +198,7 @@ class AD4Docking(AutoDockBaseDocking):
         
         return True
     
-    def dlg_analysis(self, dlg_file):
+    def dlg_analysis(self, dlg_file, output_dir):
         """
         Take in a dlg filepath and return necessary information for the best docked pose
 
@@ -228,8 +216,6 @@ class AD4Docking(AutoDockBaseDocking):
         "_____|______|______|___________|_________|_________________|___________\n"
         rmsd_columns = ["Rank","Sub-Rank", "Run", "Binding Energy", \
                         "Cluster RMSD","Reference RMSD", "Grep Pattern"]
-        coor_columns = ["Atom","Ligand Name", "Num", "x", \
-                        "y","z", "vdw", "Electrostatic", "q", "Type"]
         rmsd_table = file.split(rmsd_pattern)[-1].split("\n")[:-4]
         
         # write out the rmsd dataframe and extract lowest energy run
@@ -246,26 +232,39 @@ class AD4Docking(AutoDockBaseDocking):
         self.convert_adresult_to_sdf(dlg_file, converted_sdf)
         with open(converted_sdf, "r") as f:
             all_sdf = f.read().split("$$$$\n")
-        ligand_best_pose = self.best_pose_path / "{}-best-pose.sdf".format(ligand_name)
+        ligand_best_pose = output_dir / "{}-best-pose.sdf".format(ligand_name)
         with open(ligand_best_pose, "w") as f1:
             f1.write(all_sdf[num_run-1])
     
         return [ligand_name, smile, best_score, ligand_best_pose]
 
-    def ad4result_analysis(self, spacing = 0.375, nrun = 200):
+    def dock(self, ligands, output_dir, single_job_timeout=120, spacing = 0.375, nrun = 200):
         """
         All-together function that runs autodock and generate a pandas
         dataframe with necessary information for further analysis
 
+        @param ligands: list of ligands, each ligand is a path to the corresponding .sdf file
+        @param output_dir: str, path to the output directory
+        @param single_job_timeout: int, timeout for each job in seconds
         @param spacing: grid space for autodock4, default = 0.375
         @param nrun: number of runs for each ligand, default = 200
         
         @return: dataframe that has necessary information of ad4result.
         """
+        # convert ligands into their pdbqts
+        for file in ligands:
+            ligand_input = Path(file)
+            ligand_name = ligand_input.stem
+            ligand_output = self.ligands_path / "{}.pdbqt".format(ligand_name)
+            self.convert_sdf_to_pdbqt(ligand_input, ligand_output)
+            self.ligand_name_smile_dict[ligand_name] = self.convert_sdf_to_smiles(str(ligand_input))
+        
         self.run_autodock(spacing = spacing, nrun = nrun)
+
         analysis_df = pd.DataFrame(columns=['Index', 'Smile', 'Best Energy', 'Path to Best Pose'])
         for file in os.listdir(self.result_path):
             if file.endswith(".dlg"):
-                analysis_df.loc[len(analysis_df.index)] = self.dlg_analysis(self.result_path / file)
+                analysis_df.loc[len(analysis_df.index)] = \
+                    self.dlg_analysis(self.result_path / file, output_dir)
         
         return analysis_df
