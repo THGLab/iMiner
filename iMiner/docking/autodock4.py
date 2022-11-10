@@ -232,6 +232,9 @@ class AD4Docking(AutoDockBaseDocking):
         self.convert_adresult_to_sdf(dlg_file, converted_sdf)
         with open(converted_sdf, "r") as f:
             all_sdf = f.read().split("$$$$\n")
+        output_dir = Path(output_dir).resolve()
+        if not output_dir.is_dir():
+            output_dir.mkdir(parents=True)
         ligand_best_pose = output_dir / "{}-best-pose.sdf".format(ligand_name)
         with open(ligand_best_pose, "w") as f1:
             f1.write(all_sdf[num_run-1])
