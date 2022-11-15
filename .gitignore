@@ -139,6 +139,7 @@ examples/helicase/*/
 
 # local data
 local/
+zikv_pro/
 
 # vscode
 .vscode/
