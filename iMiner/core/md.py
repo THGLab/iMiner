@@ -16,7 +16,9 @@ from iMiner.md.prep.ligand import run_acpype
 from iMiner.md.prep.protein import run_tleap
 from iMiner.md.prep.complex import make_complex
 from iMiner.md.runner.gromacs import run_preprocess_workflow, run_md_workflow
-from iMiner.log import LOGGER
+from iMiner.log import init_logger
+
+LOGGER = init_logger("iMiner.log")
 
 
 class MDProject(BaseProject):

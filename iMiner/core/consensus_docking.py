@@ -47,7 +47,7 @@ class ConsensusDocking(BaseProject):
         results_df = []
         for protocol in self.docking_protocols:
             if self.verbose:
-                print(f"Start docking with {protocol}...")
+                self.logger.info(f"Start docking with {protocol}...")
             docking_obj = self.docking_protocols[protocol](self.proteins[protein_name],
                                                            self.binding_sites[protein_name],
                                                            self.temp_path, **kwargs)
@@ -65,3 +65,6 @@ class ConsensusDocking(BaseProject):
         if output_csv is None:
             output_csv = consensus_docking_path / f"{protein_name}_consensus_docking_results.csv"
         final_results.to_csv(output_csv, index=False)
+
+        if self.verbose:
+            self.logger.info(f"Consensus docking completed! Results saved to {output_csv}")
