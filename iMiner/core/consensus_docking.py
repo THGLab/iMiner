@@ -18,7 +18,7 @@ docking_protocol_map = {
 }
 
 class ConsensusDocking(BaseProject):
-    def __init__(self, project_name, project_path=None, docking_protocols=None) -> None:
+    def __init__(self, project_name, project_path=None, docking_protocols=None, verbose=True) -> None:
         '''
         Initialize a project with a project name and a project path
 
@@ -26,8 +26,9 @@ class ConsensusDocking(BaseProject):
         using the project_name as the project folder name
 
         :param docking_protocols: list of docking protocols to be used for consensus docking, list of ["vina", "vina-gpu", "ad4", "icm"]
+        :param verbose: bool, whether to show and log processing messages
         '''
-        super().__init__(project_name, project_path)
+        super().__init__(project_name, project_path, verbose)
         self.docking_protocols = {protocol_name: docking_protocol_map[protocol_name] for protocol_name in docking_protocols}
 
     def run_consensus_docking(self, protein_name=None, output_csv=None, **kwargs):
@@ -45,6 +46,8 @@ class ConsensusDocking(BaseProject):
 
         results_df = []
         for protocol in self.docking_protocols:
+            if self.verbose:
+                print(f"Start docking with {protocol}...")
             docking_obj = self.docking_protocols[protocol](self.proteins[protein_name],
                                                            self.binding_sites[protein_name],
                                                            self.temp_path, **kwargs)

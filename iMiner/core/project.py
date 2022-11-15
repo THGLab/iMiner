@@ -11,12 +11,12 @@ import shutil
 from pathlib import Path
 from collections import OrderedDict
 from typing import Optional
-
+from iMiner.log import init_logger
 from rdkit.Chem import MolFromSmiles, AddHs, AllChem, SDWriter
 
 
 class BaseProject:
-    def __init__(self, project_name: str, project_path: Optional[os.PathLike] = None) -> None:
+    def __init__(self, project_name: str, project_path: Optional[os.PathLike] = None, verbose = True) -> None:
         '''
         Initialize a project with a project name and a project path
 
@@ -48,6 +48,12 @@ class BaseProject:
         # provide a cache for processed protein pdb files (in case multiple binding sites are defined for the same protein)
         self._protein_processed_cache = set()
 
+        # setup log file when verbose is True
+        self.verbose = verbose
+        if self.verbose:
+            log_name = self.project_path / "log.txt"
+            self.logger = init_logger(log_name)
+
     def add_protein(self, protein_file_path, name=None, preprocess=False, binding_site=None):
         '''
         Add a protein with corresponding binding site definition to the project
@@ -69,6 +75,8 @@ class BaseProject:
         else:
             shutil.copyfile(protein_file_path, protein_path)
         self.proteins[name] = protein_path
+        if self.verbose:
+            self.logger.info(f"Added protein {name} to the project. Current number of proteins: {len(self.proteins.items())}")
 
     def add_ligand(self, smiles_or_path, name=None, format='inferred'):
         '''
@@ -122,6 +130,9 @@ class BaseProject:
             names = [str(i) for i in range(len(smiles_or_paths))]
         for smiles_or_path, name in zip(smiles_or_paths, names):
             self.add_ligand(smiles_or_path, name, format)
+
+        if self.verbose:
+            self.logger.info(f"Added {len(smiles_or_paths)} ligands to the project. Current number of ligands: {len(self.ligands.items())}")
     
     def get_ligand_with_name(self, name) -> Path:
         """
