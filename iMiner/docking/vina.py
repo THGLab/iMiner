@@ -46,9 +46,9 @@ class VinaDocking(AutoDockBaseDocking):
                  "center_y = {}".format((self.docking_box[1] + self.docking_box[4]) / 2),
                  "center_z = {}".format((self.docking_box[2] + self.docking_box[5]) / 2),
                  "",
-                 "size_x = {}".format(self.docking_box[3] - self.docking_box[0]),
-                 "size_y = {}".format(self.docking_box[4] - self.docking_box[1]),
-                 "size_z = {}".format(self.docking_box[5] - self.docking_box[2]),
+                 "size_x = {}".format(2*int((self.docking_box[3] - self.docking_box[0])/0.75)),
+                 "size_y = {}".format(2*int((self.docking_box[4] - self.docking_box[1])/0.75)),
+                 "size_z = {}".format(2*int((self.docking_box[5] - self.docking_box[2])/0.75)),
                  "",
                  "exhaustiveness = {}".format(exhaustiveness),   
                  "num_modes = {}".format(num_modes),
@@ -86,7 +86,7 @@ class VinaDocking(AutoDockBaseDocking):
             # execute vina docking under the working directory
             with set_directory(self.working_path):
                 cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt " + \
-                    f"--out {ligand_work_name}_out.pdbqt --log {ligand_work_name}_log.txt"
+                    f"--out {ligand_work_name}_out.pdbqt"
                 code, out, err = run_command(cmd, timeout=single_job_timeout)
 
             # special handling if calculation job times out
@@ -188,8 +188,8 @@ class VinaGPUDocking(AutoDockBaseDocking):
 
             # execute vina docking under the working directory
             with set_directory(self.working_path):
-                cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt " + \
-                    "--out {ligand_work_name}_out.pdbqt --log {ligand_work_name}_log.txt"
+                cmd = f"{VINA_GPU_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt " + \
+                    "--out {ligand_work_name}_out.pdbqt"
                 code, out, err = run_command(cmd)
 
             # obtain docking score from the results
