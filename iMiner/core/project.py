@@ -36,7 +36,7 @@ class BaseProject:
         self.proteins_path.mkdir(exist_ok=True, parents=True)
 
         # prepare temp path
-        self.temp_path = self.project_path / 'tmp'
+        self.temp_path = Path('/tmp') / project_name
         self.temp_path.mkdir(exist_ok=True, parents=True)
 
         # prepare protein (with binding sites) mapping dicts that map names to the corresponding file paths

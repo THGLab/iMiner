@@ -57,4 +57,8 @@ class ConsensusDocking(BaseProject):
             results_df.append(results)
 
         final_results = pd.concat(results_df)
+
+        # when output_csv is not specified, auto-generate one using the protein_name
+        if output_csv is None:
+            output_csv = consensus_docking_path / f"{protein_name}_consensus_docking_results.csv"
         final_results.to_csv(output_csv, index=False)
