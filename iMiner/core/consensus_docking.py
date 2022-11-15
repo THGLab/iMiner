@@ -51,7 +51,7 @@ class ConsensusDocking(BaseProject):
             docking_path = consensus_docking_path / protocol
             docking_path.mkdir(exist_ok=True, parents=True)
             ligand_names = self.ligands.keys()
-            results = docking_obj.dock_parallel(self, self.ligands.values(), docking_path, **kwargs)
+            results = docking_obj.dock_parallel(self.ligands.values(), docking_path, **kwargs)
             results["ligand_names"] = ligand_names
             results["protocol"] = protocol
             results_df.append(results)
