@@ -106,6 +106,22 @@ class BaseProject:
             self._process_pdb(smiles_or_path, ligand_path)
         
         self.ligands[name] = ligand_path
+
+    def add_multiple_ligands(self, smiles_or_paths, names=None, format='inferred'):
+        '''
+        Add multiple ligands to the project
+
+        :param smiles_or_paths: A list of smiles strings or paths to the ligand files
+        :param names: A list of names for the ligands. When None, the ligands will be named with their index in the list
+        :param format: One of ['inferred', 'smiles', 'sdf', 'pdb']. If format is 'inferred', the format will be inferred from the file extension
+        :type smiles_or_paths: list
+        :type names: list
+        :type format: str
+        '''
+        if names is None:
+            names = [str(i) for i in range(len(smiles_or_paths))]
+        for smiles_or_path, name in zip(smiles_or_paths, names):
+            self.add_ligand(smiles_or_path, name, format)
     
     def get_ligand_with_name(self, name) -> Path:
         """

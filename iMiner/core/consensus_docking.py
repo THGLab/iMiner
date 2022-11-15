@@ -6,6 +6,16 @@ A consensus docking module for iMiner
 '''
 
 from iMiner.core.project import BaseProject
+from iMiner.docking import *
+import pandas as pd
+
+
+docking_protocol_map = {
+    "ad4": AD4Docking,
+    "vina": VinaDocking,
+    "vina-gpu": VinaGPUDocking,
+    "icm": ICMDocking
+}
 
 class ConsensusDocking(BaseProject):
     def __init__(self, project_name, project_path=None, docking_protocols=None) -> None:
@@ -18,3 +28,33 @@ class ConsensusDocking(BaseProject):
         :param docking_protocols: list of docking protocols to be used for consensus docking, list of ["vina", "vina-gpu", "ad4", "icm"]
         '''
         super().__init__(project_name, project_path)
+        self.docking_protocols = {protocol_name: docking_protocol_map[protocol_name]() for protocol_name in docking_protocols}
+
+    def run_consensus_docking(self, protein_name=None, output_csv=None, **kwargs):
+        '''
+        Run consensus docking for all ligands in the project into the given protein, using different docking protocols
+
+        :param protein_name: str, name of the protein to dock into
+        :param output_csv: str, path to the output csv file
+        '''
+        # get protein name
+        if protein_name is None:
+            assert len(self.proteins) == 1, "Please specify the protein name if there are multiple proteins in the project!"
+            protein_name = list(self.proteins.keys())[0]
+        consensus_docking_path = self.project_path / "consensus_docking" / protein_name
+
+        results_df = []
+        for protocol in self.docking_protocols:
+            docking_obj = self.docking_protocols[protocol](self.proteins[protein_name],
+                                                           self.binding_sites[protein_name],
+                                                           self.temp_path, **kwargs)
+            docking_path = consensus_docking_path / protocol
+            docking_path.mkdir(exist_ok=True, parents=True)
+            ligand_names = self.ligands.keys()
+            results = docking_obj.dock_parallel(self, self.ligands.values(), docking_path, **kwargs)
+            results["ligand_names"] = ligand_names
+            results["protocol"] = protocol
+            results_df.append(results)
+
+        final_results = pd.concat(results_df)
+        final_results.to_csv(output_csv, index=False)
