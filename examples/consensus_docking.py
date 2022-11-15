@@ -25,6 +25,6 @@ ligands = ["O=C(Nc1ccc2c(c1)N(C(=O)C1CCCC1)CC2)c1ccc2ccccc2n1",
 
 
 project = ConsensusDocking("test_consensus_docking", docking_protocols=["vina"])
-project.add_protein("./helicase/helicase-holo.pdb", "helicase_holo_structure", binding_site=binding_site))
+project.add_protein("./helicase/helicase-holo.pdb", "helicase_holo_structure", binding_site=binding_site)
 project.add_multiple_ligands(ligands)
 project.run_consensus_docking()

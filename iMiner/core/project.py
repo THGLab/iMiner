@@ -188,8 +188,8 @@ class BaseProject:
             raise RuntimeError('RDkit fails to embed molecule ' + smiles)
 
         # save the ligand file to the corresponding position
-        with SDWriter(save_path) as writer:
-            writer.write(mh)
+        writer = SDWriter(save_path)
+        writer.write(mh)
 
 
     def _process_pdb(self, pdb, save_path):

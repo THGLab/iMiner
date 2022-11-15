@@ -28,7 +28,7 @@ class ConsensusDocking(BaseProject):
         :param docking_protocols: list of docking protocols to be used for consensus docking, list of ["vina", "vina-gpu", "ad4", "icm"]
         '''
         super().__init__(project_name, project_path)
-        self.docking_protocols = {protocol_name: docking_protocol_map[protocol_name]() for protocol_name in docking_protocols}
+        self.docking_protocols = {protocol_name: docking_protocol_map[protocol_name] for protocol_name in docking_protocols}
 
     def run_consensus_docking(self, protein_name=None, output_csv=None, **kwargs):
         '''
