@@ -47,7 +47,8 @@ class ConsensusDocking(BaseProject):
         results_df = []
         for protocol in self.docking_protocols:
             if self.verbose:
-                self.logger.info(f"Start docking with {protocol}...")
+                n_cores = kwargs.get("n_jobs", 1)
+                self.logger.info(f"Start docking with {protocol} using {n_cores} cores...")
             docking_obj = self.docking_protocols[protocol](self.proteins[protein_name],
                                                            self.binding_sites[protein_name],
                                                            self.temp_path, **kwargs)
