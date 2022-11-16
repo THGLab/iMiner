@@ -59,7 +59,7 @@ class ConsensusDocking(BaseProject):
             results["protocol"] = protocol
             results_df.append(results)
 
-        final_results = pd.concat(results_df)
+        final_results = pd.concat(results_df)[["ligand_names", "score", "smiles", "protocol", "path", "original_names"]]
 
         # when output_csv is not specified, auto-generate one using the protein_name
         if output_csv is None:

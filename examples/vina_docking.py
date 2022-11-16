@@ -3,7 +3,7 @@ from iMiner.utils import box_from_center_and_size
 from pathlib import Path
 from glob import glob
 
-ligands = glob("./helicase/ligands/*.sdf")
+ligands = glob("./helicase/ligands/*.sdf")[:3]
 
 
 #box size in unit of Angstrom; 
@@ -12,4 +12,4 @@ ligands = glob("./helicase/ligands/*.sdf")
 docking = VinaDocking(protein_pdb="./helicase/helicase-holo.pdb", 
 docking_box=box_from_center_and_size(center=(-23, 18, -33), size=(30, 25,35)), temp_path=Path("/tmp"))
 
-print(docking.dock_parallel(ligands=ligands, output_dir="./docking", n_jobs=8))
+print(docking.dock(ligands=ligands, output_dir="./docking"))
