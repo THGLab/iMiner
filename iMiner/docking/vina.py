@@ -29,7 +29,7 @@ class VinaDocking(AutoDockBaseDocking):
 
         self.write_config(**kwargs)
 
-    def write_config(self, exhaustiveness=8, num_modes=1, energy_range=30):
+    def write_config(self, exhaustiveness=8, num_modes=1, energy_range=30, **kwargs):
         '''
         Write the config file for AutoDock Vina docking
 
@@ -217,7 +217,6 @@ class VinaGPUDocking(AutoDockBaseDocking):
         
         # generate the final pandas dataframe and return
         df = pd.DataFrame({"smiles": ligand_smiles, "score": ligand_scores, "path": ligand_conformation_paths})
-        df["index"] = df.index
         return df
 
 if __name__ == "__main__":
