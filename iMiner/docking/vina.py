@@ -87,12 +87,17 @@ class VinaDocking(AutoDockBaseDocking):
             with set_directory(self.working_path):
                 cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt " + \
                     f"--out {ligand_work_name}_out.pdbqt"
-                code, out, err = run_command(cmd, timeout=single_job_timeout)
+                code, out, err = run_command(cmd, timeout=single_job_timeout, raise_error=False)
 
             # special handling if calculation job times out
             if code == 999:
                 ligand_scores.append(np.nan)
                 ligand_conformation_paths.append("calculation timed out!")
+                continue
+
+            if code != 0:
+                ligand_scores.append(np.nan)
+                ligand_conformation_paths.append(err)
                 continue
 
             # obtain docking score from the results
