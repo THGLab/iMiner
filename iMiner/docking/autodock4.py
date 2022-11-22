@@ -48,7 +48,7 @@ class AD4Docking(AutoDockBaseDocking):
     """
     Run AutoDock4 with predefined binding pocket for ligands
     """
-    def __init__(self, protein_pdb, docking_box, protein_ad4_fd, name = None, **kwargs):
+    def __init__(self, protein_pdb, docking_box, temp_path = None, name = None, **kwargs):
         """
         Initialize autodock4 with a protein and a docking box
 
@@ -58,7 +58,14 @@ class AD4Docking(AutoDockBaseDocking):
         @param name: str or None, name of the protein 
         """
         super().__init__(protein_pdb, docking_box)
-        self.ad4dir = Path(protein_ad4_fd).resolve()
+
+        # define name and convert pdb to pdbqt
+        if name == None:
+            self.protein_name = Path(protein_pdb).resolve().stem
+        else:
+            self.protein_name = name
+        
+        self.ad4dir = Path(temp_path) / "{}-ad4".format(self.protein_name)
         if self.ad4dir.exists() and self.ad4dir.is_dir():
             shutil.rmtree(self.ad4dir)  
         self.ad4dir.mkdir(parents = True, exist_ok = True)
@@ -72,11 +79,6 @@ class AD4Docking(AutoDockBaseDocking):
         self.result_path.mkdir(parents=True)
         self.ligand_name_smile_dict = {}
 
-        # define name and convert pdb to pdbqt
-        if name == None:
-            self.protein_name = Path(protein_pdb).resolve().stem
-        else:
-            self.protein_name = name
         self.protein_path = self.grid_path / "{}.pdbqt".format(self.protein_name)
         self.convert_pdb_to_pdbqt(protein_pdb, self.protein_path)
         
@@ -125,8 +127,8 @@ class AD4Docking(AutoDockBaseDocking):
         gpf_final = gpf_final.replace('CENTER_Z',   '%.3f' % center_z)
     
         # write everything to a config gpf file for autogrid
-        gpf_file = self.grid_path / "{}.gpf".format(self.protein_name)
-        with open(gpf_file, "w") as f:
+        gpf_file = "{}.gpf".format(self.protein_name)
+        with open(self.grid_path / gpf_file, "w") as f:
             f.write(gpf_final)
 
         return gpf_file
@@ -142,7 +144,7 @@ class AD4Docking(AutoDockBaseDocking):
         with set_directory(self.grid_path):
             try:
                 out = subprocess.run([autogrid_path, '-p', gpf_file], stdout=subprocess.DEVNULL,
-                stderr=subprocess.STDOUT)
+                                     stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                 return e.output
     
@@ -239,7 +241,7 @@ class AD4Docking(AutoDockBaseDocking):
         with open(ligand_best_pose, "w") as f1:
             f1.write(all_sdf[num_run-1])
     
-        return [ligand_name, smile, best_score, ligand_best_pose]
+        return [smile, best_score, ligand_best_pose]
 
     def dock(self, ligands, output_dir, single_job_timeout=120, spacing = 0.375, nrun = 200):
         """
@@ -264,7 +266,7 @@ class AD4Docking(AutoDockBaseDocking):
         
         self.run_autodock(spacing = spacing, nrun = nrun)
 
-        analysis_df = pd.DataFrame(columns=['Index', 'Smile', 'Best Energy', 'Path to Best Pose'])
+        analysis_df = pd.DataFrame(columns=['smiles', 'score', 'path'])
         for file in os.listdir(self.result_path):
             if file.endswith(".dlg"):
                 analysis_df.loc[len(analysis_df.index)] = \
