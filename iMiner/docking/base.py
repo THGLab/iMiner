@@ -75,7 +75,7 @@ class BaseDocking:
                 df = pd.concat(results)
                 df.to_csv(Path(output_dir) / "results.csv", index=False)
                 if self.logger is not None:
-                    self.logger.info(f"Saved checkpoint results to {output_dir}  / results.csv")
+                    self.logger.info(f"Saved checkpoint results to {output_dir}/results.csv")
         # results = pool.starmap(self.dock, zipped_args)
         final_results = pd.concat(results)
         final_results.reset_index(inplace=True)
