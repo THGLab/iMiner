@@ -48,7 +48,7 @@ class AD4Docking(AutoDockBaseDocking):
     """
     Run AutoDock4 with predefined binding pocket for ligands
     """
-    def __init__(self, protein_pdb, docking_box, temp_path = None, name = None, **kwargs):
+    def __init__(self, protein_pdb, docking_box, temp_path = None, name = None, logger = None, **kwargs):
         """
         Initialize autodock4 with a protein and a docking box
 
@@ -57,7 +57,7 @@ class AD4Docking(AutoDockBaseDocking):
         @param docking_box: (xmin, ymin, zmin, xmax, ymax, zmax), the docking box definition
         @param name: str or None, name of the protein 
         """
-        super().__init__(protein_pdb, docking_box)
+        super().__init__(protein_pdb, docking_box, logger=logger)
 
         # define name and convert pdb to pdbqt
         if name == None:

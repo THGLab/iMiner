@@ -20,8 +20,8 @@ VINA_BINARY = Path(path.abspath(path.dirname(__file__))) / 'bins/vina'
 VINA_GPU_BINARY = Path(path.abspath(path.dirname(__file__))) / 'bins/vina_gpu'
 
 class VinaDocking(AutoDockBaseDocking):
-    def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, **kwargs) -> None:
-        super().__init__(protein_pdb, docking_box)
+    def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
+        super().__init__(protein_pdb, docking_box, logger=logger)
         self.working_path = temp_path / "{}-vina".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
         self.convert_pdb_to_pdbqt(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name))

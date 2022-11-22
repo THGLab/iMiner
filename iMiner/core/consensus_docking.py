@@ -51,7 +51,7 @@ class ConsensusDocking(BaseProject):
                 self.logger.info(f"Start docking with {protocol} using {n_cores} cores...")
             docking_obj = self.docking_protocols[protocol](self.proteins[protein_name],
                                                            self.binding_sites[protein_name],
-                                                           self.temp_path, **kwargs)
+                                                           self.temp_path, self.logger, **kwargs)
             docking_path = consensus_docking_path / protocol
             docking_path.mkdir(exist_ok=True, parents=True)
             ligand_names = self.ligands.keys()

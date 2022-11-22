@@ -18,17 +18,19 @@ def unpack_helper(func, args):
     '''
     return func(*args)
 class BaseDocking:
-    def __init__(self, protein_pdb, docking_box, temp_path=None, **kwargs) -> None:
+    def __init__(self, protein_pdb, docking_box, temp_path=None, logger=None, **kwargs) -> None:
         '''
         Initialize a docking protocol with a protein and a docking box
 
         :param protein_pdb: str, path to the protein pdb file
         :param docking_box: (xmin, ymin, zmin, xmax, ymax, zmax), the docking box definition
+        :param logger: a logger object to log some results
         :param temp_path: str, path to the temporary directory
         '''
         self.protein_path = Path(protein_pdb).resolve()
         self.protein_folder = self.protein_path.parent
         self.protein_name = self.protein_path.stem
+        self.logger = logger
 
 
     def dock(self, ligands, output_dir, single_job_timeout=120):
@@ -72,6 +74,8 @@ class BaseDocking:
             if counter % save_df_freq == 0:
                 df = pd.concat(results)
                 df.to_csv(Path(output_dir) / "results.csv", index=False)
+                if self.logger is not None:
+                    self.logger.info(f"Saved checkpoint results to {output_dir}  / results.csv")
         # results = pool.starmap(self.dock, zipped_args)
         final_results = pd.concat(results)
         final_results.reset_index(inplace=True)
