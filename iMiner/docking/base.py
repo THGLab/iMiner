@@ -64,7 +64,7 @@ class BaseDocking:
         results = []
         if verbose:
             pbar = tqdm(total=len(ligands))
-        for result in pool.imap_unordered(partial(unpack_helper, self.dock), zipped_args):
+        for result in pool.imap(partial(unpack_helper, self.dock), zipped_args):
             counter += 1
             results.append(result)
             if verbose:
