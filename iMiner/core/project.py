@@ -23,6 +23,7 @@ class BaseProject:
         When project_path is None, the project will be initialized in the current working directory,
         using the project_name as the project folder name
         '''
+
         # setup project folders
         if project_path is None:
             project_path = Path.cwd() / project_name
@@ -72,7 +73,7 @@ class BaseProject:
         protein_path = os.path.join(self.project_path, "proteins", f"{name}.pdb")
         if preprocess:
             raise NotImplementedError()
-        else:
+        elif not os.path.exists(protein_path):
             shutil.copyfile(protein_file_path, protein_path)
         self.proteins[name] = protein_path
         if self.verbose:
@@ -106,7 +107,10 @@ class BaseProject:
 
         # process the ligand file according to the format
         if format == 'smiles':
-            self._process_smiles(smiles_or_path, ligand_path)
+            try:
+                self._process_smiles(smiles_or_path, ligand_path)
+            except RuntimeError:
+                return False
         elif format == 'sdf':
             # directly copy the sdf file to the corresponding position
             shutil.copy(smiles_or_path, ligand_path)
@@ -114,6 +118,7 @@ class BaseProject:
             self._process_pdb(smiles_or_path, ligand_path)
         
         self.ligands[name] = ligand_path
+        return True
 
     def add_multiple_ligands(self, smiles_or_paths, names=None, format='inferred'):
         '''
