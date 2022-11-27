@@ -129,7 +129,6 @@ class VinaDocking(AutoDockBaseDocking):
             ligand_work_name = ligand_name + "_" + timestamp(hashed=True)
             succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
             if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
-                print('Bad molecule: ' + ligand)
                 continue
             # save the ligand smiles
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
@@ -235,7 +234,6 @@ class VinaGPUDocking(AutoDockBaseDocking):
             ligand_work_name = ligand_name + "_" + timestamp(hashed=True)
             succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
             if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
-                print('Bad molecule: ' + ligand)
                 continue
             # save the ligand smiles
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))

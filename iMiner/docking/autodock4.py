@@ -53,7 +53,7 @@ class AD4Docking(AutoDockBaseDocking):
         """
         Initialize autodock4 with a protein and a docking box
         @param protein_pdb: str, path to the protein pdb file
-        @param protein_ad4_fd: str, path to the autodock4 prepared protein folder
+        @param temp_path: str, path to the autodock4 prepared protein folder
         @param docking_box: (xmin, ymin, zmin, xmax, ymax, zmax), the docking box definition
         @param name: str or None, name of the protein 
         """
@@ -81,6 +81,7 @@ class AD4Docking(AutoDockBaseDocking):
             elif protein_pdb.endswith('.pdbqt'):
                 shutil.copy(protein_pdb, self.protein_path)
         
+        # support for flexible docking
         self.flex_docking = False
         if 'flex' in kwargs:
             self.flex_docking = True
@@ -194,7 +195,7 @@ class AD4Docking(AutoDockBaseDocking):
         Run autodock 4 with the protein and ligands
 
         @param spacing: grid space for autodock4, default = 0.375
-        @param nrun: number of runs for each ligand, default = 1
+        @param nrun: number of runs for each ligand
         @param liglist: list of path of ligands to dock
 
         @return: True if the run is successful
@@ -301,8 +302,7 @@ class AD4Docking(AutoDockBaseDocking):
             
         self.run_autodock(spacing = spacing, nrun = nrun, liglist=lig_outs)
         
-        if not output_dir.is_dir():
-            output_dir.mkdir(parents=True, exist_ok=True)
+        os.makedirs(output_dir, exist_ok=True)
             
         analysis_df = pd.DataFrame(columns=['original_name', 'smiles', 'score', 'path'])
         for file in os.listdir(self.result_path):

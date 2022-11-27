@@ -134,7 +134,10 @@ class BaseProject:
         if names is None:
             names = [str(i) for i in range(len(smiles_or_paths))]
         for smiles_or_path, name in zip(smiles_or_paths, names):
-            self.add_ligand(smiles_or_path, name, format)
+            succ = self.add_ligand(smiles_or_path, name, format)
+            if not succ:
+                print(f'Bad smiles string: {smiles_or_path}. Ignored.')
+                continue
 
         if self.verbose:
             self.logger.info(f"Added {len(smiles_or_paths)} ligands to the project. Current number of ligands: {len(self.ligands.items())}")
