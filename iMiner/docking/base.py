@@ -104,3 +104,5 @@ class BaseDocking:
         mol = sdmol[0]
         return Chem.MolToSmiles(mol)
 
+
+

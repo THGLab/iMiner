@@ -1,5 +1,5 @@
 '''
-Author: Jie Li
+Author: Jie Li, Oufan Zhang
 Date Created: Nov 3, 2022
 
 Defines the docking class for AutoDock Vina and Autodock Vina GPU
@@ -24,7 +24,8 @@ class VinaDocking(AutoDockBaseDocking):
         super().__init__(protein_pdb, docking_box, logger=logger)
         self.working_path = temp_path / "{}-vina".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
-        self.convert_pdb_to_pdbqt(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name))
+        if not os.path.exists(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name)):
+            self.convert_pdb_to_pdbqt(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name))
         self.docking_box = docking_box
 
         self.write_config(**kwargs)
@@ -57,6 +58,53 @@ class VinaDocking(AutoDockBaseDocking):
         with open(config_fp, "w") as f:
             f.write("\n".join(lines))
 
+            
+    def rescore(self, ligands):
+        '''
+        Rescore given ligand conformations using the current docking protocol
+
+        :param ligands: list of ligands, each ligand is a path to the corresponding .sdf/.pdbqt file
+
+        :return: pd.DataFrame with columns ["original_names", "smiles", "score"]
+        '''
+        
+         # prepare lists to record results
+        ligand_smiles = []
+        ligand_scores = []
+        ligand_conformation_paths = []
+
+        for ligand in ligands:
+            ligand_name = Path(ligand).stem
+            ligand_work_name = ligand_name + "_" + timestamp(hashed=True)
+            succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
+            if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
+                continue
+            # save the ligand smiles
+            ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
+
+            # execute vina docking under the working directory
+            with set_directory(self.working_path):
+                cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt --score_only"
+                code, out, err = run_command(cmd, timeout=100)
+
+            # special handling if calculation job times out
+            if code == 999:
+                ligand_scores.append(np.nan)
+                ligand_conformation_paths.append("calculation timed out!")
+                continue
+
+            # obtain docking score from the results
+            strings = re.split('Estimated Free Energy of Binding   :', out)
+            line = strings[1].split('\n')[0]
+            energy = float(line.strip().split()[0])
+            ligand_scores.append(energy)
+        
+        # generate the final pandas dataframe and return
+        df = pd.DataFrame({"original_names": ligands, "smiles": ligand_smiles,
+             "score": ligand_scores})
+        return df
+        
+
     def dock(self, ligands, output_dir, single_job_timeout=None):
         '''
         Run actual Autodock Vina docking
@@ -79,7 +127,9 @@ class VinaDocking(AutoDockBaseDocking):
         for ligand in ligands:
             ligand_name = Path(ligand).stem
             ligand_work_name = ligand_name + "_" + timestamp(hashed=True)
-            self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
+            succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
+            if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
+                continue
             # save the ligand smiles
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
 
@@ -187,7 +237,9 @@ class VinaGPUDocking(AutoDockBaseDocking):
         for ligand in ligands:
             ligand_name = Path(ligand).stem
             ligand_work_name = ligand_name + "_" + timestamp(hashed=True)
-            self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
+            succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
+            if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
+                continue
             # save the ligand smiles
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
 
