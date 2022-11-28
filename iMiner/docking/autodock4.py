@@ -58,10 +58,16 @@ class AD4Docking(AutoDockBaseDocking):
         @param name: str or None, name of the protein 
         """
         super().__init__(protein_pdb, docking_box, logger=logger)
-
-        self.ad4dir = Path(temp_path).resolve()
-        #if self.ad4dir.exists() and self.ad4dir.is_dir():
-        #    shutil.rmtree(self.ad4dir)  
+        
+        # define name and convert pdb to pdbqt
+        if name == None:
+            self.protein_name = Path(protein_pdb).resolve().stem
+        else:
+            self.protein_name = name
+        
+        self.ad4dir = Path(temp_path) / "{}-ad4".format(self.protein_name)
+        if self.ad4dir.exists() and self.ad4dir.is_dir():
+            shutil.rmtree(self.ad4dir)  
         self.ad4dir.mkdir(parents = True, exist_ok = True)
         
         # create folders corresponding to the project
@@ -139,8 +145,8 @@ class AD4Docking(AutoDockBaseDocking):
         gpf_final = gpf_final.replace('CENTER_Z',   '%.3f' % center_z)
     
         # write everything to a config gpf file for autogrid
-        gpf_file = self.grid_path / "{}.gpf".format(self.protein_name)
-        with open(gpf_file, "w") as f:
+        gpf_file = "{}.gpf".format(self.protein_name)
+        with open(self.grid_path / gpf_file, "w") as f:
             f.write(gpf_final)
 
         return gpf_file
@@ -156,7 +162,7 @@ class AD4Docking(AutoDockBaseDocking):
         with set_directory(self.grid_path):
             try:
                 out = subprocess.run([autogrid_path, '-p', gpf_file], stdout=subprocess.DEVNULL,
-                stderr=subprocess.STDOUT)
+                                     stderr=subprocess.STDOUT)
             except subprocess.CalledProcessError as e:
                 return e.output
     
@@ -272,10 +278,9 @@ class AD4Docking(AutoDockBaseDocking):
         output_dir = Path(output_dir).resolve()
         ligand_best_pose = output_dir / "{}-best-pose.sdf".format(ligand_name)
         with open(ligand_best_pose, "w") as f1:
-            f1.write(all_sdf[num_run-1])
-    
-        return [ligand_name, smile, best_score, ligand_best_pose]
+            f1.write(all_sdf[num_run-1]
         
+        return [ligand_name, smile, best_score, ligand_best_pose]
 
     def dock(self, ligands, output_dir, single_job_timeout=120, spacing = 0.375, nrun = 10):
         """
