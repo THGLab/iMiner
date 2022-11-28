@@ -177,7 +177,8 @@ class AD4Docking(AutoDockBaseDocking):
         batch_lst.append(str(fld_file))
 
         # write all ligands' input and output paths
-        for file in liglist:
+        for f in liglist:
+            file = str(f)
             if file.endswith(".pdbqt"):
                 batch_lst.append(file)
                 output_res = self.result_path / file.split('/')[-1].split('.')[0]
@@ -289,6 +290,7 @@ class AD4Docking(AutoDockBaseDocking):
         
         @return: dataframe that has necessary information of ad4result.
         """
+        #st = time.time()
         # convert ligands into their pdbqts
         lig_outs = []
         for file in ligands:
@@ -299,17 +301,19 @@ class AD4Docking(AutoDockBaseDocking):
             if not (succ and os.path.exists(ligand_output)):
                 continue
             lig_outs.append(ligand_output)
-            
+        #print("Inputs prepared. Time elapsed %s hrs"%((time.time()-st)/3600.))
         self.run_autodock(spacing = spacing, nrun = nrun, liglist=lig_outs)
-        
+        #print("Docking finished. Time elapsed %s hrs"%((time.time()-st)/3600.))
         os.makedirs(output_dir, exist_ok=True)
             
         analysis_df = pd.DataFrame(columns=['original_name', 'smiles', 'score', 'path'])
-        for file in os.listdir(self.result_path):
-            if file.endswith(".dlg"):
-                result = self.dlg_analysis(self.result_path / file, output_dir)
-                if len(result) > 0:
-                    analysis_df.loc[len(analysis_df.index)] = result
+        for file in lig_outs:
+            f = str(file.stem) + ".dlg"
+            result = self.dlg_analysis(self.result_path / f, output_dir)
+            if len(result) > 0:
+                analysis_df.loc[len(analysis_df.index)] = result
+        #print("Outputs processed. Time elapsed %s hrs"%((time.time()-st)/3600.))
+        return analysis_df
         
     def rescore(self, ligands):
         """
@@ -338,9 +342,9 @@ class AD4Docking(AutoDockBaseDocking):
         self.run_autodock(spacing = 0.375, nrun = 1, liglist=lig_outs)
 
         analysis_df = pd.DataFrame(columns=['ligand_name', 'smiles', 'score'])
-        for file in os.listdir(self.result_path):
-            if file.endswith(".dlg"):
-                analysis_df.loc[len(analysis_df.index)] = self.dlg_analysis(self.result_path / file,
+        for file in lig_outs:
+            f = str(file.stem) + ".dlg"
+            analysis_df.loc[len(analysis_df.index)] = self.dlg_analysis(self.result_path / f,
                     None, True)
         
         return analysis_df
