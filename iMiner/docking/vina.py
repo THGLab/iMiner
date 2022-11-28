@@ -20,8 +20,8 @@ VINA_BINARY = Path(path.abspath(path.dirname(__file__))) / 'bins/vina'
 VINA_GPU_BINARY = Path(path.abspath(path.dirname(__file__))) / 'bins/vina_gpu'
 
 class VinaDocking(AutoDockBaseDocking):
-    def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, **kwargs) -> None:
-        super().__init__(protein_pdb, docking_box)
+    def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
+        super().__init__(protein_pdb, docking_box, logger=logger)
         self.working_path = temp_path / "{}-vina".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
         if not os.path.exists(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name)):
@@ -137,12 +137,17 @@ class VinaDocking(AutoDockBaseDocking):
             with set_directory(self.working_path):
                 cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt " + \
                     f"--out {ligand_work_name}_out.pdbqt"
-                code, out, err = run_command(cmd, timeout=single_job_timeout)
+                code, out, err = run_command(cmd, timeout=single_job_timeout, raise_error=False)
 
             # special handling if calculation job times out
             if code == 999:
                 ligand_scores.append(np.nan)
                 ligand_conformation_paths.append("calculation timed out!")
+                continue
+
+            if code != 0:
+                ligand_scores.append(np.nan)
+                ligand_conformation_paths.append(err)
                 continue
 
             # obtain docking score from the results
