@@ -59,9 +59,7 @@ class AD4Docking(AutoDockBaseDocking):
         """
         super().__init__(protein_pdb, docking_box, logger=logger)
 
-        self.ad4dir = Path(temp_path).resolve()
-        #if self.ad4dir.exists() and self.ad4dir.is_dir():
-        #    shutil.rmtree(self.ad4dir)  
+        self.ad4dir = Path(temp_path) / "{}-ad4".format(self.protein_name)
         self.ad4dir.mkdir(parents = True, exist_ok = True)
         
         # create folders corresponding to the project
@@ -301,6 +299,7 @@ class AD4Docking(AutoDockBaseDocking):
             if not (succ and os.path.exists(ligand_output)):
                 continue
             lig_outs.append(ligand_output)
+        #print(len(lig_outs))
         #print("Inputs prepared. Time elapsed %s hrs"%((time.time()-st)/3600.))
         self.run_autodock(spacing = spacing, nrun = nrun, liglist=lig_outs)
         #print("Docking finished. Time elapsed %s hrs"%((time.time()-st)/3600.))
@@ -312,6 +311,7 @@ class AD4Docking(AutoDockBaseDocking):
             result = self.dlg_analysis(self.result_path / f, output_dir)
             if len(result) > 0:
                 analysis_df.loc[len(analysis_df.index)] = result
+
         #print("Outputs processed. Time elapsed %s hrs"%((time.time()-st)/3600.))
         return analysis_df
         
