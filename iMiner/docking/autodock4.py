@@ -65,7 +65,7 @@ class AD4Docking(AutoDockBaseDocking):
         else:
             self.protein_name = name
         
-        self.ad4dir = Path(temp_path) / "{}-ad4".format(self.protein_name)
+        self.ad4dir = Path(temp_path).resolve() / "{}-ad4".format(self.protein_name)
         if self.ad4dir.exists() and self.ad4dir.is_dir():
             shutil.rmtree(self.ad4dir)  
         self.ad4dir.mkdir(parents = True, exist_ok = True)
