@@ -65,7 +65,7 @@ class AD4Docking(AutoDockBaseDocking):
         else:
             self.protein_name = name
         
-        self.ad4dir = Path(temp_path) / "{}-ad4".format(self.protein_name)
+        self.ad4dir = Path(temp_path).resolve() / "{}-ad4".format(self.protein_name)
         if self.ad4dir.exists() and self.ad4dir.is_dir():
             shutil.rmtree(self.ad4dir)  
         self.ad4dir.mkdir(parents = True, exist_ok = True)
@@ -278,7 +278,7 @@ class AD4Docking(AutoDockBaseDocking):
         output_dir = Path(output_dir).resolve()
         ligand_best_pose = output_dir / "{}-best-pose.sdf".format(ligand_name)
         with open(ligand_best_pose, "w") as f1:
-            f1.write(all_sdf[num_run-1]
+            f1.write(all_sdf[num_run-1])
         
         return [ligand_name, smile, best_score, ligand_best_pose]
 
