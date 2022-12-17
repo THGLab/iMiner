@@ -193,7 +193,7 @@ class AutoDockBaseDocking(BaseDocking):
         try:
             out = subprocess.run([meeko_ligconv_path, adresult_path, '-o', output_path])
         except subprocess.CalledProcessError as e:
-            return e.output
+            return False
         
         return True
     

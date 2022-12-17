@@ -16,15 +16,15 @@ import numpy as np
 import re
 import pandas as pd
 
-VINA_BINARY = Path(path.abspath(path.dirname(__file__))) / 'bins/vina'
-VINA_GPU_BINARY = Path(path.abspath(path.dirname(__file__))) / 'bins/vina_gpu'
+VINA_BINARY = "/global/home/groups/co_armada2/avidd/iMiner/iMiner/docking/bins/vina" #Path(path.abspath(path.dirname(__file__))) / 'bins/vina'
+VINA_GPU_BINARY = "/global/home/groups/co_armada2/avidd/iMiner/iMiner/docking/bins/vina_gpu" #Path(path.abspath(path.dirname(__file__))) / 'bins/vina_gpu'
 
 class VinaDocking(AutoDockBaseDocking):
     def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
         super().__init__(protein_pdb, docking_box, logger=logger)
-        self.working_path = temp_path / "{}-vina".format(self.protein_name)
+        self.working_path = Path(temp_path) / "{}-vina".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
-        if not os.path.exists(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name)):
+        if not os.path.exists(self.working_path / "{}.pdbqt".format(self.protein_name)):
             self.convert_pdb_to_pdbqt(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name))
         self.docking_box = docking_box
 
@@ -167,9 +167,12 @@ class VinaDocking(AutoDockBaseDocking):
                     while os.path.exists(output_dir / f"{ligand_name}_{i}.sdf"):
                         i += 1
                     ligand_name = f"{ligand_name}_{i}"
-                self.convert_adresult_to_sdf(self.working_path / "{}_out.pdbqt".format(ligand_work_name),
+                succ = self.convert_adresult_to_sdf(self.working_path / "{}_out.pdbqt".format(ligand_work_name),
                         output_dir / "{}.sdf".format(ligand_name))
-                ligand_conformation_paths.append(str(output_dir / "{}.sdf".format(ligand_name)))
+                if succ and os.path.exists(output_dir / "{}.sdf".format(ligand_name)):
+                    ligand_conformation_paths.append(str(output_dir / "{}.sdf".format(ligand_name)))
+                else:
+                    ligand_conformation_paths.append(None)
             else:
                 ligand_conformation_paths.append(None)
         
@@ -185,7 +188,7 @@ class VinaGPUDocking(AutoDockBaseDocking):
         super().__init__(protein_pdb, docking_box)
         self.protein_folder = self.protein_path.parent
         self.protein_name = self.protein_path.stem
-        self.working_path = temp_path / "{}-vina-gpu".format(self.protein_name)
+        self.working_path = Path(temp_path) / "{}-vina-gpu".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
         self.convert_pdb_to_pdbqt(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name))
         self.docking_box = docking_box
@@ -196,7 +199,6 @@ class VinaGPUDocking(AutoDockBaseDocking):
         '''
         Write the config file for AutoDock Vina docking
 
-        :param exhaustiveness: int, the exhaustiveness of the docking
         :param num_modes: int, the number of modes (conformations) to be generated
         :param energy_range: int, the energy range of the docking
 
@@ -266,9 +268,12 @@ class VinaGPUDocking(AutoDockBaseDocking):
                     while os.path.exists(output_dir / f"{ligand_name}_{i}.sdf"):
                         i += 1
                     ligand_name = f"{ligand_name}_{i}"
-                self.convert_adresult_to_sdf(self.working_path / "{}_out.pdbqt".format(ligand_work_name),
+                succ = self.convert_adresult_to_sdf(self.working_path / "{}_out.pdbqt".format(ligand_work_name),
                         output_dir / "{}.sdf".format(ligand_name))
-                ligand_conformation_paths.append(str(output_dir / "{}.sdf".format(ligand_name)))
+                if succ and os.path.exists(output_dir / "{}.sdf".format(ligand_name)):
+                    ligand_conformation_paths.append(str(output_dir / "{}.sdf".format(ligand_name)))
+                else:
+                    ligand_conformation_paths.append(None)
             else:
                 ligand_conformation_paths.append(None)
         
