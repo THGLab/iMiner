@@ -85,7 +85,7 @@ class AD4Docking(AutoDockBaseDocking):
             self.flex_docking = True
             if not protein_pdb.endswith('.pdbqt'):
                 raise RuntimeError('Using flexible docking. Your protein input must be a processed rigid protein pdbqt.')
-            flexres = self.grid_path / "%s_flex.pdbqt"%(self.protein_name)
+            flexres = self.grid_path / "{}_flex.pdbqt".format(self.protein_name)
             if not os.path.exists(flexres):
                 if kwargs['flex'].endswith('.pdbqt'):
                     shutil.copy(kwargs['flex'], flexres)
@@ -202,9 +202,6 @@ class AD4Docking(AutoDockBaseDocking):
         gpf_file = self.grid_path / "{}.gpf".format(self.protein_name)
         fld_file = self.grid_path / '{}.maps.fld'.format(self.protein_name)
         batch_file = self.grid_path / "batch.txt"
-        
-        if self.flex_docking:
-            batch_file = self.grid_path / "batch_flex.txt"
 
         if not os.path.exists(gpf_file):
             gpf_file = self.write_gpf_file(spacing = spacing)
@@ -330,9 +327,9 @@ class AD4Docking(AutoDockBaseDocking):
         #print("Inputs prepared. Time elapsed %s hrs"%((time.time()-st)/3600.))
         
         # run autodock in batch mode
-        st = time.time()
+        #st = time.time()
         self.run_autodock(spacing = 0.375, nrun = 10, liglist = lig_outs)
-        #print("Docking finished. Time elapsed %s hrs"%((time.time()-st)/3600.))
+        #print("Docking finished. Time elapsed %s mins"%((time.time()-st)/60.))
         os.makedirs(output_dir, exist_ok=True)
         
         # process docking results 
