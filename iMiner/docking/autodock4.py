@@ -202,13 +202,13 @@ class AD4Docking(AutoDockBaseDocking):
         gpf_file = self.grid_path / "{}.gpf".format(self.protein_name)
         fld_file = self.grid_path / '{}.maps.fld'.format(self.protein_name)
         batch_file = self.grid_path / "batch.txt"
-
+        
         if not os.path.exists(gpf_file):
             gpf_file = self.write_gpf_file(spacing = spacing)
         if not os.path.exists(fld_file):
             fld_file = self.run_autogrid4(gpf_file)
         batch_file = self.write_batch_dock_file(fld_file, liglist)
-
+        
         cmd = [ad4gpu_path, '--filelist', batch_file,\
                 "--nrun", str(nrun), "-x", "0", "--rlige", "1"]
         if self.flex_docking:
@@ -307,8 +307,7 @@ class AD4Docking(AutoDockBaseDocking):
         from tqdm import tqdm
         from functools import partial
         from iMiner.docking.base import unpack_helper
-
-        #st = time.time()
+        
         pool = multiprocessing.Pool(n_jobs)
         
         # generates pdbqts in parallel
@@ -324,7 +323,6 @@ class AD4Docking(AutoDockBaseDocking):
         if self.logger is not None:
             self.logger.info(f"Finished preparing pdbqt inputs.")
         #print(len(lig_outs))
-        #print("Inputs prepared. Time elapsed %s hrs"%((time.time()-st)/3600.))
         
         # run autodock in batch mode
         #st = time.time()
@@ -334,7 +332,7 @@ class AD4Docking(AutoDockBaseDocking):
         
         # process docking results 
         #st = time.time()
-        dlgs = [self.result_path / (str(file.stem) + ".dlg") for file in lig_outs]
+        #dlgs = [self.result_path / (str(file.stem) + ".dlg") for file in lig_outs]
         zipped_args = zip(dlgs, [output_dir] * len(dlgs))   
         counter = 0
         results = pd.DataFrame(columns=['original_name', 'smiles', 'score', 'path'])
