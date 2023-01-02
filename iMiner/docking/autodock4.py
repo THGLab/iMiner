@@ -322,17 +322,16 @@ class AD4Docking(AutoDockBaseDocking):
                 pbar.update(1)
         if self.logger is not None:
             self.logger.info(f"Finished preparing pdbqt inputs.")
-        #print(len(lig_outs))
         
         # run autodock in batch mode
         #st = time.time()
         self.run_autodock(spacing = 0.375, nrun = 10, liglist = lig_outs)
-        #print("Docking finished. Time elapsed %s mins"%((time.time()-st)/60.))
+        if self.logger is not None:
+            self.logger.info(f"Docking finished.")
         os.makedirs(output_dir, exist_ok=True)
         
         # process docking results 
-        #st = time.time()
-        #dlgs = [self.result_path / (str(file.stem) + ".dlg") for file in lig_outs]
+        dlgs = [self.result_path / (str(file.stem) + ".dlg") for file in lig_outs]
         zipped_args = zip(dlgs, [output_dir] * len(dlgs))   
         counter = 0
         results = pd.DataFrame(columns=['original_name', 'smiles', 'score', 'path'])
@@ -344,7 +343,8 @@ class AD4Docking(AutoDockBaseDocking):
                 results.loc[len(results.index)] = result
             if verbose:
                 pbar.update(1)
-        #print("Outputs processed. Time elapsed %s hrs"%((time.time()-st)/3600.))
+        if self.logger is not None:
+            self.logger.info(f"Outputs processed."))
         return results
         
 

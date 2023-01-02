@@ -146,7 +146,8 @@ class MDProject(BaseProject):
             )
         except CommandExecuteError:
             LOGGER.info("Error in running gromacs. See complex folder.")
-            return 
+            return False
+        return True
     
     def run(self, lig_name: str, prot_name: str, task_name: Optional[str] = None, 
             lig_charge = "guess"):
@@ -176,8 +177,8 @@ class MDProject(BaseProject):
             return
         log_step(5, "Run MD")
         succ = self.run_md(wdir)
-        #if not succ:
-        #    return
-        #complex_dir = wdir.resolve() / "complex"
-        #prod_dir = wdir.resolve() / "prod"
-        #return complex_dir / "ions.tpr", prod_dir/ "prod.xtc" 
+        if not succ:
+            return
+        complex_dir = wdir.resolve() / "complex"
+        prod_dir = wdir.resolve() / "prod"
+        return complex_dir / "ions.tpr", prod_dir/ "prod.xtc" 
