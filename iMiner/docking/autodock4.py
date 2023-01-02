@@ -331,7 +331,7 @@ class AD4Docking(AutoDockBaseDocking):
         os.makedirs(output_dir, exist_ok=True)
         
         # process docking results 
-        dlgs = [self.result_path / (str(file.stem) + ".dlg") for file in lig_outs]
+        dlgs = [self.result_path / (str(file.stem) + ".dlg") for file in ligands]
         zipped_args = zip(dlgs, [output_dir] * len(dlgs))   
         counter = 0
         results = pd.DataFrame(columns=['original_name', 'smiles', 'score', 'path'])
@@ -344,7 +344,7 @@ class AD4Docking(AutoDockBaseDocking):
             if verbose:
                 pbar.update(1)
         if self.logger is not None:
-            self.logger.info(f"Outputs processed."))
+            self.logger.info(f"Outputs processed.")
         return results
         
 
