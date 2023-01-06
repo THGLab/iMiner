@@ -59,7 +59,16 @@ class AD4Docking(AutoDockBaseDocking):
         @param name: str or None, name of the protein 
         """
         super().__init__(protein_pdb, docking_box, logger=logger)
-        self.ad4dir = Path(temp_path) / "{}-ad4".format(self.protein_name)
+        
+        # define name and convert pdb to pdbqt
+        if name == None:
+            self.protein_name = Path(protein_pdb).resolve().stem
+        else:
+            self.protein_name = name
+        
+        self.ad4dir = Path(temp_path).resolve() / "{}-ad4".format(self.protein_name)
+        if self.ad4dir.exists() and self.ad4dir.is_dir():
+            shutil.rmtree(self.ad4dir)  
         self.ad4dir.mkdir(parents = True, exist_ok = True)
         
         # create folders corresponding to the project
