@@ -16,6 +16,7 @@ import re
 #import time
 import subprocess
 
+
 autogrid_path = '/global/home/groups/co_armada2/local/ADFRsuite/bin/autogrid4'
 ad4gpu_path = '/global/home/groups/co_armada2/local/AutoDock-GPU/bin/autodock_gpu_128wi'
 
@@ -93,7 +94,7 @@ class AD4Docking(AutoDockBaseDocking):
             self.flex_docking = True
             if not protein_pdb.endswith('.pdbqt'):
                 raise RuntimeError('Using flexible docking. Your protein input must be a processed rigid protein pdbqt.')
-            flexres = self.grid_path / "%s_flex.pdbqt"%(self.protein_name)
+            flexres = self.grid_path / "{}_flex.pdbqt".format(self.protein_name)
             if not os.path.exists(flexres):
                 if kwargs['flex'].endswith('.pdbqt'):
                     shutil.copy(kwargs['flex'], flexres)
@@ -210,13 +211,13 @@ class AD4Docking(AutoDockBaseDocking):
         gpf_file = self.grid_path / "{}.gpf".format(self.protein_name)
         fld_file = self.grid_path / '{}.maps.fld'.format(self.protein_name)
         batch_file = self.grid_path / "batch.txt"
-
+        
         if not os.path.exists(gpf_file):
             gpf_file = self.write_gpf_file(spacing = spacing)
         if not os.path.exists(fld_file):
-            fld_file = self.run_autogrid4(self.grid_path / "{}.gpf".format(self.protein_name))
+            fld_file = self.run_autogrid4(gpf_file)
         batch_file = self.write_batch_dock_file(fld_file, liglist)
-
+        
         cmd = [ad4gpu_path, '--filelist', batch_file,\
                 "--nrun", str(nrun), "-x", "0", "--rlige", "1"]
         if self.flex_docking:
@@ -257,11 +258,11 @@ class AD4Docking(AutoDockBaseDocking):
         rmsd_table = file.split(rmsd_pattern)[-1].split("\n")[:-4]
         
         # write out the rmsd dataframe and extract lowest energy run
-        with open("rmsd_table.txt","w") as f:
+        with open(f"rmsd_table_{ligand_name}.txt","w") as f:
             f.write("\n".join(rmsd_table))
-        rmsd_df = pd.read_csv("rmsd_table.txt", sep='\s+', \
+        rmsd_df = pd.read_csv(f"rmsd_table_{ligand_name}.txt", sep='\s+', \
                             names = rmsd_columns, engine = 'python')
-        os.remove("rmsd_table.txt")
+        os.remove(f"rmsd_table_{ligand_name}.txt")
 
         best_score = rmsd_df.set_index('Run')['Binding Energy'].min()
         try:
@@ -272,7 +273,10 @@ class AD4Docking(AutoDockBaseDocking):
 
         # convert the output file to sdf and extract the pose from the best run
         converted_sdf = self.result_path / "{}.sdf".format(ligand_name)
-        self.convert_adresult_to_sdf(dlg_file, converted_sdf)
+        succ = self.convert_adresult_to_sdf(dlg_file, converted_sdf)
+        if not (succ and os.path.exists(converted_sdf)):
+            return [ligand_name, smile, best_score, None]
+            
         with open(converted_sdf, "r") as f:
             all_sdf = f.read().split("$$$$\n")
         output_dir = Path(output_dir).resolve()
@@ -281,6 +285,77 @@ class AD4Docking(AutoDockBaseDocking):
             f1.write(all_sdf[num_run-1])
         
         return [ligand_name, smile, best_score, ligand_best_pose]
+    
+    def convert_ligand(self, file):
+        '''
+        Convert a ligand into pdbqt
+        
+        :return: path to pdbqt
+        '''
+        ligand_input = Path(file)
+        ligand_name = ligand_input.stem
+        ligand_output = self.ligands_path / "{}.pdbqt".format(ligand_name)
+        succ = self.convert_sdf_to_pdbqt(ligand_input, ligand_output)
+        if not (succ and os.path.exists(ligand_output)):
+            return False
+        return ligand_output
+        
+    def dock_parallel(self, ligands, output_dir, n_jobs=1, single_job_timeout=120, verbose=True, save_df_freq=500):
+        '''
+        Dock a list of ligands to the pocket in the protein in parallel for AutoDock GPU.
+        *overwrites the base function*
+
+        :param ligands: list of ligands, each ligand is a path to the corresponding .sdf file
+        :param output_dir: str, path to the output directory
+        :param n_jobs: int, number of jobs to run in parallel
+        :param verbose: bool, whether to show progress bar
+
+        :return: pd.DataFrame with columns ["original_name", "smiles", "score", "path"], path is the path to the docked conformation
+        '''
+        import multiprocessing
+        from tqdm import tqdm
+        from functools import partial
+        from iMiner.docking.base import unpack_helper
+        
+        pool = multiprocessing.Pool(n_jobs)
+        
+        # generates pdbqts in parallel
+        lig_outs = []
+        ligands = [[l] for l in ligands]
+        if verbose:
+            pbar = tqdm(total=len(ligands))
+        for l in pool.imap(partial(unpack_helper, self.convert_ligand), ligands):
+            if l:
+                lig_outs.append(l)
+            if verbose:
+                pbar.update(1)
+        if self.logger is not None:
+            self.logger.info(f"Finished preparing pdbqt inputs.")
+        
+        # run autodock in batch mode
+        #st = time.time()
+        self.run_autodock(spacing = 0.375, nrun = 10, liglist = lig_outs)
+        if self.logger is not None:
+            self.logger.info(f"Docking finished.")
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # process docking results 
+        dlgs = [self.result_path / (str(file.stem) + ".dlg") for file in lig_outs]
+        zipped_args = zip(dlgs, [output_dir] * len(dlgs))   
+        counter = 0
+        results = pd.DataFrame(columns=['original_name', 'smiles', 'score', 'path'])
+        if verbose:
+            pbar = tqdm(total=len(dlgs))
+        for result in pool.imap(partial(unpack_helper, self.dlg_analysis), zipped_args):
+            counter += 1
+            if len(result) > 0:
+                results.loc[len(results.index)] = result
+            if verbose:
+                pbar.update(1)
+        if self.logger is not None:
+            self.logger.info(f"Outputs processed.")
+        return results
+        
 
     def dock(self, ligands, output_dir, single_job_timeout=120, spacing = 0.375, nrun = 10):
         """
@@ -295,18 +370,13 @@ class AD4Docking(AutoDockBaseDocking):
         
         @return: dataframe that has necessary information of ad4result.
         """
-        #st = time.time()
         # convert ligands into their pdbqts
         lig_outs = []
         for file in ligands:
-            ligand_input = Path(file)
-            ligand_name = ligand_input.stem
-            ligand_output = self.ligands_path / "{}.pdbqt".format(ligand_name)
-            succ = self.convert_sdf_to_pdbqt(ligand_input, ligand_output)
-            if not (succ and os.path.exists(ligand_output)):
-                continue
-            lig_outs.append(ligand_output)
-        #print("Inputs prepared. Time elapsed %s hrs"%((time.time()-st)/3600.))
+            out = self.convert_ligand(file)
+            if out:
+                lig_outs.append(out)
+    
         self.run_autodock(spacing = spacing, nrun = nrun, liglist=lig_outs)
         #print("Docking finished. Time elapsed %s hrs"%((time.time()-st)/3600.))
         os.makedirs(output_dir, exist_ok=True)
@@ -317,7 +387,6 @@ class AD4Docking(AutoDockBaseDocking):
             result = self.dlg_analysis(self.result_path / f, output_dir)
             if len(result) > 0:
                 analysis_df.loc[len(analysis_df.index)] = result
-        #print("Outputs processed. Time elapsed %s hrs"%((time.time()-st)/3600.))
         return analysis_df
         
     def rescore(self, ligands):
@@ -333,14 +402,10 @@ class AD4Docking(AutoDockBaseDocking):
         # convert ligands into their pdbqts
         lig_outs = []
         for file in ligands:
-            ligand_input = Path(file)
-            ligand_name = ligand_input.stem
-            ligand_output = self.ligands_path / "{}.pdbqt".format(ligand_name)
             if file.endswith('.sdf'):
-                succ = self.convert_sdf_to_pdbqt(ligand_input, ligand_output)
-                if not (succ and os.path.exists(ligand_output)):
-                    continue
-                lig_outs.append(ligand_output)
+                ligand_output = self.convert_ligand(file)
+                if ligand_output:
+                    lig_outs.append(ligand_output)
             elif file.endswith('.pdbqt'):
                 lig_outs.append(os.path.abspath(file))
         

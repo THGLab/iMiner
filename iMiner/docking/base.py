@@ -17,6 +17,8 @@ def unpack_helper(func, args):
     Helper function to unpack arguments for multiprocessing
     '''
     return func(*args)
+    
+    
 class BaseDocking:
     def __init__(self, protein_pdb, docking_box, temp_path=None, logger=None, **kwargs) -> None:
         '''
@@ -103,6 +105,4 @@ class BaseDocking:
         sdmol = Chem.SDMolSupplier(sdf_path)
         mol = sdmol[0]
         return Chem.MolToSmiles(mol)
-
-
 
