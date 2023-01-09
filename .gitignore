@@ -135,10 +135,14 @@ covid_project
 .DS_Store
 
 # examples
-examples/helicase/*/
+examples/*
 
 # local data
 local/
+zikv_pro/
 
 # vscode
 .vscode/
+
+# debug
+debug/

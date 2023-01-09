@@ -11,18 +11,19 @@ import shutil
 from pathlib import Path
 from collections import OrderedDict
 from typing import Optional
-
+from iMiner.log import init_logger
 from rdkit.Chem import MolFromSmiles, AddHs, AllChem, SDWriter
 
 
 class BaseProject:
-    def __init__(self, project_name: str, project_path: Optional[os.PathLike] = None) -> None:
+    def __init__(self, project_name: str, project_path: Optional[os.PathLike] = None, verbose = True) -> None:
         '''
         Initialize a project with a project name and a project path
 
         When project_path is None, the project will be initialized in the current working directory,
         using the project_name as the project folder name
         '''
+
         # setup project folders
         if project_path is None:
             project_path = Path.cwd() / project_name
@@ -36,7 +37,7 @@ class BaseProject:
         self.proteins_path.mkdir(exist_ok=True, parents=True)
 
         # prepare temp path
-        self.temp_path = self.project_path / 'tmp'
+        self.temp_path = Path('/tmp') / project_name
         self.temp_path.mkdir(exist_ok=True, parents=True)
 
         # prepare protein (with binding sites) mapping dicts that map names to the corresponding file paths
@@ -47,6 +48,12 @@ class BaseProject:
 
         # provide a cache for processed protein pdb files (in case multiple binding sites are defined for the same protein)
         self._protein_processed_cache = set()
+
+        # setup log file when verbose is True
+        self.verbose = verbose
+        if self.verbose:
+            log_name = self.project_path / "log.txt"
+            self.logger = init_logger(log_name)
 
     def add_protein(self, protein_file_path, name=None, preprocess=False, binding_site=None):
         '''
@@ -66,9 +73,11 @@ class BaseProject:
         protein_path = os.path.join(self.project_path, "proteins", f"{name}.pdb")
         if preprocess:
             raise NotImplementedError()
-        else:
+        elif not os.path.exists(protein_path):
             shutil.copyfile(protein_file_path, protein_path)
         self.proteins[name] = protein_path
+        if self.verbose:
+            self.logger.info(f"Added protein {name} to the project. Current number of proteins: {len(self.proteins.items())}")
 
     def add_ligand(self, smiles_or_path, name=None, format='inferred'):
         '''
@@ -98,7 +107,10 @@ class BaseProject:
 
         # process the ligand file according to the format
         if format == 'smiles':
-            self._process_smiles(smiles_or_path, ligand_path)
+            try:
+                self._process_smiles(smiles_or_path, ligand_path)
+            except RuntimeError:
+                return False
         elif format == 'sdf':
             # directly copy the sdf file to the corresponding position
             shutil.copy(smiles_or_path, ligand_path)
@@ -106,6 +118,29 @@ class BaseProject:
             self._process_pdb(smiles_or_path, ligand_path)
         
         self.ligands[name] = ligand_path
+        return True
+
+    def add_multiple_ligands(self, smiles_or_paths, names=None, format='inferred'):
+        '''
+        Add multiple ligands to the project
+
+        :param smiles_or_paths: A list of smiles strings or paths to the ligand files
+        :param names: A list of names for the ligands. When None, the ligands will be named with their index in the list
+        :param format: One of ['inferred', 'smiles', 'sdf', 'pdb']. If format is 'inferred', the format will be inferred from the file extension
+        :type smiles_or_paths: list
+        :type names: list
+        :type format: str
+        '''
+        if names is None:
+            names = [str(i) for i in range(len(smiles_or_paths))]
+        for smiles_or_path, name in zip(smiles_or_paths, names):
+            succ = self.add_ligand(smiles_or_path, name, format)
+            if not succ:
+                print(f'Bad smiles string: {smiles_or_path}. Ignored.')
+                continue
+
+        if self.verbose:
+            self.logger.info(f"Added {len(smiles_or_paths)} ligands to the project. Current number of ligands: {len(self.ligands.items())}")
     
     def get_ligand_with_name(self, name) -> Path:
         """
@@ -172,8 +207,8 @@ class BaseProject:
             raise RuntimeError('RDkit fails to embed molecule ' + smiles)
 
         # save the ligand file to the corresponding position
-        with SDWriter(save_path) as writer:
-            writer.write(mh)
+        writer = SDWriter(save_path)
+        writer.write(mh)
 
 
     def _process_pdb(self, pdb, save_path):

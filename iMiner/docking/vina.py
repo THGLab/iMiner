@@ -1,5 +1,5 @@
 '''
-Author: Jie Li
+Author: Jie Li, Oufan Zhang
 Date Created: Nov 3, 2022
 
 Defines the docking class for AutoDock Vina and Autodock Vina GPU
@@ -16,20 +16,21 @@ import numpy as np
 import re
 import pandas as pd
 
-VINA_BINARY = Path(path.abspath(path.dirname(__file__))) / 'bins/vina'
-VINA_GPU_BINARY = Path(path.abspath(path.dirname(__file__))) / 'bins/vina_gpu'
+VINA_BINARY = "/global/home/groups/co_armada2/avidd/iMiner/iMiner/docking/bins/vina" #Path(path.abspath(path.dirname(__file__))) / 'bins/vina'
+VINA_GPU_BINARY = "/global/home/groups/co_armada2/avidd/iMiner/iMiner/docking/bins/vina_gpu" #Path(path.abspath(path.dirname(__file__))) / 'bins/vina_gpu'
 
 class VinaDocking(AutoDockBaseDocking):
-    def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, **kwargs) -> None:
-        super().__init__(protein_pdb, docking_box)
-        self.working_path = temp_path / "{}-vina".format(self.protein_name)
+    def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
+        super().__init__(protein_pdb, docking_box, logger=logger)
+        self.working_path = Path(temp_path) / "{}-vina".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
-        self.convert_pdb_to_pdbqt(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name))
+        if not os.path.exists(self.working_path / "{}.pdbqt".format(self.protein_name)):
+            self.convert_pdb_to_pdbqt(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name))
         self.docking_box = docking_box
 
         self.write_config(**kwargs)
 
-    def write_config(self, exhaustiveness=8, num_modes=1, energy_range=30):
+    def write_config(self, exhaustiveness=8, num_modes=1, energy_range=30, **kwargs):
         '''
         Write the config file for AutoDock Vina docking
 
@@ -57,6 +58,53 @@ class VinaDocking(AutoDockBaseDocking):
         with open(config_fp, "w") as f:
             f.write("\n".join(lines))
 
+            
+    def rescore(self, ligands):
+        '''
+        Rescore given ligand conformations using the current docking protocol
+
+        :param ligands: list of ligands, each ligand is a path to the corresponding .sdf/.pdbqt file
+
+        :return: pd.DataFrame with columns ["original_names", "smiles", "score"]
+        '''
+        
+         # prepare lists to record results
+        ligand_smiles = []
+        ligand_scores = []
+        ligand_conformation_paths = []
+
+        for ligand in ligands:
+            ligand_name = Path(ligand).stem
+            ligand_work_name = ligand_name + "_" + timestamp(hashed=True)
+            succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
+            if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
+                continue
+            # save the ligand smiles
+            ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
+
+            # execute vina docking under the working directory
+            with set_directory(self.working_path):
+                cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt --score_only"
+                code, out, err = run_command(cmd, timeout=100)
+
+            # special handling if calculation job times out
+            if code == 999:
+                ligand_scores.append(np.nan)
+                ligand_conformation_paths.append("calculation timed out!")
+                continue
+
+            # obtain docking score from the results
+            strings = re.split('Estimated Free Energy of Binding   :', out)
+            line = strings[1].split('\n')[0]
+            energy = float(line.strip().split()[0])
+            ligand_scores.append(energy)
+        
+        # generate the final pandas dataframe and return
+        df = pd.DataFrame({"original_names": ligands, "smiles": ligand_smiles,
+             "score": ligand_scores})
+        return df
+        
+
     def dock(self, ligands, output_dir, single_job_timeout=None):
         '''
         Run actual Autodock Vina docking
@@ -79,20 +127,27 @@ class VinaDocking(AutoDockBaseDocking):
         for ligand in ligands:
             ligand_name = Path(ligand).stem
             ligand_work_name = ligand_name + "_" + timestamp(hashed=True)
-            self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
+            succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
+            if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
+                continue
             # save the ligand smiles
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
 
             # execute vina docking under the working directory
             with set_directory(self.working_path):
                 cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt " + \
-                    f"--out {ligand_work_name}_out.pdbqt --log {ligand_work_name}_log.txt"
-                code, out, err = run_command(cmd, timeout=single_job_timeout)
+                    f"--out {ligand_work_name}_out.pdbqt"
+                code, out, err = run_command(cmd, timeout=single_job_timeout, raise_error=False)
 
             # special handling if calculation job times out
             if code == 999:
                 ligand_scores.append(np.nan)
                 ligand_conformation_paths.append("calculation timed out!")
+                continue
+
+            if code != 0:
+                ligand_scores.append(np.nan)
+                ligand_conformation_paths.append(err)
                 continue
 
             # obtain docking score from the results
@@ -112,9 +167,12 @@ class VinaDocking(AutoDockBaseDocking):
                     while os.path.exists(output_dir / f"{ligand_name}_{i}.sdf"):
                         i += 1
                     ligand_name = f"{ligand_name}_{i}"
-                self.convert_adresult_to_sdf(self.working_path / "{}_out.pdbqt".format(ligand_work_name),
+                succ = self.convert_adresult_to_sdf(self.working_path / "{}_out.pdbqt".format(ligand_work_name),
                         output_dir / "{}.sdf".format(ligand_name))
-                ligand_conformation_paths.append(str(output_dir / "{}.sdf".format(ligand_name)))
+                if succ and os.path.exists(output_dir / "{}.sdf".format(ligand_name)):
+                    ligand_conformation_paths.append(str(output_dir / "{}.sdf".format(ligand_name)))
+                else:
+                    ligand_conformation_paths.append(None)
             else:
                 ligand_conformation_paths.append(None)
         
@@ -130,7 +188,7 @@ class VinaGPUDocking(AutoDockBaseDocking):
         super().__init__(protein_pdb, docking_box)
         self.protein_folder = self.protein_path.parent
         self.protein_name = self.protein_path.stem
-        self.working_path = temp_path / "{}-vina-gpu".format(self.protein_name)
+        self.working_path = Path(temp_path) / "{}-vina-gpu".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
         self.convert_pdb_to_pdbqt(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name))
         self.docking_box = docking_box
@@ -141,7 +199,6 @@ class VinaGPUDocking(AutoDockBaseDocking):
         '''
         Write the config file for AutoDock Vina docking
 
-        :param exhaustiveness: int, the exhaustiveness of the docking
         :param num_modes: int, the number of modes (conformations) to be generated
         :param energy_range: int, the energy range of the docking
 
@@ -182,14 +239,16 @@ class VinaGPUDocking(AutoDockBaseDocking):
         for ligand in ligands:
             ligand_name = Path(ligand).stem
             ligand_work_name = ligand_name + "_" + timestamp(hashed=True)
-            self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
+            succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
+            if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
+                continue
             # save the ligand smiles
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
 
             # execute vina docking under the working directory
             with set_directory(self.working_path):
-                cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt " + \
-                    "--out {ligand_work_name}_out.pdbqt --log {ligand_work_name}_log.txt"
+                cmd = f"{VINA_GPU_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt " + \
+                    "--out {ligand_work_name}_out.pdbqt"
                 code, out, err = run_command(cmd)
 
             # obtain docking score from the results
@@ -209,15 +268,17 @@ class VinaGPUDocking(AutoDockBaseDocking):
                     while os.path.exists(output_dir / f"{ligand_name}_{i}.sdf"):
                         i += 1
                     ligand_name = f"{ligand_name}_{i}"
-                self.convert_adresult_to_sdf(self.working_path / "{}_out.pdbqt".format(ligand_work_name),
+                succ = self.convert_adresult_to_sdf(self.working_path / "{}_out.pdbqt".format(ligand_work_name),
                         output_dir / "{}.sdf".format(ligand_name))
-                ligand_conformation_paths.append(str(output_dir / "{}.sdf".format(ligand_name)))
+                if succ and os.path.exists(output_dir / "{}.sdf".format(ligand_name)):
+                    ligand_conformation_paths.append(str(output_dir / "{}.sdf".format(ligand_name)))
+                else:
+                    ligand_conformation_paths.append(None)
             else:
                 ligand_conformation_paths.append(None)
         
         # generate the final pandas dataframe and return
         df = pd.DataFrame({"smiles": ligand_smiles, "score": ligand_scores, "path": ligand_conformation_paths})
-        df["index"] = df.index
         return df
 
 if __name__ == "__main__":

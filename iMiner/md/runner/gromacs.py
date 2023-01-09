@@ -13,8 +13,9 @@ import gromacs
 gromacs.config.setup(Path(gromacs.__file__).parent / "templates/gromacswrapper.cfg")
 from gromacs.fileformats.mdp import MDP
 from iMiner.cmd import run_command, find_executable, set_directory
-from iMiner.log import LOGGER
+from iMiner.log import init_logger
 
+LOGGER = init_logger("iMiner.log")
 
 MAXWARN = 10
 
