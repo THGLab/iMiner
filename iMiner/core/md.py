@@ -61,7 +61,9 @@ class MDProject(BaseProject):
         shutil.copyfile(self.get_ligand_with_name(name), prep_path / "ligand.sdf")
         with set_directory(prep_path):
             obabel = find_executable(['obabel'])
-            run_acpype("ligand.sdf")
+            mol = Chem.SDMolSupplier("ligand.sdf", removeHs=False)[0]
+            net_charge = sum([at.GetFormalCharge() for at in mol.GetAtoms()])
+            run_acpype("ligand.sdf", net_charge=net_charge)
             run_command([obabel, 'ligand.sdf', '-O', 'MOL.gro'])
     
     def parametrize_protein(self, name: str, wdir: Path):
