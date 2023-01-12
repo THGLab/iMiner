@@ -37,6 +37,5 @@ def run_acpype(input: Union[str, Path, None] = None,
             cmd = [acpype, "-i", str(input), "-b", basename, "-c", charge_method, "-a", atom_type]
         else:
             cmd = [acpype, "-i", str(input), "-b", basename, "-c", charge_method, "-a", atom_type, "-n", str(net_charge)]
-    
     return_code, out, err = run_command(cmd, raise_error=True)
     return 
