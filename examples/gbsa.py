@@ -6,7 +6,7 @@ from iMiner.md.gbsa import GBSA
 
 
 if __name__ == "__main__":
-    gbsa = GBSA("gbsa", use_mpi=False)
+    gbsa = GBSA(".", use_mpi=True, num_threads=11)
     gbsa.set_params(
         complex_file="prod.tpr",
         traj_file="prod.xtc",
