@@ -1,22 +1,50 @@
-import sys
+import os, sys
 from pathlib import Path
 from io import StringIO
 import xml.etree.ElementTree as ET
 from tqdm import tqdm
+from typing import Dict, List
+import logging
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from plip.structure.preparation import PDBComplex
+from plip.structure.preparation import PDBComplex, logger as PLIP_LOGGER
 from plip.exchange.report import StructureReport
+from plip.basic import config as PLIP_CONFIG
+
+PLIP_LOGGER.setLevel(logging.ERROR)
 
 from iMiner.cmd import run_command
 
 
-def analyze_single_frame(pdbpath):
+def analyze_single_frame(pdbpath: os.PathLike, add_hydrogen: bool = False) -> Dict[str, int]:
+    """
+    Analyze a single ligand-complex structure
+
+    Parameters
+    ----------
+    pdbpath: os.PathLike
+        Path to the pdbfile to be analyzed
+    add_hydrogen: bool
+        Whether to add hydrogen to the pdb structure. Default is False
+    
+    Return
+    ------
+    interact_count_frame: Dict[str, int]
+        A dict with interaction type as the key, and the number of interaction as value
+        The key is in the format "{name}/{restype}/{resnr}/{chain}". For example,
+        'hydrophobic_interaction/ALA/123/A'
+    """
+    
+    if add_hydrogen:
+        PLIP_CONFIG.NOHYDRO = False
+    else:
+        PLIP_CONFIG.NOHYDRO = True
+        
     pdb = PDBComplex()
-    pdb.load_pdb(pdbpath)
+    pdb.load_pdb(str(pdbpath))
     pdb.analyze()
     report = StructureReport(pdb)
 
@@ -47,7 +75,7 @@ def analyze_single_frame(pdbpath):
     return interact_count_frame
 
 
-def analyze_multiple_frames(pdbpaths):
+def analyze_multiple_frames(pdbpaths: List[os.PathLike]):
     interacts = {}
     for pdbpath in tqdm(pdbpaths):
         frame_data = analyze_single_frame(pdbpath)
@@ -87,7 +115,7 @@ def analyze_gmx_traj(ref, traj, dt=200):
         with open(pdb, 'w') as f:
             f.write("".join(contents))
         pdbs.append(str(pdb))
-    df = analyze_multiple_frames(pdbs)
+    df = analyze_multiple_frames(pdbs, mpi, chunksize)
     return df
 
 

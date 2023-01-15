@@ -135,7 +135,7 @@ covid_project
 .DS_Store
 
 # examples
-examples/*
+# examples/*
 
 # local data
 local/
@@ -146,3 +146,6 @@ zikv_pro/
 
 # debug
 debug/
+
+# temp docs
+.docs/

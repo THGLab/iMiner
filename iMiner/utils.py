@@ -1,7 +1,29 @@
-import numpy as np
 import random
 import datetime
-import sys
+import sys, os
+import numpy as np
+from pathlib import Path
+
+
+def file_abspath(path: os.PathLike) -> Path:
+    """
+    Check whether a file path is exist and return its absoulute path
+    """
+    abs_path = Path(path).resolve()
+    if not abs_path.is_file():
+        raise FileNotFoundError(f'{abs_path} not exist')
+    return abs_path
+
+
+def dir_abspath(path: os.PathLike) -> Path:
+    """
+    Check whether a directory path is exist and return its absoulute path
+    """
+    abs_path = Path(path).resolve()
+    if not abs_path.is_dir():
+        raise FileNotFoundError(f'{abs_path} not exist')
+    return abs_path
+
 
 def dist_mat(crd1: np.ndarray, crd2: np.ndarray) -> np.ndarray:
     '''
