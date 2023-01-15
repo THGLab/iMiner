@@ -175,6 +175,6 @@ class GBSA:
             ])
         self.result_df = pd.read_csv(str(self.workdir / "Energy.csv"))
         self.delta_G = float(self.result_df['TOTAL'].mean())
-        with open(self.wordir / "dG.dat", 'w') as f:
+        with open(self.workdir / "dG.dat", 'w') as f:
              f.write(str(self.delta_G))
         return self.delta_G
