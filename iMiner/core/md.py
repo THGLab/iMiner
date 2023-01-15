@@ -45,7 +45,13 @@ class MDProject(BaseProject):
                 "em": {},
                 "nvt": {},
                 "npt": {},
-                "prod": {}
+                "prod": {},
+                "interaction_analysis": {
+                    "dt": 200, # ps
+                    "use_mpi": True,
+                    "chuncksize": 1,
+                    "gen_short_dt": 1000
+                }
             }
         }
     
@@ -72,12 +78,12 @@ class MDProject(BaseProject):
             try:
                 run_acpype("ligand.sdf", **kwargs)
             except CommandExecuteError:
-                LOGGER.info(f"Error in preparing ligand {self.get_ligand_with_name(name)}. See details in acpype log file.")
+                LOGGER.error(f"Error in preparing ligand {self.get_ligand_with_name(name)}. See details in acpype log file.")
                 return False
             try:
                 run_command([obabel, 'ligand.sdf', '-O', 'MOL.gro'])
             except CommandExecuteError:
-                LOGGER.info(f"Error in converting ligand {self.get_ligand_with_name(name)} with obabel.")
+                LOGGER.error(f"Error in converting ligand {self.get_ligand_with_name(name)} with obabel.")
                 return False
         return True
     
@@ -92,12 +98,12 @@ class MDProject(BaseProject):
             try:
                 run_tleap("protein.pdb")
             except CommandExecuteError:
-                LOGGER.info(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in tleap log file.")
+                LOGGER.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in tleap log file.")
                 return False
             try:
                 run_acpype(args=["-p", "protein.prmtop", "-x", "protein.inpcrd"])
             except CommandExecuteError:
-                LOGGER.info(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in acpype log file.")
+                LOGGER.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in acpype log file.")
                 return False
         return True
     
@@ -116,6 +122,90 @@ class MDProject(BaseProject):
             prep_path
         )
     
+    def analyze_md_traj(self, wdir: Path, lig_name: str):
+        """
+        Analyze MD trajectories: calculating RMSD and do interaction analysis
+        """
+        from iMiner.md.common import preprocess_index_file
+        from iMiner.md.analysis import (
+            analyze_multiple_frames,
+            plot_interact,
+            plot_rmsd,
+            read_xvg,
+            gmx_rms,
+            gmx_extract_and_align_traj,
+            xtc_to_pdb,
+            gmx_genidx
+        )
+            
+        prod_dir = wdir.resolve() / "prod"
+        traj_file = prod_dir / "prod.xtc"
+        ref_tpr = prod_dir / "prod.tpr"
+        ref_gro = prod_dir / "prod_align.gro"
+        index_file = prod_dir / "index.ndx"
+        traj_nopbc_file = prod_dir / "prod_align.xtc"
+        with set_directory(prod_dir):
+            # generate index file
+            gmx_genidx("prod.gro", "index.ndx")
+            r_grp_idx, l_grp_idx = preprocess_index_file(index_file, index_file)
+            LOGGER.info(f"Index file generated: {index_file}")
+            LOGGER.info(f"Receptor group index: {r_grp_idx}")
+            LOGGER.info(f"Ligand group index: {l_grp_idx}")
+
+            # post-process traj file
+            LOGGER.info("Post-process MD trajectory")
+            gmx_extract_and_align_traj(
+                ref_tpr,
+                traj_file,
+                index_file,
+                traj_nopbc_file,
+                center_grp = l_grp_idx,
+                align_grp = r_grp_idx,
+                output_grp = r_grp_idx,
+                gen_short_dt = self.md_params['interaction_analysis']['gen_short_dt']
+            )
+            LOGGER.info(f"Dry MD traj with pbc fixed: {traj_nopbc_file}")
+        
+            # rmsd
+            f_xvg = prod_dir / "prod_rmsd.xvg"
+            gmx_rms(
+                prod_dir / "prod_align.gro",
+                traj_nopbc_file,
+                f_xvg,
+                index_file,
+            )
+            tlist, rmslist = read_xvg(f_xvg, tuni='ns', dunit='A')
+            fig, ax = plot_rmsd(tlist, rmslist, name=lig_name)
+            fig.savefig("prod_rmsd.png", dpi=300)
+            LOGGER.info(f"RMSD Calculated: {prod_dir / 'prod_rmsd.png'}")
+
+            # analyze interaction
+            LOGGER.info("Analyze interaction...")
+            trajdir = Path(traj_file).parent / "traj"
+            f_csv = "interaction.csv"
+            if not trajdir.is_dir():
+                trajdir.mkdir(exist_ok=True)
+                pdbs = xtc_to_pdb(
+                    ref_gro, traj_nopbc_file, trajdir, 
+                    self.md_params['interaction_analysis']['dt']
+                )
+                LOGGER.info(f"Convert trajectory to seperate pdb files: {trajdir}")
+            else:
+                pdbs = list(trajdir.glob("*.pdb"))
+            df = analyze_multiple_frames(
+                pdbs,
+                f_csv,
+                add_hydrogen=False,
+                resnr_renum=None,
+                use_mpi=self.md_params['interaction_analysis']['use_mpi'], 
+                chunksize=self.md_params['interaction_analysis']['chunksize']
+            )
+            fig, ax = plot_interact(f_csv, title=lig_name)
+            fig.savefig("interaction.png")
+            LOGGER.info(f"Intearction analysis result: {prod_dir / 'interaction.png'}")
+        
+        return
+
     def prep_md(self, wdir: Path):
         """
         Run MD preparation workflow
@@ -145,7 +235,7 @@ class MDProject(BaseProject):
             verbose=True
             )
         except CommandExecuteError:
-            LOGGER.info("Error in running gromacs. See complex folder.")
+            LOGGER.error("Error in running gromacs. See complex folder.")
             return False
         return True
     
@@ -179,6 +269,8 @@ class MDProject(BaseProject):
         succ = self.run_md(wdir)
         if not succ:
             return
+        log_step(6, "Post MD Analysis")
+        self.analyze_md_traj(wdir, lig_name)
         complex_dir = wdir.resolve() / "complex"
         prod_dir = wdir.resolve() / "prod"
         return complex_dir / "ions.tpr", prod_dir/ "prod.xtc" 

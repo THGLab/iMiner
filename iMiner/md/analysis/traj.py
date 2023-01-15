@@ -6,6 +6,7 @@ Codes for manipulating MD trajectories and RMSD-related
 """
 from typing import Optional, Union, Tuple
 import os
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -30,6 +31,7 @@ def gmx_extract_and_align_traj(
     center_grp: Union[str, int] = "MOL",
     align_grp: Optional[Union[str, int]] = None,
     output_grp: Union[str, int] = "MOL_Protein",
+    gen_short_dt: int = 0,
 ):
     """
     Remove water/ions and align GROMACS traj file
@@ -48,6 +50,8 @@ def gmx_extract_and_align_traj(
         Group name or index for aligning. If None, the align step is skipped.
     output_grp: str or int
         Group name or index for output
+    gen_short_dt: int
+        Generate short md traj with large time intervals, in ps
     """
     gmx = find_executable(["gmx_mpi", "gmx"])
     traj_file = Path(traj_file)
@@ -79,8 +83,14 @@ def gmx_extract_and_align_traj(
         cmds = base_cmds.copy()
         cmds += ['-o', output_file.with_suffix('.gro'), '-dump', 0] 
         run_command(cmds, input=str(output_grp))
-        
     
+    if gen_short_dt:
+        output_file = traj_file.with_name(f'{traj_file.stem}_align{gen_short_dt // 1000}ns{traj_file.suffix}')
+        cmds = base_cmds.copy()
+        cmds += ['-o', output_file, '-dt', gen_short_dt]
+        run_command(cmds, input=str(output_grp))
+
+        
 def gmx_rms(
     ref_file: os.PathLike,
     traj_file: os.PathLike,
@@ -171,7 +181,7 @@ def read_xvg(xvg_file: os.PathLike, tunit: str = "ps", dunit: str = "nm"):
 def plot_rmsd(
     tlist: np.ndarray, 
     rmslist: np.ndarray, 
-    name: Optional[str] = None
+    name: Optional[str] = None,
     tunit: str = "ns",
     dunit: str = "A"
 ):

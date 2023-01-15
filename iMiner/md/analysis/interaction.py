@@ -17,8 +17,6 @@ from plip.basic import config as PLIP_CONFIG
 
 PLIP_LOGGER.setLevel(logging.ERROR)
 
-from iMiner.cmd import run_command
-
 
 def analyze_single_frame(
     pdbpath: os.PathLike, 
@@ -133,18 +131,19 @@ def analyze_multiple_frames(
             "ratio": ratio
         })
     interact_df = pd.DataFrame(interact_df)
-    interact_df.to_csv(f_csv)
+    interact_df.to_csv(str(f_csv))
     return interact_df
 
 
 def plot_interact(f_csv, threshold=0.1, title=None):
-    df = pd.read_csv(f_csv, index_col=0)
+    df = pd.read_csv(str(f_csv), index_col=0)
     newdf = pd.DataFrame()
     df = df.sort_values(['resnr', 'chain'])
     df.index = list(range(df.shape[0]))
     for i in range(df.shape[0]):
         resname = df.loc[i, 'resname']
         chain = df.loc[i, 'chain']
+        resnr = df.loc[i, 'resnr']
         restag = f"{resname}{resnr}{chain}"
         itype = df.loc[i, 'interaction']
         newdf.loc[restag, itype] = df.loc[i, 'ratio']
@@ -169,6 +168,8 @@ def plot_interact(f_csv, threshold=0.1, title=None):
     for interact in interacts:
         ax.bar(ind, newdf[interact], label=interact, bottom=bottom, color=color_map[interact])
         bottom += newdf[interact]
+        for x, y, value in zip(ind, bottom, newdf[interact]):
+            ax.text(x, y, f"{value:.2f}", ha='center', va='bottom')
     
     ax.set_xticks(ind)
     ax.set_xticklabels(list(newdf.index), rotation=50)

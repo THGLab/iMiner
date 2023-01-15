@@ -6,7 +6,7 @@ Common functions used in iMiner.md sub-package
 """
 
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Tuple
 
  
 def parse_index_file(fname: os.PathLike) -> Dict[str, List[int]]:
