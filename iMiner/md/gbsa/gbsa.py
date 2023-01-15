@@ -58,7 +58,7 @@ class GBSA:
         if self.use_mpi:
             try:
                 self.params['mpi_exec'] = find_executable("mpirun")
-                LOGGER.info(f"MPI is enabled. {num_threads} will be used.")
+                LOGGER.info(f"MPI is enabled. {num_threads} cores will be used.")
             except ExecutableNotFoundError as e:
                 self.use_mpi = False
                 LOGGER.warning("mpirun is not found. MMPB/GBSA calculation will not run with MPI.")
@@ -175,4 +175,6 @@ class GBSA:
             ])
         self.result_df = pd.read_csv(str(self.workdir / "Energy.csv"))
         self.delta_G = float(self.result_df['TOTAL'].mean())
+        with open(self.wordir / "dG.dat", 'w') as f:
+             f.write(str(self.delta_G))
         return self.delta_G
