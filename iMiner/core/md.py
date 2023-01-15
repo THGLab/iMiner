@@ -53,14 +53,31 @@ class MDProject(BaseProject):
                 }
             }
         }
-    
+        
     @property
     def md_params(self) -> Dict[str, Any]:
         return self.params['md']
     
     def read_params_json(self, fname: os.PathLike):
         with open(fname, 'r') as f:
-            self.params.update(json.load(f))
+            jdata = json.load(f)
+        
+        # enforce 'nstxout-compressed/nstxout' == 'nstlog/nstenergy'
+        for stage in ['em', 'nvt', 'npt', 'prod']:
+            for key in ['nstenergy', 'nstlog']:
+                if key not in jdata['md'][stage]:
+                    if "nstxout-compressed" in jdata['md'][stage]:
+                        jdata['md'][stage][key] = jdata['md'][stage][key]['nstxout-compressed']
+                    elif "nstxout" in jdata['md'][stage]:
+                        jdata['md'][stage][key] = jdata['md'][stage][key]['nstxout']
+        
+        for key in jdata['md']:
+            if isinstance(self.md_params[key], dict):
+                jdata.update(jdata['md'][key])
+            else:
+                self.md_params[key] = jdata['md'][key]
+        
+
 
     def parametrize_ligand(self, name: str, wdir: Path, **kwargs):
         """
