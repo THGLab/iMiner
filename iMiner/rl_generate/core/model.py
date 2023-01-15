@@ -24,7 +24,7 @@ class Model():
         model_path = os.path.dirname(model_pkl)
         model_filename = os.path.basename(model_pkl)
         self._language_model = load_learner(model_path, model_filename)
-        self.model = self._language_model.model
+        self.model = self._language_model.model.train()
         self.tokens = self._language_model.data.train_ds.x.vocab.itos
         self.device = next(self.model.parameters()).device
 

@@ -74,7 +74,7 @@ class Trainer():
         print("Collecting trajectories...")
         trajs, individual_metrics, df = self.collect_trajs(self.n_seq_per_iteration)
         # save generated molecule vina scores and drug likelihood scores
-        df.to_csv(f"{self.output_dir}/generated_molecules/{current_iter}.csv", index=None)
+        df.to_csv(f"{self.output_dir}/{current_iter}.csv", index=None)
         # save docked molecule conformations
         # if docked_ligand_confs is not None:
         #     self.logger.log_dist(current_iter, df.vina_score, "vina_score_dist")
