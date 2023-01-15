@@ -24,4 +24,6 @@ def init_logger(logname: Optional[os.PathLike] = None) -> logging.Logger:
 
     return logger
 
-LOGGER = init_logger("iMiner.log")
+
+LOGGER_NAME = "iMiner.log"
+LOGGER = init_logger(LOGGER_NAME)
