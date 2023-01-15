@@ -3,8 +3,9 @@ from pathlib import Path
 from io import StringIO
 import xml.etree.ElementTree as ET
 from tqdm import tqdm
-from typing import Dict, List
+from typing import Dict, List, Optional, Union
 import logging
+from functools import partial
 
 import numpy as np
 import pandas as pd
@@ -19,7 +20,11 @@ PLIP_LOGGER.setLevel(logging.ERROR)
 from iMiner.cmd import run_command
 
 
-def analyze_single_frame(pdbpath: os.PathLike, add_hydrogen: bool = False) -> Dict[str, int]:
+def analyze_single_frame(
+    pdbpath: os.PathLike, 
+    add_hydrogen: bool = False,
+    resnr_renum: Optional[Dict[int, int]] = None
+) -> Dict[str, int]:
     """
     Analyze a single ligand-complex structure
 
@@ -66,6 +71,8 @@ def analyze_single_frame(pdbpath: os.PathLike, add_hydrogen: bool = False) -> Di
             name = item.tag
             restype = item.find("restype").text
             resnr = item.find("resnr").text
+            if resnr_renum is not None:
+                resnr = resnr_renum[int(resnr)]
             chain = item.find("reschain").text
             sig = f"{name}/{restype}/{resnr}/{chain}"
             cnt = interact_count_frame.get(sig, 0)
@@ -75,13 +82,45 @@ def analyze_single_frame(pdbpath: os.PathLike, add_hydrogen: bool = False) -> Di
     return interact_count_frame
 
 
-def analyze_multiple_frames(pdbpaths: List[os.PathLike]):
+def analyze_multiple_frames(
+    pdbpaths: List[os.PathLike], 
+    f_csv: os.PathLike = "interaction.csv",
+    add_hydrogen: bool = False,
+    resnr_renum: Optional[Dict[int, int]] = None,
+    use_mpi: bool = True, 
+    chunksize: int = 1
+) -> pd.DataFrame:
+    """
+    Analyze multiple frames and write results to a csv file
+    """
+    interacts_frames = []
+    analyze_single_frame_func = partial(
+        analyze_single_frame, 
+        add_hydrogen=add_hydrogen,
+        resnr_renum=resnr_renum
+    )   
+    if not use_mpi:
+        for pdbpath in tqdm(pdbpaths):
+            frame_data = analyze_single_frame_func(pdbpath)
+            interacts_frames.append(frame_data)
+    else:
+        import multiprocessing as mp
+        import math
+        num_cores = mp.cpu_count()
+        chunksize = math.ceil(len(pdbpaths) / num_cores) if chunksize == "auto" else int(chunksize)
+        pool = mp.Pool(processes=num_cores)
+        for frame_data in tqdm(
+            pool.imap(func=analyze_single_frame_func, iterable=pdbpaths, chunksize=chunksize),
+            total=len(pdbpaths)
+        ):
+            interacts_frames.append(frame_data)
+                
     interacts = {}
-    for pdbpath in tqdm(pdbpaths):
-        frame_data = analyze_single_frame(pdbpath)
+    for frame_data in interacts_frames:
         for sig, cnt in frame_data.items():
             val = interacts.get(sig, 0)
             interacts.update({sig: val+cnt})
+            
     interact_df = []
     for sig, val in interacts.items():
         name, resname, resnr, chain = tuple(sig.split("/"))
@@ -94,41 +133,17 @@ def analyze_multiple_frames(pdbpaths: List[os.PathLike]):
             "ratio": ratio
         })
     interact_df = pd.DataFrame(interact_df)
+    interact_df.to_csv(f_csv)
     return interact_df
 
 
-def analyze_gmx_traj(ref, traj, dt=200):
-    trajdir = Path(traj).parent / "traj"
-    trajdir.mkdir(exist_ok=True)
-    run_command(
-        f"gmx trjconv -s {Path(ref).resolve()} -f {Path(traj).resolve()} -o {Path(trajdir).resolve() / 'prod.pdb'} -sep -dt {dt}",
-        raise_error=True,
-        input="0"
-    )
-    pdbs = []
-    for pdb in trajdir.glob('*.pdb'):
-        with open(pdb, 'r') as f:
-            contents = f.readlines()
-        for i, line in enumerate(contents):
-            if line.startswith("MODEL"):
-                contents[i] = "MODEL        1\n"
-        with open(pdb, 'w') as f:
-            f.write("".join(contents))
-        pdbs.append(str(pdb))
-    df = analyze_multiple_frames(pdbs, mpi, chunksize)
-    return df
-
-
-def plot_interact(df, threshold=0.1, title=None, resnr_renum=None):
+def plot_interact(f_csv, threshold=0.1, title=None):
+    df = pd.read_csv(f_csv, index_col=0)
     newdf = pd.DataFrame()
     df = df.sort_values(['resnr', 'chain'])
     df.index = list(range(df.shape[0]))
     for i in range(df.shape[0]):
         resname = df.loc[i, 'resname']
-        if resnr_renum is not None:
-            resnr = resnr_renum[df.loc[i, 'resnr']]
-        else:
-            resnr = df.loc[i, 'resnr']
         chain = df.loc[i, 'chain']
         restag = f"{resname}{resnr}{chain}"
         itype = df.loc[i, 'interaction']
@@ -161,4 +176,4 @@ def plot_interact(df, threshold=0.1, title=None, resnr_renum=None):
     if title is not None:
         ax.set_title(title)
     ax.set_ylim(0, max(1, np.max(bottom) * 1.05))
-    return fig
+    return fig, ax
