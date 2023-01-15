@@ -21,8 +21,9 @@ def gmx_genidx(input_file: os.PathLike, output_file: Optional[os.PathLike] = Non
     if output_file:
         cmds += ['-o', output_file]
     run_command(cmds, input='q\n')
-        
-    
+    return 
+
+
 def gmx_extract_and_align_traj(
     ref_file: os.PathLike,
     traj_file: os.PathLike,
@@ -70,7 +71,7 @@ def gmx_extract_and_align_traj(
     
     # remove pbc and centering
     run_command(
-        cmds + ["-center -pbc mol"], 
+        cmds + ["-center", "-pbc", "mol"], 
         input=f"{center_grp}\n{output_grp}"
     )
     
@@ -81,16 +82,17 @@ def gmx_extract_and_align_traj(
         run_command(cmds, input=f"{output_grp}\n{output_grp}")
         
         cmds = base_cmds.copy()
-        cmds += ['-o', output_file.with_suffix('.gro'), '-dump', 0] 
+        cmds += ['-o', output_file.with_suffix('.pdb'), '-dump', 0] 
         run_command(cmds, input=str(output_grp))
     
     if gen_short_dt:
-        output_file = traj_file.with_name(f'{traj_file.stem}_align{gen_short_dt // 1000}ns{traj_file.suffix}')
+        output_file = traj_file.with_name(f'{traj_file.stem}_align_dt{gen_short_dt // 1000}ns{traj_file.suffix}')
         cmds = base_cmds.copy()
         cmds += ['-o', output_file, '-dt', gen_short_dt]
         run_command(cmds, input=str(output_grp))
+    return
 
-        
+      
 def gmx_rms(
     ref_file: os.PathLike,
     traj_file: os.PathLike,
@@ -107,8 +109,8 @@ def gmx_rms(
     if index_file:
         cmds += ['-n', index_file]
     run_command(cmds, input=f"{align_grp}\n{output_grp}")
-    
 
+    
 def xtc_to_pdb(ref, traj, trajdir, dt):
     """
     Convert xtc to pdbs
@@ -161,7 +163,7 @@ def gmx_rmsdist(
         cmds + ["-pbc"], input="MOL"
     )
     
-    
+
 def read_xvg(xvg_file: os.PathLike, tunit: str = "ps", dunit: str = "nm"):
     """
     Read GROMACS ouput .xvg file
@@ -188,6 +190,12 @@ def plot_rmsd(
     """
     Plot RMSD
     """
+    # Ignore very large rmsd (bad pbc)
+    thresh = 30 if dunit == "A" else 3
+    msk = rmslist < thresh
+    rmslist = rmslist[msk]
+    tlist = tlist[msk]
+    
     if dunit in ["A", "Angstrom", "angstrom"]:
         dunit = "\mathring{A}"
     dunit = "$\mathrm{" + dunit + "}$"
@@ -197,10 +205,11 @@ def plot_rmsd(
     ax.set_xlabel(f"Time ({tunit})")
     ax.set_ylabel(f"RMSD ({dunit})")
     ax.set_xlim(tlist.min(), tlist.max())
+    ax.plot(tlist, rmslist)
     if name is None:
         ax.set_title(f"Average RMSD: {avg_rmsd:.2f}" + dunit)
     else:
         ax.set_title(f"{name}  Average RMSD: {avg_rmsd:.2f}" + dunit)
     ax.set_ylim(0, np.max(rmslist) * 1.1)
-    ax.legend()
     return fig, ax
+

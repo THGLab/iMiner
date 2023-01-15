@@ -10,13 +10,24 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 import json
 
+
+from iMiner.log import LOGGER
 from iMiner.cmd import run_command, set_directory, find_executable, CommandExecuteError
 from iMiner.core.project import BaseProject
 from iMiner.md.prep.ligand import run_acpype
 from iMiner.md.prep.protein import run_tleap
 from iMiner.md.prep.complex import make_complex
 from iMiner.md.runner.gromacs import run_preprocess_workflow, run_md_workflow
-from iMiner.log import LOGGER
+from iMiner.md.common import preprocess_index_file
+from iMiner.md.analysis.interaction import analyze_multiple_frames, plot_interact
+from iMiner.md.analysis.traj import (
+    plot_rmsd,
+    read_xvg,
+    gmx_rms,
+    gmx_extract_and_align_traj,
+    xtc_to_pdb,
+    gmx_genidx
+)
 
 
 def log_step(n: int, msg: str):
@@ -48,12 +59,12 @@ class MDProject(BaseProject):
                 "interaction_analysis": {
                     "dt": 200, # ps
                     "use_mpi": True,
-                    "chuncksize": 1,
+                    "chunksize": 1,
                     "gen_short_dt": 1000
                 }
             }
         }
-        
+
     @property
     def md_params(self) -> Dict[str, Any]:
         return self.params['md']
@@ -141,84 +152,84 @@ class MDProject(BaseProject):
     def analyze_md_traj(self, wdir: Path, lig_name: str):
         """
         Analyze MD trajectories: calculating RMSD and do interaction analysis
-        """
-        from iMiner.md.common import preprocess_index_file
-        from iMiner.md.analysis import (
-            analyze_multiple_frames,
-            plot_interact,
-            plot_rmsd,
-            read_xvg,
-            gmx_rms,
-            gmx_extract_and_align_traj,
-            xtc_to_pdb,
-            gmx_genidx
-        )
-            
+        """            
         prod_dir = wdir.resolve() / "prod"
         traj_file = prod_dir / "prod.xtc"
         ref_tpr = prod_dir / "prod.tpr"
-        ref_gro = prod_dir / "prod_align.gro"
         index_file = prod_dir / "index.ndx"
         traj_nopbc_file = prod_dir / "prod_align.xtc"
-        with set_directory(prod_dir):
-            # generate index file
-            gmx_genidx("prod.gro", "index.ndx")
-            r_grp_idx, l_grp_idx = preprocess_index_file(index_file, index_file)
-            LOGGER.info(f"Index file generated: {index_file}")
-            LOGGER.info(f"Receptor group index: {r_grp_idx}")
-            LOGGER.info(f"Ligand group index: {l_grp_idx}")
-
-            # post-process traj file
-            LOGGER.info("Post-process MD trajectory")
-            gmx_extract_and_align_traj(
-                ref_tpr,
-                traj_file,
-                index_file,
-                traj_nopbc_file,
-                center_grp = l_grp_idx,
-                align_grp = r_grp_idx,
-                output_grp = r_grp_idx,
-                gen_short_dt = self.md_params['interaction_analysis']['gen_short_dt']
-            )
-            LOGGER.info(f"Dry MD traj with pbc fixed: {traj_nopbc_file}")
         
-            # rmsd
-            f_xvg = prod_dir / "prod_rmsd.xvg"
-            gmx_rms(
-                prod_dir / "prod_align.gro",
-                traj_nopbc_file,
-                f_xvg,
-                index_file,
-            )
-            tlist, rmslist = read_xvg(f_xvg, tuni='ns', dunit='A')
-            fig, ax = plot_rmsd(tlist, rmslist, name=lig_name)
-            fig.savefig("prod_rmsd.png", dpi=300)
-            LOGGER.info(f"RMSD Calculated: {prod_dir / 'prod_rmsd.png'}")
+        # generate index file
+        gmx_genidx(prod_dir / "prod.gro", index_file)
+        r_grp_idx, l_grp_idx, c_grp_idx = preprocess_index_file(index_file, index_file)
+        LOGGER.info(f"Index file generated: {index_file}")
+        LOGGER.info(f"Receptor group index: {r_grp_idx}")
+        LOGGER.info(f"Ligand group index: {l_grp_idx}")
+        LOGGER.info(f"Complex group index: {c_grp_idx}")
 
-            # analyze interaction
-            LOGGER.info("Analyze interaction...")
-            trajdir = Path(traj_file).parent / "traj"
-            f_csv = "interaction.csv"
-            if not trajdir.is_dir():
-                trajdir.mkdir(exist_ok=True)
-                pdbs = xtc_to_pdb(
-                    ref_gro, traj_nopbc_file, trajdir, 
-                    self.md_params['interaction_analysis']['dt']
-                )
-                LOGGER.info(f"Convert trajectory to seperate pdb files: {trajdir}")
-            else:
-                pdbs = list(trajdir.glob("*.pdb"))
-            df = analyze_multiple_frames(
-                pdbs,
-                f_csv,
-                add_hydrogen=False,
-                resnr_renum=None,
-                use_mpi=self.md_params['interaction_analysis']['use_mpi'], 
-                chunksize=self.md_params['interaction_analysis']['chunksize']
+        # post-process traj file
+        LOGGER.info("Post-process MD trajectory")
+        gmx_extract_and_align_traj(
+            ref_tpr,
+            traj_file,
+            index_file,
+            traj_nopbc_file,
+            center_grp = l_grp_idx,
+            align_grp = c_grp_idx,
+            output_grp = c_grp_idx,
+            gen_short_dt = self.md_params['interaction_analysis']['gen_short_dt']
+        )
+        LOGGER.info(f"Dry MD traj with pbc fixed: {traj_nopbc_file}")
+
+        # rmsd
+        f_xvg = prod_dir / "prod_rmsd.xvg"
+        f_rmsd_png = prod_dir / "prod_rmsd.png"
+        ref_tpr_align = prod_dir / "prod_align.tpr"
+        run_command(
+            [
+                find_executable(['gmx_mpi', 'gmx']),
+                "convert-tpr",
+                "-s", ref_tpr,
+                "-o", ref_tpr_align,
+                "-n", index_file
+            ], input=str(c_grp_idx)
+        )  
+        gmx_rms(
+            ref_tpr_align,
+            traj_nopbc_file,
+            f_xvg,
+            index_file,
+        )
+        tlist, rmslist = read_xvg(f_xvg, tunit='ps', dunit='nm')
+        fig, ax = plot_rmsd(tlist, rmslist, name=lig_name)
+        fig.savefig(f_rmsd_png, dpi=300)
+        LOGGER.info(f"RMSD Calculated: {f_rmsd_png}")
+
+        # analyze interaction
+        LOGGER.info("Analyze interaction...")
+        trajdir = Path(traj_file).parent / "traj"
+        f_csv = prod_dir / "interaction.csv"
+        f_interact_png = prod_dir / 'interaction.png'
+        if not trajdir.is_dir():
+            trajdir.mkdir(exist_ok=True)
+            pdbs = xtc_to_pdb(
+                ref_tpr_align, traj_nopbc_file, trajdir, 
+                self.md_params['interaction_analysis']['dt']
             )
-            fig, ax = plot_interact(f_csv, title=lig_name)
-            fig.savefig("interaction.png")
-            LOGGER.info(f"Intearction analysis result: {prod_dir / 'interaction.png'}")
+            LOGGER.info(f"Convert trajectory to seperate pdb files: {trajdir}")
+        else:
+            pdbs = list(trajdir.glob("*.pdb"))
+        df = analyze_multiple_frames(
+            pdbs,
+            f_csv,
+            add_hydrogen=False,
+            resnr_renum=None,
+            use_mpi=self.md_params['interaction_analysis']['use_mpi'], 
+            chunksize=self.md_params['interaction_analysis']['chunksize']
+        )
+        fig, ax = plot_interact(f_csv, title=lig_name)
+        fig.savefig(f_interact_png, dpi=300)
+        LOGGER.info(f"Intearction analysis result: {f_interact_png}")
         
         return
 
@@ -264,7 +275,7 @@ class MDProject(BaseProject):
         rmsd calculation inputs
         """
         task_name = f"{lig_name}_{prot_name}" if task_name is None else task_name
-        LOGGER.info(f"running md for {lig_name}_{prot_name}")
+        LOGGER.info(f"Running md for {lig_name}_{prot_name}")
         wdir = self.md_path / task_name
         
         log_step(1, "Parametrize Ligand")

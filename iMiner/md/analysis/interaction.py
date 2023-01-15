@@ -16,6 +16,7 @@ from plip.exchange.report import StructureReport
 from plip.basic import config as PLIP_CONFIG
 
 PLIP_LOGGER.setLevel(logging.ERROR)
+PLIP_LOGGER.propagate = False
 
 
 def analyze_single_frame(
@@ -169,12 +170,13 @@ def plot_interact(f_csv, threshold=0.1, title=None):
         ax.bar(ind, newdf[interact], label=interact, bottom=bottom, color=color_map[interact])
         bottom += newdf[interact]
         for x, y, value in zip(ind, bottom, newdf[interact]):
-            ax.text(x, y, f"{value:.2f}", ha='center', va='bottom')
+            if value > 0:
+                ax.text(x, y, f"{value:.2f}", ha='center', va='bottom')
     
     ax.set_xticks(ind)
     ax.set_xticklabels(list(newdf.index), rotation=50)
     ax.legend()
     if title is not None:
         ax.set_title(title)
-    ax.set_ylim(0, max(1, np.max(bottom) * 1.05))
+    ax.set_ylim(0, max(1, np.max(bottom) * 1.1))
     return fig, ax

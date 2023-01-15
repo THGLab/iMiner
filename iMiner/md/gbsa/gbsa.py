@@ -1,3 +1,9 @@
+"""
+Author: Eric Wang
+Date: 01/14/2023
+
+Code for MMPB/GBSA calculation workflow
+"""
 import os
 from typing import Tuple, Optional, Dict, Any
 from pathlib import Path
@@ -24,7 +30,9 @@ class GBSA:
     def __init__(self, workdir: os.PathLike, use_mpi: bool = True, num_threads: int = NUM_CORES):
         """
         Initialize a GBSA calculation workflow
-
+        
+        Parameters
+        ----------
         workdir: os.PathLike
             Working directory
         use_mpi: bool
@@ -50,6 +58,7 @@ class GBSA:
         if self.use_mpi:
             try:
                 self.params['mpi_exec'] = find_executable("mpirun")
+                LOGGER.info(f"MPI is enabled. {num_threads} will be used.")
             except ExecutableNotFoundError as e:
                 self.use_mpi = False
                 LOGGER.warning("mpirun is not found. MMPB/GBSA calculation will not run with MPI.")
@@ -85,7 +94,7 @@ class GBSA:
         """
         ori_index_file = file_abspath(index_file)
         new_index_file = self.workdir / "index_gbsa.ndx"
-        r_grp_idx, l_grp_idx = preprocess_index_file(ori_index_file, new_index_file)
+        r_grp_idx, l_grp_idx, _ = preprocess_index_file(ori_index_file, new_index_file)
         in_file = self.workdir / "mmpbsa.in"
         if mmpbsa_in_file:
             shutil.copyfile(
@@ -143,8 +152,9 @@ class GBSA:
         
         # clean
         if clean:
-            run_command(f"{self.params['gmx_mmpbsa_exec']} --clean")
-            LOGGER.info("Working directory is clean")
+            with set_directory(self.workdir):
+                run_command(f"{self.params['gmx_mmpbsa_exec']} --clean")
+                LOGGER.info("Working directory is clean")
 
     def analyze_results(self) -> float:
         """
