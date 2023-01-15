@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import List, Optional
 
-from iMiner.log import init_logger
+from iMiner.log import LOGGER
 from iMiner.cmd import run_command, find_executable, set_directory
 
 try:
@@ -12,7 +12,6 @@ except ImportError:
 
 from openmm.app import PDBFile
 
-LOGGER = init_logger("iMiner.log")
 
 def fix_protein(
     in_pdb: os.PathLike, 

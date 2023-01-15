@@ -8,10 +8,9 @@ import pandas as pd
 from iMiner.cmd import run_command, find_executable, ExecutableNotFoundError, set_directory
 from iMiner.md.common import preprocess_index_file
 from iMiner.md.gbsa.parameters import generate_input_file, DEFAULT_PARAMS
-from iMiner.log import init_logger
+from iMiner.log import LOGGER
 from iMiner.utils import file_abspath
 
-LOGGER = init_logger("iMiner.log")
 
 NUM_CORES = mp.cpu_count()
 
