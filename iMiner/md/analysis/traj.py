@@ -20,7 +20,7 @@ def gmx_genidx(input_file: os.PathLike, output_file: Optional[os.PathLike] = Non
     cmds = [gmx, 'make_ndx', '-f', input_file]
     if output_file:
         cmds += ['-o', output_file]
-    run_command(cmds)
+    run_command(cmds, input='q\n')
         
     
 def gmx_extract_and_align_traj(
@@ -55,7 +55,7 @@ def gmx_extract_and_align_traj(
     """
     gmx = find_executable(["gmx_mpi", "gmx"])
     traj_file = Path(traj_file)
-    tmpout = traj_file.with_(f'{traj_file.stem}_pbc{traj_file.suffix}')
+    tmpout = traj_file.with_name(f'{traj_file.stem}_pbc{traj_file.suffix}')
     
     base_cmds = [gmx, "trjconv", "-s", ref_file, "-f", traj_file]
     if index_file is not None:

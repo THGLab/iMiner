@@ -136,7 +136,8 @@ def run_command(
     out = out.decode(sys.stdin.encoding)
     err = err.decode(sys.stdin.encoding)
     if raise_error and return_code != 0:
-        raise CommandExecuteError("Command %s failed: \n%s" % (cmd, err))
+        cmdstr = " ".join(cmd) if isinstance(cmd, list) else cmd
+        raise CommandExecuteError("Command %s failed: \n%s" % (cmdstr, err))
     return return_code, out, err
 
 
