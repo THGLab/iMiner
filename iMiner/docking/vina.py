@@ -235,6 +235,33 @@ class VinaGPUDocking(VinaDocking):
         zipped_args = zip(ligands, [output_dir] * len(ligands), [single_job_timeout] * len(ligands), gpus)
         return zipped_args
 
+    def convert_sdf_to_pdbqt(self, sdf_path, output_path):
+        '''
+        Due to required input format for Vina-GPU, we need to convert sdf to pdbqt using Autodock Tools
+
+        :param sdf_path: str, path to the sdf file
+        :param output_path: str, path to the output pdbqt file
+
+        :return: True, if the run is successful
+        '''
+        # first convert sdf to mol2 using openbabel
+        random_code = random_id()
+        cmd_sdf_2_mol2 = "obabel -isdf {} -omol2 > {}".format(sdf_path, self.working_path / f"{random_code}.mol2")
+        code, out, err = run_command(cmd_sdf_2_mol2, raise_error=False) 
+        if code != 0:
+            print(err)
+            return False
+        # then use Autodock Tools to convert mol2 to pdbqt
+        pythonsh_path = "/global/scratch/users/jerry-li1996/covid/rdkit_vina/bin/pythonsh"
+        ligprep_path = "/global/scratch/users/jerry-li1996/covid/rdkit_vina/MGLToolsPckgs/AutoDockTools/Utilities24/prepare_ligand4.py"
+        cmd_mol2_2_pdbqt = "{} {} -l {} -o {}".format(pythonsh_path, ligprep_path, self.working_path / f"{random_code}.mol2", output_path)
+        code, out, err = run_command(cmd_mol2_2_pdbqt, raise_error=False)
+        if code != 0:
+            print(err)
+            return False    
+        return True
+
+
     # def dock(self, ligands, output_dir):
     #     '''
     #     Run actual Autodock Vina GPU docking
