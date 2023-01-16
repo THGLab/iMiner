@@ -16,8 +16,8 @@ import numpy as np
 import re
 import pandas as pd
 
-VINA_BINARY = "/global/home/groups/co_armada2/avidd/iMiner/iMiner/docking/bins/vina" #Path(path.abspath(path.dirname(__file__))) / 'bins/vina'
-VINA_GPU_BINARY = "/global/home/groups/co_armada2/avidd/iMiner/iMiner/docking/bins/vina_gpu" #Path(path.abspath(path.dirname(__file__))) / 'bins/vina_gpu'
+VINA_BINARY = Path(path.abspath(path.dirname(__file__))) / 'bins/vina'
+VINA_GPU_SCRIPT = Path(path.abspath(path.dirname(__file__))) / 'run_vina_gpu.sh'
 
 class VinaDocking(AutoDockBaseDocking):
     def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
@@ -27,7 +27,6 @@ class VinaDocking(AutoDockBaseDocking):
         if not os.path.exists(self.working_path / "{}.pdbqt".format(self.protein_name)):
             self.convert_pdb_to_pdbqt(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name))
         self.docking_box = docking_box
-        self._binary = VINA_BINARY
 
         self.write_config(**kwargs)
 
@@ -107,6 +106,11 @@ class VinaDocking(AutoDockBaseDocking):
         df = pd.DataFrame({"original_names": ligands, "smiles": ligand_smiles,
              "score": ligand_scores})
         return df
+
+    def _get_cmd(self, ligand_work_name):
+        cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt " + \
+                    f"--out {ligand_work_name}_out.pdbqt"
+        return cmd
         
 
     def dock(self, ligands, output_dir, single_job_timeout=None):
@@ -139,8 +143,7 @@ class VinaDocking(AutoDockBaseDocking):
 
             # execute vina docking under the working directory
             with set_directory(self.working_path):
-                cmd = f"{self._binary} --config config.txt --ligand {ligand_work_name}.pdbqt " + \
-                    f"--out {ligand_work_name}_out.pdbqt"
+                cmd = self._get_cmd(ligand_work_name)
                 code, out, err = run_command(cmd, timeout=single_job_timeout, raise_error=False)
 
             # special handling if calculation job times out
@@ -195,7 +198,6 @@ class VinaGPUDocking(VinaDocking):
         if not os.path.exists(self.working_path / "{}.pdbqt".format(self.protein_name)):
             self.convert_pdb_to_pdbqt(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name))
         self.docking_box = docking_box
-        self._binary = VINA_GPU_BINARY
 
         self.write_config(**kwargs)
 
@@ -209,6 +211,15 @@ class VinaGPUDocking(VinaDocking):
         '''
         super().write_config(exhaustiveness=None, num_modes=num_modes, 
             energy_range=energy_range, **kwargs)
+
+    def dock(self, ligands, output_dir, single_job_timeout=None, gpu=0):
+        if gpu is not None:
+            os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+        return super().dock(ligands, output_dir, single_job_timeout)
+
+    def _execute_docking(self, ligand_work_name):
+        cmd = f"sh {VINA_GPU_SCRIPT} {ligand_work_name}"
+        return cmd
 
     # def dock(self, ligands, output_dir):
     #     '''
