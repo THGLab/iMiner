@@ -10,6 +10,7 @@ from iMiner.cmd import run_command, set_directory
 from iMiner.utils import timestamp
 from pathlib import Path
 from typing import Optional
+import itertools
 import os
 from os import path
 import numpy as np
@@ -220,6 +221,12 @@ class VinaGPUDocking(VinaDocking):
     def _execute_docking(self, ligand_work_name):
         cmd = f"sh {VINA_GPU_SCRIPT} {ligand_work_name}"
         return cmd
+
+    def _get_parallel_docking_args(self, ligands, output_dir, single_job_timeout, n_jobs):
+        iterator = itertools.cycle(range(n_jobs))
+        job_cpus = [next(iterator) for _ in range(len(ligands))]
+        zipped_args = zip(ligands, [output_dir] * len(ligands), [single_job_timeout] * len(ligands), job_cpus)
+        return zipped_args
 
     # def dock(self, ligands, output_dir):
     #     '''
