@@ -19,6 +19,7 @@ import pandas as pd
 
 VINA_BINARY = Path(path.abspath(path.dirname(__file__))) / 'bins/vina'
 VINA_GPU_SCRIPT = Path(path.abspath(path.dirname(__file__))) / 'run_vina_gpu.sh'
+VINA_GPU_BINARY_PATH = Path(path.abspath(path.dirname(__file__))) / "bins"
 
 class VinaDocking(AutoDockBaseDocking):
     def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
@@ -42,7 +43,7 @@ class VinaDocking(AutoDockBaseDocking):
         '''
 
         config_fp = self.working_path / "config.txt"
-        lines = ["receptor = ./{}.pdbqt".format(self.protein_name),
+        lines = ["receptor = {}/{}.pdbqt".format(self.working_path, self.protein_name),
                  "",
                  "center_x = {}".format((self.docking_box[0] + self.docking_box[3]) / 2),
                  "center_y = {}".format((self.docking_box[1] + self.docking_box[4]) / 2),
@@ -108,10 +109,12 @@ class VinaDocking(AutoDockBaseDocking):
              "score": ligand_scores})
         return df
 
-    def _get_cmd(self, ligand_work_name):
+    def _run_docking_under_folder(self, ligand_work_name, single_job_timeout):
         cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt " + \
                     f"--out {ligand_work_name}_out.pdbqt"
-        return cmd
+        with set_directory(self.working_path):
+            code, out, err = run_command(cmd, timeout=single_job_timeout, raise_error=False)
+        return code, out, err
         
 
     def dock(self, ligands, output_dir, single_job_timeout=None):
@@ -142,10 +145,8 @@ class VinaDocking(AutoDockBaseDocking):
             # save the ligand smiles
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
 
-            # execute vina docking under the working directory
-            with set_directory(self.working_path):
-                cmd = self._get_cmd(ligand_work_name)
-                code, out, err = run_command(cmd, timeout=single_job_timeout, raise_error=False)
+            # execute vina docking under directory (for cpu: working directory, for gpu: binary directory)
+            code, out, err = self._run_docking_under_folder(ligand_work_name, single_job_timeout) 
 
             # special handling if calculation job times out
             if code == 999:
@@ -218,9 +219,12 @@ class VinaGPUDocking(VinaDocking):
             os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
         return super().dock(ligands, output_dir, single_job_timeout)
 
-    def _execute_docking(self, ligand_work_name):
-        cmd = f"sh {VINA_GPU_SCRIPT} {ligand_work_name}"
-        return cmd
+    
+    def _run_docking_under_folder(self, ligand_work_name, single_job_timeout):
+       cmd = "sh {} {} {}".format(VINA_GPU_SCRIPT, self.working_path / "config.txt", self.working_path / ligand_work_name)
+       with set_directory(VINA_GPU_BINARY_PATH):
+           code, out, err = run_command(cmd, timeout=single_job_timeout, raise_error=False) 
+       return code, out, err
 
     def _get_parallel_docking_args(self, ligands, output_dir, single_job_timeout, n_jobs):
         iterator = itertools.cycle(range(n_jobs))
