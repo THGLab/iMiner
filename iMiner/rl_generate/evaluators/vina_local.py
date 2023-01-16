@@ -54,7 +54,7 @@ class vina_score_assigner():
         '''
         protein_name = os.path.basename(protein_file).split('.')[0]
         self.protein_name = protein_name
-        self.docking_project = ConsensusDocking(protein_name, path, ["vina" if not use_gpu else "vina_gpu"])
+        self.docking_project = ConsensusDocking(protein_name, path, ["vina" if not use_gpu else "vina-gpu"])
         self.docking_project.add_protein(protein_file_path=protein_file, name=protein_name, binding_site=box)
         self.output_dir = self.docking_project.project_path / Path("results")
         self.output_dir.mkdir(parents=True, exist_ok=True)
