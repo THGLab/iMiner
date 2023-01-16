@@ -18,10 +18,10 @@ from iMiner.utils import dist_mat
 from iMiner.docking.base import BaseDocking
 
 
-protein_prep_path = '/global/home/groups/co_armada2/local/ADFRsuite/bin/prepare_receptor'
+protein_prep_path = '/global/home/users/jerry-li1996/src/ADFRsuite_x86_64Linux_1.0/bin/prepare_receptor'
 # need to first go in the virtual env named vina
-meeko_ligprep_path = "/global/home/groups/co_armada2/conda_envs/vina/bin/mk_prepare_ligand.py"
-meeko_ligconv_path = "/global/home/groups/co_armada2/conda_envs/vina/bin/mk_copy_coords.py"
+meeko_ligprep_path = "/global/home/users/jerry-li1996/.conda/envs/iMiner/bin/mk_prepare_ligand.py"
+meeko_ligconv_path = "/global/home/users/jerry-li1996/.conda/envs/iMiner/bin/mk_copy_coords.py"
 
 
 class LigandPDBQT:
