@@ -37,7 +37,7 @@ def random_id():
     '''
     Generate a random ID
     '''
-    return random.randint(0,65536)
+    return str(random.randint(0,65536))
 
 def timestamp(hashed=False) -> str:
     '''
@@ -48,6 +48,8 @@ def timestamp(hashed=False) -> str:
     if hashed:
         value = hash_str(value)
     return value
+
+
 
 def box_from_center_and_size(center, size):
     '''

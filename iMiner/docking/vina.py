@@ -7,7 +7,7 @@ Defines the docking class for AutoDock Vina and Autodock Vina GPU
 
 from iMiner.docking.autodock import AutoDockBaseDocking
 from iMiner.cmd import run_command, set_directory
-from iMiner.utils import timestamp
+from iMiner.utils import random_id
 from pathlib import Path
 from typing import Optional
 import itertools
@@ -79,7 +79,7 @@ class VinaDocking(AutoDockBaseDocking):
 
         for ligand in ligands:
             ligand_name = Path(ligand).stem
-            ligand_work_name = ligand_name + "_" + timestamp(hashed=True)
+            ligand_work_name = ligand_name + "_" + random_id()
             succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
             if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
                 continue
@@ -135,7 +135,7 @@ class VinaDocking(AutoDockBaseDocking):
 
         for ligand in ligands:
             ligand_name = Path(ligand).stem
-            ligand_work_name = ligand_name + "_" + timestamp(hashed=True)
+            ligand_work_name = ligand_name + "_" + random_id()
             succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
             if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
                 continue
