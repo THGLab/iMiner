@@ -1,7 +1,10 @@
+from io import StringIO
 import numpy as np
 import random
 import datetime
 import sys
+import subprocess
+import pandas as pd
 
 def dist_mat(crd1: np.ndarray, crd2: np.ndarray) -> np.ndarray:
     '''
@@ -63,3 +66,15 @@ def box_from_center_and_size(center, size):
     ymax = center[1] + size[1] / 2
     zmax = center[2] + size[2] / 2
     return (xmin, ymin, zmin, xmax, ymax, zmax)
+
+
+def get_free_gpu():
+    gpu_stats = subprocess.check_output(["nvidia-smi", "--format=csv", "--query-gpu=memory.used,memory.free"])
+    gpu_df = pd.read_csv(StringIO(gpu_stats.decode("utf-8").replace("MiB","")),
+                         names=['memory.used', 'memory.free'],
+                         skiprows=1)
+    gpu_df["avail"]=gpu_df["memory.free"]/(gpu_df["memory.used"]+gpu_df["memory.free"])
+    idx = gpu_df['avail'].idxmax()
+    if gpu_df.loc[idx,"avail"]<0.1:
+        idx=None
+    return str(idx)

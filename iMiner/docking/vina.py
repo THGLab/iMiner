@@ -7,7 +7,7 @@ Defines the docking class for AutoDock Vina and Autodock Vina GPU
 
 from iMiner.docking.autodock import AutoDockBaseDocking
 from iMiner.cmd import run_command, set_directory
-from iMiner.utils import random_id
+from iMiner.utils import random_id, get_free_gpu
 from pathlib import Path
 from typing import Optional
 import itertools
@@ -217,6 +217,8 @@ class VinaGPUDocking(VinaDocking):
     def dock(self, ligands, output_dir, single_job_timeout=None, gpu=0):
         if gpu is not None:
             os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
+        else:
+            os.environ["CUDA_VISIBLE_DEVICES"] = get_free_gpu()
         return super().dock(ligands, output_dir, single_job_timeout)
 
     
@@ -227,9 +229,10 @@ class VinaGPUDocking(VinaDocking):
        return code, out, err
 
     def _get_parallel_docking_args(self, ligands, output_dir, single_job_timeout, n_jobs):
-        iterator = itertools.cycle(range(n_jobs))
-        job_cpus = [next(iterator) for _ in range(len(ligands))]
-        zipped_args = zip(ligands, [output_dir] * len(ligands), [single_job_timeout] * len(ligands), job_cpus)
+        # iterator = itertools.cycle(range(n_jobs))
+        # job_cpus = [next(iterator) for _ in range(len(ligands))]
+        gpus = [None] * len(ligands)
+        zipped_args = zip(ligands, [output_dir] * len(ligands), [single_job_timeout] * len(ligands), gpus)
         return zipped_args
 
     # def dock(self, ligands, output_dir):
