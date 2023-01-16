@@ -246,7 +246,7 @@ class VinaGPUDocking(VinaDocking):
         '''
         # first convert sdf to mol2 using openbabel
         random_code = random_id()
-        cmd_sdf_2_mol2 = "obabel -isdf {} -omol2 > {}".format(sdf_path, self.working_path / f"{random_code}.mol2")
+        cmd_sdf_2_mol2 = "obabel -isdf {} -omol2 -O{}".format(sdf_path, self.working_path / f"{random_code}.mol2")
         code, out, err = run_command(cmd_sdf_2_mol2, raise_error=False) 
         if code != 0:
             print(err)
@@ -261,6 +261,21 @@ class VinaGPUDocking(VinaDocking):
             return False    
         return True
 
+    def convert_adresult_to_sdf(self, adresult_path, output_path):
+        '''
+        Because Vina-GPU generated output results are not recognized by meeko, we need to convert adresult to sdf using openbabel
+
+        :param adresult_path: str, path to the adresult file
+        :param output_path: str, path to the output sdf file
+
+        :return: True, if the run is successful
+        '''
+        cmd = "obabel -ipdbqt {} -osdf -O{}".format(adresult_path, output_path)
+        code, out, err = run_command(cmd, raise_error=False) 
+        if code != 0:
+            print(err)
+            return False
+        return True
 
     # def dock(self, ligands, output_dir):
     #     '''
