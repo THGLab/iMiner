@@ -25,7 +25,8 @@ rewards:
     params:
       protein_file: /global/scratch/users/jerry-li1996/iMiner/examples/helicase/helicase-holo.pdb
       box: [-38.0, 5.5, -50.5, -8.0, 30.5, -15.5]
-      timeout: 90
+      use_gpu: True
+      timeout: 15
   - type: fragment_similarity
     params:
       fragments: ['[14*]c1nc([14*])c2cc([16*])c([16*])cc2n1',

@@ -105,46 +105,25 @@ class RewardAssigner():
             query_indices.append(True)
         query_indices = np.array(query_indices)
         assert len(query_indices) == len(converted_smiles), "smiles: %s, query_indices: %s" % (str(converted_smiles), str(query_indices))
-        # # For debug
-        # query_indices[3] = False
-        # query_indices[7] = False
-        # ###
+
         valid_smiles = [smile for smile,validity in zip(converted_smiles,query_indices) if validity]
-        # if self.logger is not None:
-        #     img = Draw.MolsToGridImage(plot_mols)
-        #     img.save('outputs/molgrid.png')
-            # with open('outputs/molgrid.png', 'wb') as f:
-            #     f.write(img.tobytes())
-            # self.logger.log_image("molecules", 'outputs/molgrid.png')
+
         metrics, validities, new_names = self.get_metric_values_parallel(valid_smiles)
         if np.sum(validities) == 0:
             return None
         # valid metrics are those received feedback (including NaN results) from the query within time limit
         valid_metrics = np.array(metrics)[:, validities].T.astype(float)
-        # For debug
-        # import pickle
-        # with open("outputs/valid_metrics.pkl", "wb") as f:
-        #     pickle.dump(valid_metrics, f)
-        # print(valid_metrics, valid_metrics.dtype)
+
         non_nan_filter = ~np.isnan(np.sum(valid_metrics, axis=1))
-        # if self.logger is not None:
-        #     for i in range(valid_metrics.shape[1]):
-        #         self.logger.log_distribution(self.reward_types[i], valid_metrics[non_nan_filter][:, i])
+
         df = pd.DataFrame()
         non_nan_smiles = [s for s,v in zip(valid_smiles, validities) if v]
         df["smiles"] = non_nan_smiles
         for i in range(valid_metrics.shape[1]):
             df[self.reward_types[i]] = valid_metrics[:, i]
         df["names"] = [s for s,v in zip(new_names, validities) if v] 
-        # save the best 50 molecules this iteration in an image
-        if "vina_score" in self.reward_types:
-            selected = df.sort_values("vina_score", ascending=True).head(50)
-            img = Draw.MolsToGridImage([Chem.MolFromSmiles(s) for s in selected["smiles"]], 
-                legends=list(selected["names"]+",vina:"+selected["vina_score"].astype(str)))
-            img.save(f'{self.output_path}/{self.iteration}.png')
-            # with open('outputs/molgrid.png', 'wb') as f:
-            #     f.write(img.tobytes())
-            # self.logger.log_image("molecules", 'outputs/molgrid.png')
+        
+
         mean_valid_metrics = np.mean(valid_metrics[non_nan_filter], axis=0)
         converted_rewards = [[reward_conversion_func(num) for reward_conversion_func, num in zip(self.reward_conversion_funcs, metric_values)] for metric_values in valid_metrics]
         final_rewards = np.array([self.reward_combination(converted_reward) for converted_reward in converted_rewards])
@@ -152,9 +131,7 @@ class RewardAssigner():
         all_rewards = np.zeros(len(inputs))
         query_rewards = np.zeros(np.sum(query_indices))
         all_validities = np.ones(len(inputs)).astype(bool)
-        # valid_indices = np.arange(len(inputs))[query_indices][validities]
-        # for idx, valid_idx in enumerate(valid_indices):
-        #     all_rewards[valid_idx] = final_rewards[idx]
+
         query_rewards[validities] = final_rewards
         all_rewards[query_indices] = query_rewards
         all_rewards[~query_indices] = -10

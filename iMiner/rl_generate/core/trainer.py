@@ -74,18 +74,7 @@ class Trainer():
         print("Collecting trajectories...")
         trajs, individual_metrics, df = self.collect_trajs(self.n_seq_per_iteration)
         # save generated molecule vina scores and drug likelihood scores
-        df.to_csv(f"{self.output_dir}/{current_iter}.csv", index=None)
-        # save docked molecule conformations
-        # if docked_ligand_confs is not None:
-        #     self.logger.log_dist(current_iter, df.vina_score, "vina_score_dist")
-        #     os.mkdir(f"{self.output_dir}/generated_molecules/{current_iter}_docked")
-        #     mol_idx = 0
-        #     for item in docked_ligand_confs:
-        #         with open(f"{self.output_dir}/generated_molecules/{current_iter}_docked/{mol_idx}.pdbqt", "w") as f:
-        #             f.write(docked_ligand_confs[item])
-        #         with open(f"{self.output_dir}/generated_molecules/{current_iter}_idx.csv", "a") as f:
-        #             f.write(item + "," + str(mol_idx) + "\n")
-        #         mol_idx += 1
+        df.to_csv(f"{self.output_dir}/details/{current_iter}.csv", index=None)
         print("Training model with collected data...")
         rewards = trajs["rewards"]
         rewards_mean = np.mean(rewards)
