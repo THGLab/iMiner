@@ -61,6 +61,7 @@ if os.path.exists(output_directory):
 
 os.makedirs(output_directory)
 os.makedirs(output_directory + "/docking")
+os.makedirs(output_directory + "/details")
 print("All results logged in", output_directory)
 logger = Logger(output_directory)
 config["run"]["output_dir"] = output_directory
@@ -69,30 +70,11 @@ config["run"]["output_dir"] = output_directory
 #####################
 # Load pretrained model
 #####################                   
-# prior_model = Model("AWD_LSTM",  rl_dataset_path + "databunch-production-SELFIES.pkl", config["training_specs"]["batch_size"])
-# prior_model.load_model_chk(rl_dataset_path + model_checkpoint)
-# prior_model.set_as_prior()
-
-# policy_model = Model("AWD_LSTM", rl_dataset_path + "databunch-production-SELFIES.pkl", batch_size)
 
 prior_model = Model(config["training_specs"]["prior_model"])
 prior_model.set_as_prior()
 policy_model = Model(config["training_specs"]["starting_policy_model"])
 
-
-
-# if len([item for item in os.listdir(output_directory) if ".pth" in item]) > 0:
-#     # This might be a continuing run: load last checkpoint
-#     latest_iter = max([int(item.replace("model_", "").replace(".pth", "")) for item in os.listdir(output_directory) if ".pth" in item])
-#     policy_model.load_model_chk(f"{output_directory}/model_{latest_iter}")
-#     start_iter = latest_iter
-# elif args.start_from is not None:
-#     print(args.start_from)
-#     policy_model.load_model_chk(args.start_from.replace(".pth", ""))
-#     start_iter = args.start_iter
-# else:
-#     policy_model.load_model_chk( rl_dataset_path + model_checkpoint)
-#     start_iter = 0
 
 
 #####################

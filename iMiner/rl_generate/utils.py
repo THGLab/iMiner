@@ -209,16 +209,6 @@ class SELFIES_Sampler(ModelSampler):
         sampled_contents = [self.convert_tokens_to_SELFIES(tok) for tok in sampled_contents]
         return sampled_contents
 
-# def get_free_gpu():
-#     gpu_stats = subprocess.check_output(["nvidia-smi", "--format=csv", "--query-gpu=memory.used,memory.free"])
-#     gpu_df = pd.read_csv(StringIO(gpu_stats.decode("utf-8").replace("MiB","")),
-#                          names=['memory.used', 'memory.free'],
-#                          skiprows=1)
-#     gpu_df["avail"]=gpu_df["memory.free"]/(gpu_df["memory.used"]+gpu_df["memory.free"])
-#     idx = gpu_df['avail'].idxmax()
-#     if gpu_df.loc[idx,"avail"]<0.1:
-#         idx=None
-#     return str(idx)
 
 def get_gpu_count():
     names = subprocess.Popen(["nvidia-smi", "--query-gpu=name", "--format=csv"], stdout=subprocess.PIPE)

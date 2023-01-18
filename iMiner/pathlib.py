@@ -22,4 +22,4 @@ autogrid_path = f'{ADFR_install_path}/autogrid4'
 
 VINA_BINARY = Path(iMiner_path) / 'docking/bins/vina'
 VINA_GPU_SCRIPT = Path(iMiner_path) / 'docking/run_vina_gpu.sh'
-VINA_GPU_BINARY_PATH = Path(iMiner_path) / "bins"
+VINA_GPU_BINARY_PATH = Path(iMiner_path) / "docking/bins"

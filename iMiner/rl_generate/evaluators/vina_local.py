@@ -12,39 +12,10 @@ import multiprocessing
 from iMiner.core.consensus_docking import ConsensusDocking
 from iMiner.rl_generate.utils import get_gpu_count
 
-VINA_DOCKING_PY_DIRPATH = '/home/jerry/data/covid_project/rdkit_vina'
-import sys
+from rdkit import Chem
+from rdkit.Chem import Draw
 import os
 from pathlib import Path
-# sys.path.append(VINA_DOCKING_PY_DIRPATH)
-# from docking import docksmile
-# from utils import get_free_gpu, 
-
-# def return_func_delegate(func, *args, send_end=None, **kwargs):
-#     results = func(*args, **kwargs)
-#     send_end.send(results)
-
-# def docking_with_timeout(*args, timeout=45):
-    
-#     if args[-1]: # use_gpu
-#         gpu = get_free_gpu()
-#     else:
-#         gpu = None
-#     receive_end, send_end = multiprocessing.Pipe(duplex=False)
-#     p = multiprocessing.Process(target=return_func_delegate,
-#          args=(docksmile,) + args[:-1], kwargs=dict(gpu=gpu, send_end=send_end, return_docked_file=True))
-#     p.daemon = True
-#     p.start()
-#     send_end.close() # child must be the only one with it opened
-#     p.join(timeout)
-    
-#     if p.is_alive():
-#         p.terminate()
-#         print("docking for SMILES {} timed out".format(args[0]))
-#         return args[0], np.nan, None
-#     else:
-#         return receive_end.recv()  # get value from the child
-
 
 class vina_score_assigner():
     def __init__(self, protein_file, box, path, use_gpu=False, timeout=45) -> None:
@@ -74,6 +45,12 @@ class vina_score_assigner():
         result_df.index = result_df.ligand_names
         result_dict = result_df["score"].to_dict()
         results = [result_dict.get(name, np.nan) for name in new_names]
+
+        # save the best 50 molecules this iteration in an image
+        selected = result_df.sort_values("score", ascending=True).head(50)
+        img = Draw.MolsToGridImage([Chem.MolFromSmiles(s) for s in selected["smiles"]], 
+            legends=list(selected["ligand_names"]+",vina:"+selected["score"].astype(str)))
+        img.save(f'{self.output_dir}/{iteration}.png')
         return results
 
 if __name__ == '__main__':
