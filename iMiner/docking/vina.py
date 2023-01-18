@@ -8,6 +8,7 @@ Defines the docking class for AutoDock Vina and Autodock Vina GPU
 from iMiner.docking.autodock import AutoDockBaseDocking
 from iMiner.cmd import run_command, set_directory
 from iMiner.utils import random_id, get_free_gpu
+from iMiner.pathlib import *
 from pathlib import Path
 from typing import Optional
 import itertools
@@ -17,9 +18,6 @@ import numpy as np
 import re
 import pandas as pd
 
-VINA_BINARY = Path(path.abspath(path.dirname(__file__))) / 'bins/vina'
-VINA_GPU_SCRIPT = Path(path.abspath(path.dirname(__file__))) / 'run_vina_gpu.sh'
-VINA_GPU_BINARY_PATH = Path(path.abspath(path.dirname(__file__))) / "bins"
 
 class VinaDocking(AutoDockBaseDocking):
     def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:

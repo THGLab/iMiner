@@ -7,6 +7,7 @@ Automate the use of AutoDock4-GPU Docking Software
 
 from iMiner.docking.autodock import AutoDockBaseDocking
 from iMiner.cmd import set_directory
+from iMiner.pathlib import *
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -17,8 +18,6 @@ import re
 import subprocess
 
 
-autogrid_path = '/global/home/groups/co_armada2/local/ADFRsuite/bin/autogrid4'
-ad4gpu_path = '/global/home/groups/co_armada2/local/AutoDock-GPU/bin/autodock_gpu_128wi'
 
 gpf = """npts NPTS_X NPTS_Y NPTS_Z
 gridfld PREFIX.maps.fld
