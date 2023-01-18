@@ -63,6 +63,7 @@ os.makedirs(output_directory)
 os.makedirs(output_directory + "/docking")
 print("All results logged in", output_directory)
 logger = Logger(output_directory)
+config["run"]["output_dir"] = output_directory
 
 
 #####################
