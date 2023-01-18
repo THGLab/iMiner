@@ -59,6 +59,7 @@ class RewardAssigner():
             self.reward_combination = gmean
         self.logger = logger
         self.output_path = output_path
+        self.iteration = 0
 
     def add_reward(self, reward_type, extra_params=None):
         self.reward_types.append(reward_type)
@@ -87,6 +88,7 @@ class RewardAssigner():
         '''
         Calculate reward from the given list of inputs, do parallel assignment of scores, and return rewards together with whether each generated smiles string should contribute to training
         '''
+        self.iteration += 1
         converted_selfies = [convert_input_to_selfies(item, self.tokens) for item in inputs]
         converted_smiles = [safe_decode_selfies(s) for s in converted_selfies]
         query_indices = [] # keep record of whether each element from the converted smiles should receive reward query. If not, then these are bad smiles and should receive a very low reward
@@ -114,7 +116,7 @@ class RewardAssigner():
             # with open('outputs/molgrid.png', 'wb') as f:
             #     f.write(img.tobytes())
             # self.logger.log_image("molecules", 'outputs/molgrid.png')
-        metrics, validities = self.get_metric_values_parallel(valid_smiles)
+        metrics, validities, new_names = self.get_metric_values_parallel(valid_smiles)
         if np.sum(validities) == 0:
             return None
         # valid metrics are those received feedback (including NaN results) from the query within time limit
@@ -133,6 +135,17 @@ class RewardAssigner():
         df["smiles"] = non_nan_smiles
         for i in range(valid_metrics.shape[1]):
             df[self.reward_types[i]] = valid_metrics[:, i]
+        df["names"] = new_names
+        # save the best 50 molecules this iteration in an image
+        if self.logger is not None and "vina_score" in self.reward_types:
+            selected = df.sort_values("vina_score", ascending=True).head(50)
+            img = Draw.MolsToGridImage([Chem.MolFromSmiles(s) for s in selected["smiles"]], 
+                legends=selected["names"]+",vina:"+selected["vina_score"].astype(str))
+            img.save('/tmp/molgrid.png')
+            self.logger.log_image(self.iteration, "molecules", '/tmp/molgrid.png')
+            # with open('outputs/molgrid.png', 'wb') as f:
+            #     f.write(img.tobytes())
+            # self.logger.log_image("molecules", 'outputs/molgrid.png')
         mean_valid_metrics = np.mean(valid_metrics[non_nan_filter], axis=0)
         converted_rewards = [[reward_conversion_func(num) for reward_conversion_func, num in zip(self.reward_conversion_funcs, metric_values)] for metric_values in valid_metrics]
         final_rewards = np.array([self.reward_combination(converted_reward) for converted_reward in converted_rewards])
@@ -184,6 +197,7 @@ class RewardAssigner():
 
     def get_metric_values_parallel(self, mols):
         metrics = []
+        new_names = [str(self.iter) + "_" + str(i) for i in range(len(mols))]
         for reward_item in self.reward_types:
             if reward_item in ["drug_likeliness", "fragment_similarity"]:
                 metrics.append([self.property_calculators[reward_item].calc_score(mol) for mol in mols])
@@ -199,4 +213,4 @@ class RewardAssigner():
                 metrics.append(morgan_dist)
         if "vina_score" not in self.reward_types:
             validities = [True] * len(metrics[0])
-        return metrics, validities
+        return metrics, validities, new_names

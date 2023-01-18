@@ -80,6 +80,9 @@ class Logger():
         values = np.array(values)
         self.tb_writer.add_histogram(name, values, n_iter)
 
+    def log_image(self, n_iter, name, image_addr):
+        self.tb_writer.add_image(name, image_addr)
+
     def print_log(self, logged_values):
         for category in logged_values:
             if category == "time_elapsed":

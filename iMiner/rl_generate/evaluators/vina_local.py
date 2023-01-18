@@ -64,12 +64,9 @@ class vina_score_assigner():
         else:
             self.n_jobs = int(multiprocessing.cpu_count() * 0.9)
         self.timeout = timeout
-        self.iter = 0
 
 
-    def get_scores(self, smiles):
-        self.iter += 1
-        new_names = [str(self.iter) + "_" + str(i) for i in range(len(smiles))]
+    def get_scores(self, smiles, new_names):
         added_new_names = self.docking_project.add_multiple_ligands(smiles, names=new_names)
         self.docking_project.run_consensus_docking(ligand_names=added_new_names, n_jobs=self.n_jobs, 
             output_csv=self.output_dir / Path(f"{self.iter}.csv"), single_job_timeout=self.timeout)
