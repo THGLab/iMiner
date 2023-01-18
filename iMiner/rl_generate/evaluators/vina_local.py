@@ -60,7 +60,7 @@ class vina_score_assigner():
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.use_gpu = use_gpu
         if use_gpu:
-            self.n_jobs = get_gpu_count() - 1
+            self.n_jobs = get_gpu_count()
         else:
             self.n_jobs = int(multiprocessing.cpu_count() * 0.9)
         self.timeout = timeout
