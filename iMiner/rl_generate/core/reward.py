@@ -135,14 +135,13 @@ class RewardAssigner():
         df["smiles"] = non_nan_smiles
         for i in range(valid_metrics.shape[1]):
             df[self.reward_types[i]] = valid_metrics[:, i]
-        df["names"] = new_names
+        df["names"] = [s for s,v in zip(new_names, validities) if v] 
         # save the best 50 molecules this iteration in an image
-        if self.logger is not None and "vina_score" in self.reward_types:
+        if "vina_score" in self.reward_types:
             selected = df.sort_values("vina_score", ascending=True).head(50)
             img = Draw.MolsToGridImage([Chem.MolFromSmiles(s) for s in selected["smiles"]], 
-                legends=selected["names"]+",vina:"+selected["vina_score"].astype(str))
-            img.save('/tmp/molgrid.png')
-            self.logger.log_image(self.iteration, "molecules", '/tmp/molgrid.png')
+                legends=list(selected["names"]+",vina:"+selected["vina_score"].astype(str)))
+            img.save(f'{self.output_path}/{self.iteration}.png')
             # with open('outputs/molgrid.png', 'wb') as f:
             #     f.write(img.tobytes())
             # self.logger.log_image("molecules", 'outputs/molgrid.png')
@@ -197,12 +196,12 @@ class RewardAssigner():
 
     def get_metric_values_parallel(self, mols):
         metrics = []
-        new_names = [str(self.iter) + "_" + str(i) for i in range(len(mols))]
+        new_names = [str(self.iteration) + "_" + str(i) for i in range(len(mols))]
         for reward_item in self.reward_types:
             if reward_item in ["drug_likeliness", "fragment_similarity"]:
                 metrics.append([self.property_calculators[reward_item].calc_score(mol) for mol in mols])
             if reward_item == "vina_score":
-                vina_scores = self.property_calculators[reward_item].get_scores(mols)
+                vina_scores = self.property_calculators[reward_item].get_scores(mols, new_names, self.iteration)
                 metrics.append(vina_scores)
                 validities = ~np.isnan(vina_scores) 
             if reward_item == "fcd":

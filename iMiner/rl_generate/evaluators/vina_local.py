@@ -66,11 +66,11 @@ class vina_score_assigner():
         self.timeout = timeout
 
 
-    def get_scores(self, smiles, new_names):
+    def get_scores(self, smiles, new_names, iteration):
         added_new_names = self.docking_project.add_multiple_ligands(smiles, names=new_names)
         self.docking_project.run_consensus_docking(ligand_names=added_new_names, n_jobs=self.n_jobs, 
-            output_csv=self.output_dir / Path(f"{self.iter}.csv"), single_job_timeout=self.timeout)
-        result_df = pd.read_csv(self.output_dir / Path(f"{self.iter}.csv"))
+            output_csv=self.output_dir / Path(f"{iteration}.csv"), single_job_timeout=self.timeout)
+        result_df = pd.read_csv(self.output_dir / Path(f"{iteration}.csv"))
         result_df.index = result_df.ligand_names
         result_dict = result_df["score"].to_dict()
         results = [result_dict.get(name, np.nan) for name in new_names]
