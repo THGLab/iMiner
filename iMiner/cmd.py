@@ -90,7 +90,7 @@ def run_command(
     cmd: list of str, or str
         Command to execute
     raise_error: bool
-        Wheter to raise an error if the command failed
+        Whether to raise an error if the command failed
     input: str, optional
         Input string for the command
     timeout: int, optional
