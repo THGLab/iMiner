@@ -1,0 +1,44 @@
+rl_params:
+  algorithm: ppo
+  epsilon: 0.1
+  entropy_coef: 0.02
+  n_epochs_before_resample: 10
+  kl_threshold: 0.03
+
+optimizer_specs:
+  optimizer: adam
+  learning_rate: 1.0e-4
+
+training_specs:
+  batch_size: 1024
+  # n_seq_per_iter: 1500
+  # n_iters: 1000
+  n_seq_per_iter: 10 # for debug
+  n_iters: 20 # for debug
+  prior_diff_coef: 0
+  prior_model: /global/scratch/users/jerry-li1996/iMiner/iMiner/rl_generate/outputs/final_model.pkl
+  starting_policy_model: /global/scratch/users/jerry-li1996/iMiner/iMiner/rl_generate/outputs/final_model.pkl
+  dataset_path: /global/scratch/users/jerry-li1996/iMiner/iMiner/rl_generate/data
+
+rewards:
+  - type: vina_score
+    params:
+      protein_file: /global/scratch/users/jerry-li1996/iMiner/examples/helicase/helicase-holo.pdb
+      box: [-38.0, 5.5, -50.5, -8.0, 30.5, -15.5]
+      use_gpu: True
+      timeout: 15
+  - type: fragment_similarity
+    params:
+      fragments: ['[14*]c1nc([14*])c2cc([16*])c([16*])cc2n1',
+                  '[5*]N1CCCC1',
+                  '[5*]N[5*]',
+                  '[3*]OC',
+                  '[4*]CCCCC[4*]']
+      weights: [1, 0.2, 0.1, 0.1, 0.1]
+      global_substructure_match: True
+  - drug_likeliness
+
+
+run:
+  random_seed: 42
+  output_dir: debug_outputs

@@ -10,7 +10,7 @@ import os
 import shutil
 from pathlib import Path
 from collections import OrderedDict
-from typing import Optional
+from typing import Optional, Union
 from iMiner.log import init_logger
 from rdkit.Chem import MolFromSmiles, AddHs, AllChem, SDWriter
 
@@ -79,7 +79,7 @@ class BaseProject:
         if self.verbose:
             self.logger.info(f"Added protein {name} to the project. Current number of proteins: {len(self.proteins.items())}")
 
-    def add_ligand(self, smiles_or_path, name=None, format='inferred'):
+    def add_ligand(self, smiles_or_path, name=None, format='inferred') -> Union[str, bool]:
         '''
         Add a ligand to the project
 
@@ -118,9 +118,9 @@ class BaseProject:
             self._process_pdb(smiles_or_path, ligand_path)
         
         self.ligands[name] = ligand_path
-        return True
+        return name
 
-    def add_multiple_ligands(self, smiles_or_paths, names=None, format='inferred'):
+    def add_multiple_ligands(self, smiles_or_paths, names=None, format='inferred') -> list:
         '''
         Add multiple ligands to the project
 
@@ -131,16 +131,19 @@ class BaseProject:
         :type names: list
         :type format: str
         '''
+        new_names = []
         if names is None:
-            names = [str(i) for i in range(len(smiles_or_paths))]
+            names = [str(i) for i in range(len(self.ligands), len(self.ligands) + len(smiles_or_paths))]
         for smiles_or_path, name in zip(smiles_or_paths, names):
-            succ = self.add_ligand(smiles_or_path, name, format)
-            if not succ:
+            return_name = self.add_ligand(smiles_or_path, name, format)
+            if not return_name:
                 print(f'Bad smiles string: {smiles_or_path}. Ignored.')
                 continue
+            new_names.append(return_name)
 
         if self.verbose:
             self.logger.info(f"Added {len(smiles_or_paths)} ligands to the project. Current number of ligands: {len(self.ligands.items())}")
+        return new_names
     
     def get_ligand_with_name(self, name) -> Path:
         """

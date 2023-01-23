@@ -25,6 +25,24 @@ class MolTokenizer(BaseTokenizer):
         pass
 
 class SELFIESTokenizer(BaseTokenizer):
+    def __init__(self, lang: str):
+        self.tokens = ["#Branch1",	"#Branch2",	"#C",	"#N",	"#N+1",	"-/Ring2",	"/Br",	"/C",
+        	"/C@",	"/C@@",	"/C@@H1",	"/C@H1",	"/Cl",	"/N",	"/N+1",	"/O",	"/S",
+            	"=Branch1",	"=Branch2",	"=C",	"=N",	"=N+1",	"=N-1",	"=O",	"=P",	"=Ring1",
+                	"=Ring2",	"=S",	"=Se",	"B",	"B-1",	"Br",	"Branch1",	"Branch2",	"C",
+        	"C-1",	"C@",	"C@@",	"C@@H1",	"C@H1",	"Cl",	"F",	"I",	"N",	"N+1",	"N-1",
+        	"NH1",	"O",	"O-1",	"OH0",	"P",	"P+1",	"P@",	"P@@",	"PH1",	"Ring1",	"Ring2",
+        	"S",	"S+1",	"Se",	"Si",	"Te",	"\\C",	"\\C@@H1",	"\\C@H1",	"\\Cl",	"\\N",
+            	"\\N+1",	"\\NH1",	"\\O",	"\\O-1",	"\\S"]
+
+    def tokenizer(self, selfies: str) -> List[str]:
+        selfies_tokens = selfies[1:-1].split("][")
+        if np.any([tk not in self.tokens for tk in selfies_tokens]):
+            return [BOS] # if any very rara token occurs in the SELFIES string, discard the sequence (should be rare)
+        else:
+            return [BOS] + selfies_tokens
+
+class SELFIESCompressedTokenizer(BaseTokenizer):
     def __init__(self, lang):
         self.pre_modifier = ["#", "/", "\\", "=", "-/", "-\\"]
         self.tokens = ["Branch1", "Branch2", "As", "B", "Br", "C", "Cl", "F", "H", "I", "N", "O", "P", "Ring1", "Ring2", "S", "Se", "Si", "Te"]
@@ -168,11 +186,21 @@ class SELFIES_Sampler(ModelSampler):
         if len(tokens) == 0 or "^" in tokens[0]:
             return ""
         combined_tokens = []
+        partial_token = ""
         for token in tokens:
-            if token[0] != "^":
-                combined_tokens.append(token)
+            if partial_token == "":
+                if token[-1] == "^":
+                    partial_token = token[:-1]
+                elif token[0] == "^":
+                    return ""   # invalid token
+                else:
+                    combined_tokens.append(token)
             else:
-                combined_tokens[-1] += token[1:]
+                if token[-1] == "^":
+                    return ""  # unexpected situation that two consecutive pre-tokens together
+                else:
+                    combined_tokens.append(partial_token + token)
+                    partial_token = ""
         tokens = ["[%s]" % t for t in combined_tokens]
         return "".join(tokens)
 
@@ -180,3 +208,10 @@ class SELFIES_Sampler(ModelSampler):
         sampled_contents = super(SELFIES_Sampler, self).sample(count, maximal_len, do_batch, batch_size)
         sampled_contents = [self.convert_tokens_to_SELFIES(tok) for tok in sampled_contents]
         return sampled_contents
+
+
+def get_gpu_count():
+    names = subprocess.Popen(["nvidia-smi", "--query-gpu=name", "--format=csv"], stdout=subprocess.PIPE)
+    n_lines = subprocess.check_output(["wc", "-l"], stdin=names.stdout)
+    names.stdout.close()
+    return int(n_lines.decode("utf-8")) - 1
