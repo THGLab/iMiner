@@ -1,13 +1,24 @@
+"""
+Author: Eric Wang, Jerry Li, Oufan Zhang
+Date: 01/23/2023
+
+Codes of iMiner util functions
+"""
 import random
 import time
 import datetime
 import sys, os
-import numpy as np
+from io import StringIO
 from pathlib import Path
 import contextlib
 from typing import Optional
 
+import pandas as pd
+import numpy as np
+import subprocess
+
 from iMiner.log import LOGGER
+
 
 @contextlib.contextmanager
 def timer(name: Optional[str] = None):
@@ -75,7 +86,7 @@ def random_id():
     '''
     Generate a random ID
     '''
-    return random.randint(0,65536)
+    return str(random.randint(0,65536))
 
 def timestamp(hashed=False) -> str:
     '''
@@ -86,6 +97,7 @@ def timestamp(hashed=False) -> str:
     if hashed:
         value = hash_str(value)
     return value
+
 
 def box_from_center_and_size(center, size):
     '''
@@ -99,3 +111,19 @@ def box_from_center_and_size(center, size):
     ymax = center[1] + size[1] / 2
     zmax = center[2] + size[2] / 2
     return (xmin, ymin, zmin, xmax, ymax, zmax)
+
+
+def get_free_gpu():
+    gpu_stats = subprocess.check_output(
+        ["nvidia-smi", "--format=csv", "--query-gpu=memory.used,memory.free"]
+    )
+    gpu_df = pd.read_csv(
+        StringIO(gpu_stats.decode("utf-8").replace("MiB", "")),
+        names=['memory.used', 'memory.free'],
+        skiprows=1
+    )
+    gpu_df["avail"] = gpu_df["memory.free"] / (gpu_df["memory.used"] + gpu_df["memory.free"])
+    idx = gpu_df['avail'].idxmax()
+    if gpu_df.loc[idx, "avail"] < 0.1:
+        idx = None
+    return str(idx)

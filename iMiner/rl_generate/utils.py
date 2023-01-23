@@ -208,3 +208,10 @@ class SELFIES_Sampler(ModelSampler):
         sampled_contents = super(SELFIES_Sampler, self).sample(count, maximal_len, do_batch, batch_size)
         sampled_contents = [self.convert_tokens_to_SELFIES(tok) for tok in sampled_contents]
         return sampled_contents
+
+
+def get_gpu_count():
+    names = subprocess.Popen(["nvidia-smi", "--query-gpu=name", "--format=csv"], stdout=subprocess.PIPE)
+    n_lines = subprocess.check_output(["wc", "-l"], stdin=names.stdout)
+    names.stdout.close()
+    return int(n_lines.decode("utf-8")) - 1
