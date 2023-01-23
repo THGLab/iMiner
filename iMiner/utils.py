@@ -1,8 +1,24 @@
 import random
+import time
 import datetime
 import sys, os
 import numpy as np
 from pathlib import Path
+import contextlib
+from typing import Optional
+
+from iMiner.log import LOGGER
+
+@contextlib.contextmanager
+def timer(name: Optional[str] = None):
+    """
+    Logger timer
+    """
+    start = time.time()
+    yield
+    end = time.time()
+    msg = f"{name} finished. " if name else ""
+    LOGGER.info(msg + f"Time Elapsed: {end - start:.3f} seconds")
 
 
 def file_abspath(path: os.PathLike) -> Path:

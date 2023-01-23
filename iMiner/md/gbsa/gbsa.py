@@ -11,10 +11,11 @@ import shutil
 import multiprocessing as mp
 
 import pandas as pd
+from iMiner.utils import timer
+from iMiner.log import LOGGER
 from iMiner.cmd import run_command, find_executable, ExecutableNotFoundError, set_directory
 from iMiner.md.common import preprocess_index_file
 from iMiner.md.gbsa.parameters import generate_input_file, DEFAULT_PARAMS
-from iMiner.log import LOGGER
 from iMiner.utils import file_abspath
 
 
@@ -139,22 +140,23 @@ class GBSA:
         # start
         cmd = cmd.format(**self.params)
         LOGGER.info(f"Start MMPB/GBSA calculation with command: {cmd}")
-        with set_directory(self.workdir):
-            code, out, err = run_command(cmd)
-        with open(self.workdir / 'mmpbsa.log', 'w') as f:
-            f.write(out)
-        LOGGER.info("MMPB/GBSA calculation finished.")
-        
-        # analyze result
-        LOGGER.info(f"Parsing results to {self.workdir / 'Energy.csv'}")
-        self.analyze_results()
-        LOGGER.info(f"The average binding affinity is {self.delta_G:.4f} kcal/mol. ({self.result_df.shape[0]} frames evaulated)")
-        
-        # clean
-        if clean:
+        with timer("MMPB/GBSA Calculation"):
             with set_directory(self.workdir):
-                run_command(f"{self.params['gmx_mmpbsa_exec']} --clean")
-                LOGGER.info("Working directory is clean")
+                code, out, err = run_command(cmd)
+            with open(self.workdir / 'mmpbsa.log', 'w') as f:
+                f.write(out)
+            LOGGER.info("MMPB/GBSA calculation finished.")
+
+            # analyze result
+            LOGGER.info(f"Parsing results to {self.workdir / 'Energy.csv'}")
+            self.analyze_results()
+            LOGGER.info(f"The average binding affinity is {self.delta_G:.4f} kcal/mol. ({self.result_df.shape[0]} frames evaulated)")
+
+            # clean
+            if clean:
+                with set_directory(self.workdir):
+                    run_command(f"{self.params['gmx_mmpbsa_exec']} --clean")
+                    LOGGER.info("Working directory is clean")
 
     def analyze_results(self) -> float:
         """
@@ -174,7 +176,12 @@ class GBSA:
                 "."
             ])
         self.result_df = pd.read_csv(str(self.workdir / "Energy.csv"))
-        self.delta_G = float(self.result_df['TOTAL'].mean())
+        total = self.result_df['TOTAL']
+        if total.max() - total.min() > 50:
+            LOGGER.warning("Large fluctuations in delta G, PBC may not be fixed properly!")
+        if total.max() > 0:
+            LOGGER.warning("Positive delta G found, PBC may not be fixed properly!")
+        self.delta_G = float(total.mean())
         with open(self.workdir / "dG.dat", 'w') as f:
              f.write(str(self.delta_G))
         return self.delta_G

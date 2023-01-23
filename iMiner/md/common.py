@@ -86,10 +86,10 @@ def preprocess_index_file(
     
     Return
     ------
-    (r_grp_idx, l_grp_idx): Tuple[int, int]
-        Group index of receptor and ligand
+    (r_grp_idx, l_grp_idx, c_grp_idx): Tuple[int, int]
+        Group index of receptor, ligand and complex
     """
-    receptor_name = 'Receptor_GBSA'
+    receptor_name = 'Receptor'
     group_dict = parse_index_file(f_ndx_ori)
     group_dict[receptor_name] = group_dict['Protein'].copy()
     for ndx in group_dict.get('Ion', []):
@@ -98,9 +98,12 @@ def preprocess_index_file(
         if ndx in group_dict.get('CL', []):
             continue
         group_dict[receptor_name].append(ndx)
+    complex_name = f"{ligand_name}_{receptor_name}"
+    group_dict[complex_name] =  group_dict[ligand_name] + group_dict[receptor_name]
     
     mk_index_file(group_dict, f_ndx_new, overwrite)
     keys = list(group_dict.keys())
     r_grp_idx = keys.index(receptor_name)
     l_grp_idx = keys.index(ligand_name)
-    return r_grp_idx, l_grp_idx
+    c_grp_idx = keys.index(complex_name)
+    return r_grp_idx, l_grp_idx, c_grp_idx

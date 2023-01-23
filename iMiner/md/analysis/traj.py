@@ -171,7 +171,7 @@ def read_xvg(xvg_file: os.PathLike, tunit: str = "ps", dunit: str = "nm"):
     tu = 1.
     du = 1.
     if tunit == "ns":
-        tu = 0.0001
+        tu = 0.001
     if dunit == "A":
         du = 10.
     data = np.loadtxt(xvg_file, comments=["#", "@"])
