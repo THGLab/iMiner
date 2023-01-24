@@ -26,7 +26,7 @@ if __name__ == "__main__":
             'Molecular Dynamics'
         ],
         license='MIT',
-        packages=setuptools.find_packages(),
+        packages=setuptools.find_packages(exclue=["tests"]),
         include_package_data=True,
         classifiers=[
             'Development Status :: 4 - Beta',

@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from iMiner.log import LOGGER
 from iMiner.cmd import run_command, find_executable, set_directory
+from iMiner.utils import file_abspath
 
 try:
     from pdbfixer import PDBFixer
@@ -12,6 +13,14 @@ except ImportError:
 
 from openmm.app import PDBFile
 
+
+PROTEIN_FF_KEYS = {
+    "ff14SB": "leaprc.protein.ff14SB",
+    "ff19SB": "leaprc.protein.ff19SB",
+    "ff03": "oldff/leaprc.ff03",
+    "ff99SB": "oldff/leaprc.ff99SB",
+    "ff99": "oldff/leaprc.ff99"
+}
 
 def fix_protein(
     in_pdb: os.PathLike, 
@@ -82,7 +91,13 @@ def run_tleap(
     with open(Path(__file__).with_name("leap.in"), 'r') as f:
         leap_in = f.read()
     
-    leap_in = leap_in.format(pdb=pdb, prmtop=prmtop, inpcrd=inpcrd, protein_ff=protein_ff, water_ff=water_ff)
+    leap_in = leap_in.format(
+        pdb=file_abspath(pdb), 
+        prmtop=prmtop, 
+        inpcrd=inpcrd, 
+        protein_ff=PROTEIN_FF_KEYS[protein_ff], 
+        water_ff=water_ff
+    )
 
     with set_directory(Path(pdb).parent) as wdir:
         with open("leap.in", 'w') as f:
