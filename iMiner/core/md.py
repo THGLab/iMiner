@@ -86,7 +86,7 @@ class MDProject(BaseProject):
         
         for key in jdata['md']:
             if isinstance(self.md_params[key], dict):
-                jdata.update(jdata['md'][key])
+                self.md_params.update(jdata['md'][key])
             else:
                 self.md_params[key] = jdata['md'][key]
 
