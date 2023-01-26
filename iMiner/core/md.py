@@ -26,7 +26,6 @@ from iMiner.md.analysis.traj import (
     plot_rmsd,
     read_xvg,
     gmx_rms,
-    gmx_extract_and_align_traj,
     xtc_to_pdb,
     gmx_genidx
 )
@@ -53,6 +52,7 @@ class MDProject(BaseProject):
         assert engine in ['gromacs'], f"Not supported MD engine: {engine}"
         self.params = {
             "md": {
+                "protein_ff": "ff14SB",
                 "enforce_gpu": True,
                 "em": {},
                 "nvt": {},
@@ -86,11 +86,9 @@ class MDProject(BaseProject):
         
         for key in jdata['md']:
             if isinstance(self.md_params[key], dict):
-                jdata.update(jdata['md'][key])
+                self.md_params[key].update(jdata['md'][key])
             else:
                 self.md_params[key] = jdata['md'][key]
-        
-
 
     def parametrize_ligand(self, name: str, wdir: Path, **kwargs):
         """
@@ -125,7 +123,7 @@ class MDProject(BaseProject):
         shutil.copyfile(self.get_protein_with_name(name), prep_path / "protein.pdb")
         with set_directory(prep_path):
             try:
-                run_tleap("protein.pdb")
+                run_tleap("protein.pdb", protein_ff=self.md_params['protein_ff'])
             except CommandExecuteError:
                 LOGGER.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in tleap log file.")
                 return False
