@@ -80,9 +80,9 @@ class MDProject(BaseProject):
             for key in ['nstenergy', 'nstlog']:
                 if key not in jdata['md'][stage]:
                     if "nstxout-compressed" in jdata['md'][stage]:
-                        jdata['md'][stage][key] = jdata['md'][stage][key]['nstxout-compressed']
+                        jdata['md'][stage][key] = jdata['md'][stage]['nstxout-compressed']
                     elif "nstxout" in jdata['md'][stage]:
-                        jdata['md'][stage][key] = jdata['md'][stage][key]['nstxout']
+                        jdata['md'][stage][key] = jdata['md'][stage]['nstxout']
         
         for key in jdata['md']:
             if isinstance(self.md_params[key], dict):
@@ -223,12 +223,6 @@ class MDProject(BaseProject):
         index_file = prod_dir / "index.ndx"
         traj_nopbc_file = prod_dir / "prod_align.xtc"
 
-        # post-process traj file
-        LOGGER.info("Post-process MD trajectory...")
-        with timer("Remove PBC"):
-            self.remove_pbc_workflow(wdir)
-            LOGGER.info(f"Dry MD traj with pbc fixed: {traj_nopbc_file}")
-
         # rmsd
         f_xvg = prod_dir / "prod_rmsd.xvg"
         f_rmsd_png = prod_dir / "prod_rmsd.png"  
@@ -345,9 +339,17 @@ class MDProject(BaseProject):
         succ = self.run_md(wdir)
         if not succ:
             return
-        log_step(6, "Post MD Analysis")
+        
+        log_step(6, "Remove PBC of MD Trajectory")
+        self.remove_pbc_workflow(wdir)
+        
+        log_step(7, "Analyze RMSD and Interactions")
         self.analyze_md_traj(wdir, lig_name)
-        log_step(7, "Clean working directory")
+        
+        log_step(8, "Clean working directory")
+        self.clean(wdir)
+        
         complex_dir = wdir.resolve() / "complex"
         prod_dir = wdir.resolve() / "prod"
+        
         return complex_dir / "ions.tpr", prod_dir/ "prod.xtc" 
