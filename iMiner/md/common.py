@@ -7,8 +7,38 @@ Common functions used in iMiner.md sub-package
 
 import os
 from typing import Dict, List, Tuple
+import numpy as np
 
- 
+
+def read_single_gro(fname: os.PathLike):
+    """
+    Read single-frame Gromacs GRO file 
+
+    Parameters
+    ----------
+    fname: os.PathLike
+        Path to GRO file
+
+    Return
+    ------
+    coords: np.ndarray
+        Coordinates, in unit of nm
+    """
+    coords = []
+    with open(fname, "r") as f:
+        f.readline()
+        natoms = int(f.readline().strip())
+        cnt = 0
+        for line in f:
+            coords.append([float(x) for x in line.split()[-3:]])
+            cnt += 1
+            if cnt == natoms:
+                break
+        
+    coords = np.array(coords)
+    return coords
+
+
 def parse_index_file(fname: os.PathLike) -> Dict[str, List[int]]:
     """
     Parse GROMACS index file

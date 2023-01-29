@@ -20,7 +20,7 @@ from iMiner.md.prep.ligand import run_acpype
 from iMiner.md.prep.protein import run_tleap
 from iMiner.md.prep.complex import make_complex
 from iMiner.md.runner.gromacs import run_preprocess_workflow, run_md_workflow
-from iMiner.md.common import preprocess_index_file
+from iMiner.md.common import preprocess_index_file, read_single_gro, parse_index_file, mk_index_file
 from iMiner.md.analysis.interaction import analyze_multiple_frames, plot_interact
 from iMiner.md.analysis.traj import (
     plot_rmsd,
@@ -149,7 +149,7 @@ class MDProject(BaseProject):
             prep_path
         )
     
-    def remove_pbc_workflow(self, wdir: Path):
+    def remove_pbc_workflow(self, wdir: Path, version: int = 1):
         """
         Remove PBC
         """
@@ -165,21 +165,51 @@ class MDProject(BaseProject):
         LOGGER.info(f"Ligand group index: {l_grp_idx}")
         LOGGER.info(f"Complex group index: {c_grp_idx}")
         
+        if version == 2:
+            coords = read_single_gro(wdir / "complex" / "complex.gro")
+            center_pos = np.mean(coords, axis=0)
+            center_idx = np.argmin(
+                np.linalg.norm(coords - center_pos, ord=2, axis=1)
+            ) + 1
+            group_dict = parse_index_file(index_file)
+            group_dict["center"] = [center_idx]
+            mk_index_file(group_dict, index_file)
+
         # Remove PBC
         base_cmds = [find_executable(['gmx_mpi', 'gmx']), 'trjconv', '-n', index_file]
-        # Step 1: make all the molecules as a whole and center the protein
-        LOGGER.info("Remove PBC Step 1: make all the molecules as a whole and center the protein")
-        tmpf1 = prod_dir / "prod_whole_center.xtc"
-        cmds = base_cmds.copy()
-        cmds += ['-s', prod_dir / "prod.tpr", '-f', prod_dir / "prod.xtc", '-o', tmpf1, '-pbc', 'whole', '-center']
-        run_command(cmds, input=f"Protein\n{c_grp_idx}")
+        if version == 1:
+            # Step 1: make all the molecules as a whole and center the protein
+            LOGGER.info("Remove PBC Step 1: make all the molecules as a whole and center the protein")
+            tmpf1 = prod_dir / "prod_whole_center.xtc"
+            cmds = base_cmds.copy()
+            cmds += ['-s', prod_dir / "prod.tpr", '-f', prod_dir / "prod.xtc", '-o', tmpf1, '-pbc', 'whole', '-center']
+            run_command(cmds, input=f"Protein\n{c_grp_idx}")
+            
+            # Step 2: make all the molecules within the box
+            LOGGER.info("Remove PBC Step 2: make all the molecules within the box")
+            tmpf2 = prod_dir / "prod_whole_center_nojump.xtc"
+            cmds = base_cmds.copy()
+            cmds += ['-s', prod_dir.parent / 'complex' / "complex.gro", '-f', tmpf1, '-o', tmpf2, '-pbc', 'nojump']
+            run_command(cmds, input=str(c_grp_idx))
         
-        # Step 2: make all the molecules within the box
-        LOGGER.info("Remove PBC Step 2: make all the molecules within the box")
-        tmpf2 = prod_dir / "prod_whole_center_nojump.xtc"
-        cmds = base_cmds.copy()
-        cmds += ['-s', prod_dir.parent / 'complex' / "complex.gro", '-f', tmpf1, '-o', tmpf2, '-pbc', 'nojump']
-        run_command(cmds, input=str(c_grp_idx))
+        elif version == 2:
+            # Step 1: make all the molecules as a whole
+            LOGGER.info("Remove PBC Step 1: make all the molecules as a whole")
+            tmpf1 = prod_dir / "prod_whole.xtc"
+            cmds = base_cmds.copy()
+            cmds += ['-s', prod_dir / "prod.tpr", '-f', prod_dir / "prod.xtc", '-o', tmpf1, '-pbc', 'whole']
+            run_command(cmds, input=f"{c_grp_idx}")
+
+            #Step 2: make all the molecules within the box by centering the central atom
+            LOGGER.info("Remove PBC Step 2: make all the molecules within the box by centering the central atom")
+            tmpf2 = prod_dir / "prod_nojump_center.xtc"
+            cmds = base_cmds.copy()
+            cmds += ['-s', wdir / "complex" / "newbox.gro", '-f', tmpf1, '-o', tmpf2, '-pbc', 'nojump', '-center']
+            run_command(cmds, input=f"center\n{c_grp_idx}")
+
+        else:
+            raise NotImplementedError(f"Invalid remove PBC workflow version: {version}")
+        
         # Step 3: align
         LOGGER.info("Remove PBC Step 3: align")
         cmds = base_cmds.copy()
