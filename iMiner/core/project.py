@@ -13,7 +13,8 @@ from pathlib import Path
 from collections import OrderedDict
 from typing import Optional, Union, List
 
-from rdkit.Chem import MolFromSmiles, AddHs, AllChem, SDWriter
+from rdkit import Chem
+from rdkit.Chem import AllChem, Draw
 
 from iMiner.log import LOGGER
 
@@ -231,11 +232,11 @@ class BaseProject:
 
         :return: str, the path to the ligand file
         '''
-        mol = MolFromSmiles(smiles)
+        mol = Chem.MolFromSmiles(smiles)
         # assert valid smiles
         if mol is None:
             raise RuntimeError(smiles + ' is not a valid smile string')
-        mh = AddHs(mol)
+        mh = Chem.AddHs(mol)
         embed = AllChem.EmbedMolecule(mh, useRandomCoords=False)
 
         # make sure embedding is successful
@@ -243,7 +244,7 @@ class BaseProject:
             raise RuntimeError('RDkit fails to embed molecule ' + smiles)
 
         # save the ligand file to the corresponding position
-        writer = SDWriter(save_path)
+        writer = Chem.SDWriter(save_path)
         writer.write(mh)
 
 
@@ -257,3 +258,10 @@ class BaseProject:
         :return: str, the path to the ligand file
         '''
         raise NotImplementedError()
+    
+    def show_ligand(self, name: str):
+        m = Chem.SDMolSupplier(str(self.ligands_path / f"{name}.sdf"))[0]
+        m = Chem.RemoveHs(m)
+        AllChem.Compute2DCoords(m)
+        img = Draw.MolToImage(m, size=(400, 400), legend=name)
+        return img

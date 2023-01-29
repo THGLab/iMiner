@@ -36,7 +36,7 @@ def log_step(n: int, msg: str):
 
 
 class MDProject(BaseProject):
-    def __init__(self, project_name:str, project_path: Optional[os.PathLike] = None, engine: str = "gromacs") -> None:
+    def __init__(self, project_name: Optional[str] = None, project_path: Optional[os.PathLike] = None, engine: str = "gromacs") -> None:
         '''
         Initialize a MD project with a project name and a project path
 
@@ -353,3 +353,11 @@ class MDProject(BaseProject):
         prod_dir = wdir.resolve() / "prod"
         
         return complex_dir / "ions.tpr", prod_dir/ "prod.xtc" 
+
+    def show_inteaction(self, task_name: str):
+        from IPython.display import Image
+        return Image(str(self.project_path / "md" / task_name / "prod" / "interaction.png"))
+
+    def show_rmsd(self, task_name: str):
+        from IPython.display import Image
+        return Image(str(self.project_path / "md" / task_name / "prod" / "interaction.png"))
