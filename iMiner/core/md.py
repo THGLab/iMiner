@@ -11,6 +11,7 @@ from typing import Optional, Dict, Any
 import json
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from iMiner.log import LOGGER
 from iMiner.utils import timer
@@ -267,6 +268,7 @@ class MDProject(BaseProject):
             LOGGER.warning("Large RMSD found! PBC may not be fixed properly.")
         fig, ax = plot_rmsd(tlist, rmslist, name=lig_name)
         fig.savefig(f_rmsd_png, dpi=300)
+        plt.close(fig)
         LOGGER.info(f"RMSD Calculated: {f_rmsd_png}")
 
         # analyze interaction
@@ -295,6 +297,7 @@ class MDProject(BaseProject):
             )
             fig, ax = plot_interact(f_csv, title=lig_name)
             fig.savefig(f_interact_png, dpi=300)
+            plt.close(fig)
             LOGGER.info(f"Intearction analysis result save to: {f_interact_png}")
         
         return
