@@ -360,4 +360,4 @@ class MDProject(BaseProject):
 
     def show_rmsd(self, task_name: str):
         from IPython.display import Image
-        return Image(str(self.project_path / "md" / task_name / "prod" / "interaction.png"))
+        return Image(str(self.project_path / "md" / task_name / "prod" / "prod_rmsd.png"))
