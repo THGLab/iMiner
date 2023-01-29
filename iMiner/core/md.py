@@ -354,7 +354,7 @@ class MDProject(BaseProject):
         
         return complex_dir / "ions.tpr", prod_dir/ "prod.xtc" 
 
-    def show_inteaction(self, task_name: str):
+    def show_interaction(self, task_name: str):
         from IPython.display import Image
         return Image(str(self.project_path / "md" / task_name / "prod" / "interaction.png"))
 
