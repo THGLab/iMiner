@@ -7,6 +7,7 @@ A consensus docking module for iMiner
 
 from iMiner.core.project import BaseProject
 from iMiner.docking import *
+from iMiner.log import LOGGER
 import pandas as pd
 
 
@@ -49,10 +50,10 @@ class ConsensusDocking(BaseProject):
         for protocol in self.docking_protocols:
             if self.verbose:
                 n_cores = kwargs.get("n_jobs", 1)
-                self.logger.info(f"Start docking with {protocol} using {n_cores} cores...")
+                LOGGER.info(f"Start docking with {protocol} using {n_cores} cores...")
             docking_obj = self.docking_protocols[protocol](self.proteins[protein_name],
                                                            self.binding_sites[protein_name],
-                                                           self.temp_path, self.logger, **kwargs)
+                                                           self.temp_path, LOGGER, **kwargs)
             docking_path = consensus_docking_path / protocol
             docking_path.mkdir(exist_ok=True, parents=True)
             if ligand_names is None:
@@ -73,4 +74,4 @@ class ConsensusDocking(BaseProject):
         final_results.to_csv(output_csv, index=False)
 
         if self.verbose:
-            self.logger.info(f"Consensus docking completed! Results saved to {output_csv}")
+            LOGGER.info(f"Consensus docking completed! Results saved to {output_csv}")
