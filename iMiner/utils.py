@@ -1,10 +1,56 @@
-from io import StringIO
-import numpy as np
+"""
+Author: Eric Wang, Jerry Li, Oufan Zhang
+Date: 01/23/2023
+
+Codes of iMiner util functions
+"""
 import random
+import time
 import datetime
-import sys
-import subprocess
+import sys, os
+from io import StringIO
+from pathlib import Path
+import contextlib
+from typing import Optional
+
 import pandas as pd
+import numpy as np
+import subprocess
+
+from iMiner.log import LOGGER
+
+
+@contextlib.contextmanager
+def timer(name: Optional[str] = None):
+    """
+    Logger timer
+    """
+    start = time.time()
+    yield
+    end = time.time()
+    msg = f"{name} finished. " if name else ""
+    LOGGER.info(msg + f"Time Elapsed: {end - start:.3f} seconds")
+
+
+def file_abspath(path: os.PathLike) -> Path:
+    """
+    Check whether a file path is exist and return its absoulute path
+    """
+    abs_path = Path(path).resolve()
+    if not abs_path.is_file():
+        raise FileNotFoundError(f'{abs_path} not exist')
+    return abs_path
+
+
+def dir_abspath(path: os.PathLike) -> Path:
+    """
+    Check whether a directory path is exist and return its absoulute path
+    """
+    abs_path = Path(path).resolve()
+    if not abs_path.is_dir():
+        raise FileNotFoundError(f'{abs_path} not exist')
+    return abs_path
+
 
 def dist_mat(crd1: np.ndarray, crd2: np.ndarray) -> np.ndarray:
     '''
@@ -53,7 +99,6 @@ def timestamp(hashed=False) -> str:
     return value
 
 
-
 def box_from_center_and_size(center, size):
     '''
     Generate a box definition (xmin, ymin, zmin, xmax, ymax, zmax)
@@ -69,12 +114,16 @@ def box_from_center_and_size(center, size):
 
 
 def get_free_gpu():
-    gpu_stats = subprocess.check_output(["nvidia-smi", "--format=csv", "--query-gpu=memory.used,memory.free"])
-    gpu_df = pd.read_csv(StringIO(gpu_stats.decode("utf-8").replace("MiB","")),
-                         names=['memory.used', 'memory.free'],
-                         skiprows=1)
-    gpu_df["avail"]=gpu_df["memory.free"]/(gpu_df["memory.used"]+gpu_df["memory.free"])
+    gpu_stats = subprocess.check_output(
+        ["nvidia-smi", "--format=csv", "--query-gpu=memory.used,memory.free"]
+    )
+    gpu_df = pd.read_csv(
+        StringIO(gpu_stats.decode("utf-8").replace("MiB", "")),
+        names=['memory.used', 'memory.free'],
+        skiprows=1
+    )
+    gpu_df["avail"] = gpu_df["memory.free"] / (gpu_df["memory.used"] + gpu_df["memory.free"])
     idx = gpu_df['avail'].idxmax()
-    if gpu_df.loc[idx,"avail"]<0.1:
-        idx=None
+    if gpu_df.loc[idx, "avail"] < 0.1:
+        idx = None
     return str(idx)

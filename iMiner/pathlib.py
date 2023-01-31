@@ -11,10 +11,10 @@ ligprep_path = "/global/scratch/users/jerry-li1996/covid/rdkit_vina/MGLToolsPckg
         
 
 # (SAVIO)
-ADFR_install_path = '/global/home/groups/co_armada2/local/ADFRsuite/bin'
-meeko_install_path = '/global/home/groups/co_armada2/conda_envs/vina/bin'
-iMiner_path = '/global/home/groups/co_armada2/avidd/iMiner/iMiner'
-ad4gpu_path = '/global/home/groups/co_armada2/local/AutoDock-GPU/bin/autodock_gpu_128wi'
+# ADFR_install_path = '/global/home/groups/co_armada2/local/ADFRsuite/bin'
+# meeko_install_path = '/global/home/groups/co_armada2/conda_envs/vina/bin'
+# iMiner_path = '/global/home/groups/co_armada2/avidd/iMiner/iMiner'
+# ad4gpu_path = '/global/home/groups/co_armada2/local/AutoDock-GPU/bin/autodock_gpu_128wi'
 ######################################
 
 protein_prep_path = f'{ADFR_install_path}/prepare_receptor'

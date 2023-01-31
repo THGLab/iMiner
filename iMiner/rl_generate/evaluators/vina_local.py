@@ -49,7 +49,8 @@ class vina_score_assigner():
         # save the best 50 molecules this iteration in an image
         selected = result_df.sort_values("score", ascending=True).head(50)
         img = Draw.MolsToGridImage([Chem.MolFromSmiles(s) for s in selected["smiles"]], 
-            legends=list(selected["ligand_names"]+",vina:"+selected["score"].astype(str)))
+            legends=list(selected["ligand_names"]+",vina:"+selected["score"].astype(str)),
+            molsPerRow=5, subImgSize=(200,200))
         img.save(f'{self.output_dir}/{iteration}.png')
         return results
 

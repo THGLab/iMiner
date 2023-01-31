@@ -99,4 +99,4 @@ trainer.training_loop(config["training_specs"]["n_iters"], save_each_iteration=T
 #####################
 # Save trained model
 #####################
-policy_model.save_model("final_model")
+policy_model.save_model(output_directory, "final_model")

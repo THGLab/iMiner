@@ -10,8 +10,8 @@ import os
 import shutil
 from pathlib import Path
 from collections import OrderedDict
-from typing import Optional, Union
-from iMiner.log import init_logger
+from typing import Optional, Union, List
+from iMiner.log import LOGGER
 from rdkit.Chem import MolFromSmiles, AddHs, AllChem, SDWriter
 
 
@@ -51,9 +51,6 @@ class BaseProject:
 
         # setup log file when verbose is True
         self.verbose = verbose
-        if self.verbose:
-            log_name = self.project_path / "log.txt"
-            self.logger = init_logger(log_name)
 
     def add_protein(self, protein_file_path, name=None, preprocess=False, binding_site=None):
         '''
@@ -77,7 +74,7 @@ class BaseProject:
             shutil.copyfile(protein_file_path, protein_path)
         self.proteins[name] = protein_path
         if self.verbose:
-            self.logger.info(f"Added protein {name} to the project. Current number of proteins: {len(self.proteins.items())}")
+            LOGGER.info(f"Added protein {name} to the project. Current number of proteins: {len(self.proteins.items())}")
 
     def add_ligand(self, smiles_or_path, name=None, format='inferred') -> Union[str, bool]:
         '''
@@ -120,7 +117,7 @@ class BaseProject:
         self.ligands[name] = ligand_path
         return name
 
-    def add_multiple_ligands(self, smiles_or_paths, names=None, format='inferred') -> list:
+    def add_multiple_ligands(self, smiles_or_paths, names=None, format='inferred') -> List[str]:
         '''
         Add multiple ligands to the project
 
@@ -142,8 +139,7 @@ class BaseProject:
             new_names.append(return_name)
 
         if self.verbose:
-            self.logger.info(f"Added {len(smiles_or_paths)} ligands to the project. Current number of ligands: {len(self.ligands.items())}")
-        return new_names
+            LOGGER.info(f"Added {len(smiles_or_paths)} ligands to the project. Current number of ligands: {len(self.ligands.items())}")
     
     def get_ligand_with_name(self, name) -> Path:
         """
