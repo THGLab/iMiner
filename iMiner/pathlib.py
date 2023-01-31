@@ -6,6 +6,9 @@ from pathlib import Path
 # meeko_install_path = '/global/home/users/jerry-li1996/.conda/envs/iMiner/bin'
 # iMiner_path = '/global/scratch/users/jerry-li1996/iMiner/iMiner'
 # ad4gpu_path = '/global/home/groups/co_armada2/local/AutoDock-GPU/bin/autodock_gpu_128wi'
+pythonsh_path = "/global/scratch/users/jerry-li1996/covid/rdkit_vina/bin/pythonsh"
+ligprep_path = "/global/scratch/users/jerry-li1996/covid/rdkit_vina/MGLToolsPckgs/AutoDockTools/Utilities24/prepare_ligand4.py"
+        
 
 # (SAVIO)
 ADFR_install_path = '/global/home/groups/co_armada2/local/ADFRsuite/bin'
