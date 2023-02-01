@@ -226,7 +226,7 @@ class MDProject(BaseProject):
 
         # post-process traj file
         LOGGER.info("Post-process MD trajectory...")
-        with timer("Remove PBC"):
+        with timer("Remove PBC", LOGGER):
             self.remove_pbc_workflow(wdir)
             LOGGER.info(f"Dry MD traj with pbc fixed: {traj_nopbc_file}")
 
@@ -248,7 +248,7 @@ class MDProject(BaseProject):
 
         # analyze interaction
         LOGGER.info("Analyze interaction...")
-        with timer("Analyze interaction"):
+        with timer("Analyze interaction", LOGGER):
             trajdir = prod_dir / "traj"
             f_csv = prod_dir / "interaction.csv"
             f_interact_png = prod_dir / 'interaction.png'

@@ -11,14 +11,14 @@ import shutil
 import multiprocessing as mp
 
 import pandas as pd
+from iMiner.log import init_logger
 from iMiner.utils import timer
-from iMiner.log import LOGGER
 from iMiner.cmd import run_command, find_executable, ExecutableNotFoundError, set_directory
 from iMiner.md.common import preprocess_index_file
 from iMiner.md.gbsa.parameters import generate_input_file, DEFAULT_PARAMS
 from iMiner.utils import file_abspath
 
-
+LOGGER = init_logger("iMiner.log")
 NUM_CORES = mp.cpu_count()
 
 try:
@@ -140,7 +140,7 @@ class GBSA:
         # start
         cmd = cmd.format(**self.params)
         LOGGER.info(f"Start MMPB/GBSA calculation with command: {cmd}")
-        with timer("MMPB/GBSA Calculation"):
+        with timer("MMPB/GBSA Calculation", LOGGER):
             with set_directory(self.workdir):
                 code, out, err = run_command(cmd)
             with open(self.workdir / 'mmpbsa.log', 'w') as f:

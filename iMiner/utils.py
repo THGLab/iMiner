@@ -17,11 +17,11 @@ import pandas as pd
 import numpy as np
 import subprocess
 
-from iMiner.log import LOGGER
+from logging import Logger
 
 
 @contextlib.contextmanager
-def timer(name: Optional[str] = None):
+def timer(name: Optional[str] = None, logger: Logger = None):
     """
     Logger timer
     """
@@ -29,7 +29,7 @@ def timer(name: Optional[str] = None):
     yield
     end = time.time()
     msg = f"{name} finished. " if name else ""
-    LOGGER.info(msg + f"Time Elapsed: {end - start:.3f} seconds")
+    logger.info(msg + f"Time Elapsed: {end - start:.3f} seconds")
 
 
 def file_abspath(path: os.PathLike) -> Path:
