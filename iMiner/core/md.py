@@ -12,7 +12,7 @@ import json
 
 import numpy as np
 
-from iMiner.log import LOGGER
+from iMiner.log import init_logger
 from iMiner.utils import timer
 from iMiner.cmd import run_command, set_directory, find_executable, CommandExecuteError
 from iMiner.core.project import BaseProject
@@ -30,6 +30,7 @@ from iMiner.md.analysis.traj import (
     gmx_genidx
 )
 
+LOGGER = init_logger("iMiner.log")
 
 def log_step(n: int, msg: str):
     LOGGER.info(f"===== Step {n}: {msg.capitalize()} =====")

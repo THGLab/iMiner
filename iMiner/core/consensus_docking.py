@@ -30,7 +30,6 @@ class ConsensusDocking(BaseProject):
         :param verbose: bool, whether to show and log processing messages
         '''
         super().__init__(project_name, project_path, verbose)
-        self.logger = init_logger(self.project_path / "run.log")
         self.docking_protocols = {protocol_name: docking_protocol_map[protocol_name] for protocol_name in docking_protocols}
 
     def run_consensus_docking(self, protein_name=None, ligand_names=None, output_csv=None, **kwargs):
