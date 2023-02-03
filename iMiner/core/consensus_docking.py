@@ -7,6 +7,7 @@ A consensus docking module for iMiner
 
 from iMiner.core.project import BaseProject
 from iMiner.docking import *
+from iMiner.log import init_logger
 import pandas as pd
 
 
@@ -47,9 +48,6 @@ class ConsensusDocking(BaseProject):
 
         results_df = []
         for protocol in self.docking_protocols:
-            if self.verbose:
-                n_cores = kwargs.get("n_jobs", 1)
-                self.logger.info(f"Start docking with {protocol} using {n_cores} cores...")
             docking_obj = self.docking_protocols[protocol](self.proteins[protein_name],
                                                            self.binding_sites[protein_name],
                                                            self.temp_path, self.logger, **kwargs)
@@ -60,6 +58,10 @@ class ConsensusDocking(BaseProject):
                 ligand_paths = self.ligands.values()
             else:
                 ligand_paths = [self.ligands[ligand_name] for ligand_name in ligand_names]
+            if self.verbose:
+                n_cores = kwargs.get("n_jobs", 1)
+                n_ligands = len(ligand_names)
+                self.logger.info(f"Start docking {n_ligands} ligands with {protocol} using {n_cores} cores...")
             results = docking_obj.dock_parallel(ligand_paths, docking_path, **kwargs)
             results["ligand_names"] = ligand_names
             results["protocol"] = protocol

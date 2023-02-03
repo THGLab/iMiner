@@ -16,7 +16,7 @@ from typing import Optional, Union, List
 from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 
-from iMiner.log import LOGGER
+from iMiner.log import init_logger
 
 
 class BaseProject:
@@ -81,6 +81,7 @@ class BaseProject:
 
         # setup log file when verbose is True
         self.verbose = verbose
+        self.logger = init_logger(self.project_path / "run.log")
 
         # setup config dir
         self.meta_dir = self.project_path / ".iminer"
@@ -112,7 +113,7 @@ class BaseProject:
             shutil.copyfile(protein_file_path, protein_path)
         self.proteins[name] = protein_path
         if self.verbose:
-            LOGGER.info(f"Added protein {name} to the project. Current number of proteins: {len(self.proteins.items())}")
+            self.logger.info(f"Added protein {name} to the project. Current number of proteins: {len(self.proteins.items())}")
 
     def add_ligand(self, smiles_or_path, name=None, format='inferred') -> Union[str, bool]:
         '''
@@ -177,7 +178,8 @@ class BaseProject:
             new_names.append(return_name)
 
         if self.verbose:
-            LOGGER.info(f"Added {len(smiles_or_paths)} ligands to the project. Current number of ligands: {len(self.ligands.items())}")
+            self.logger.info(f"Added {len(smiles_or_paths)} ligands to the project. Current number of ligands: {len(self.ligands.items())}")
+        return new_names
     
     def get_ligand_with_name(self, name) -> Path:
         """

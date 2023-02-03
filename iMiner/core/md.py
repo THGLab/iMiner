@@ -13,7 +13,7 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 
-from iMiner.log import LOGGER
+from iMiner.log import init_logger
 from iMiner.utils import timer
 from iMiner.cmd import run_command, set_directory, find_executable, CommandExecuteError
 from iMiner.core.project import BaseProject
@@ -31,6 +31,7 @@ from iMiner.md.analysis.traj import (
     gmx_genidx
 )
 
+LOGGER = init_logger("iMiner.log")
 
 def log_step(n: int, msg: str):
     LOGGER.info(f"===== Step {n}: {msg.capitalize()} =====")
@@ -273,7 +274,7 @@ class MDProject(BaseProject):
 
         # analyze interaction
         LOGGER.info("Analyze interaction...")
-        with timer("Analyze interaction"):
+        with timer("Analyze interaction", LOGGER):
             trajdir = prod_dir / "traj"
             f_csv = prod_dir / "interaction.csv"
             f_interact_png = prod_dir / 'interaction.png'

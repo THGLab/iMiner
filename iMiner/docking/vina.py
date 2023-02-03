@@ -139,6 +139,9 @@ class VinaDocking(AutoDockBaseDocking):
             ligand_work_name = ligand_name + "_" + random_id()
             succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
             if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
+                ligand_smiles.append("")
+                ligand_scores.append(np.nan)
+                ligand_conformation_paths.append("")
                 continue
             # save the ligand smiles
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
@@ -250,8 +253,6 @@ class VinaGPUDocking(VinaDocking):
             print(err)
             return False
         # then use Autodock Tools to convert mol2 to pdbqt
-        pythonsh_path = "/global/scratch/users/jerry-li1996/covid/rdkit_vina/bin/pythonsh"
-        ligprep_path = "/global/scratch/users/jerry-li1996/covid/rdkit_vina/MGLToolsPckgs/AutoDockTools/Utilities24/prepare_ligand4.py"
         cmd_mol2_2_pdbqt = "{} {} -l {} -o {}".format(pythonsh_path, ligprep_path, self.working_path / f"{random_code}.mol2", output_path)
         code, out, err = run_command(cmd_mol2_2_pdbqt, raise_error=False)
         if code != 0:
