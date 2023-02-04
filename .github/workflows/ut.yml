@@ -1,6 +1,7 @@
 name: iMiner python tests
 
 on:
+  push:
   pull_request:
 
 jobs:

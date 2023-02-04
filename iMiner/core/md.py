@@ -11,6 +11,7 @@ from typing import Optional, Dict, Any
 import json
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from iMiner.log import init_logger
 from iMiner.utils import timer
@@ -20,7 +21,7 @@ from iMiner.md.prep.ligand import run_acpype
 from iMiner.md.prep.protein import run_tleap
 from iMiner.md.prep.complex import make_complex
 from iMiner.md.runner.gromacs import run_preprocess_workflow, run_md_workflow
-from iMiner.md.common import preprocess_index_file
+from iMiner.md.common import preprocess_index_file, read_single_gro, parse_index_file, mk_index_file
 from iMiner.md.analysis.interaction import analyze_multiple_frames, plot_interact
 from iMiner.md.analysis.traj import (
     plot_rmsd,
@@ -37,7 +38,7 @@ def log_step(n: int, msg: str):
 
 
 class MDProject(BaseProject):
-    def __init__(self, project_name:str, project_path: Optional[os.PathLike] = None, engine: str = "gromacs") -> None:
+    def __init__(self, project_name: Optional[str] = None, project_path: Optional[os.PathLike] = None, engine: str = "gromacs") -> None:
         '''
         Initialize a MD project with a project name and a project path
 
@@ -81,9 +82,9 @@ class MDProject(BaseProject):
             for key in ['nstenergy', 'nstlog']:
                 if key not in jdata['md'][stage]:
                     if "nstxout-compressed" in jdata['md'][stage]:
-                        jdata['md'][stage][key] = jdata['md'][stage][key]['nstxout-compressed']
+                        jdata['md'][stage][key] = jdata['md'][stage]['nstxout-compressed']
                     elif "nstxout" in jdata['md'][stage]:
-                        jdata['md'][stage][key] = jdata['md'][stage][key]['nstxout']
+                        jdata['md'][stage][key] = jdata['md'][stage]['nstxout']
         
         for key in jdata['md']:
             if isinstance(self.md_params[key], dict):
@@ -150,7 +151,7 @@ class MDProject(BaseProject):
             prep_path
         )
     
-    def remove_pbc_workflow(self, wdir: Path):
+    def remove_pbc_workflow(self, wdir: Path, version: int = 1):
         """
         Remove PBC
         """
@@ -166,21 +167,51 @@ class MDProject(BaseProject):
         LOGGER.info(f"Ligand group index: {l_grp_idx}")
         LOGGER.info(f"Complex group index: {c_grp_idx}")
         
+        if version == 2:
+            coords = read_single_gro(wdir / "complex" / "complex.gro")
+            center_pos = np.mean(coords, axis=0)
+            center_idx = np.argmin(
+                np.linalg.norm(coords - center_pos, ord=2, axis=1)
+            ) + 1
+            group_dict = parse_index_file(index_file)
+            group_dict["center"] = [center_idx]
+            mk_index_file(group_dict, index_file)
+
         # Remove PBC
         base_cmds = [find_executable(['gmx_mpi', 'gmx']), 'trjconv', '-n', index_file]
-        # Step 1: make all the molecules as a whole and center the protein
-        LOGGER.info("Remove PBC Step 1: make all the molecules as a whole and center the protein")
-        tmpf1 = prod_dir / "prod_whole_center.xtc"
-        cmds = base_cmds.copy()
-        cmds += ['-s', prod_dir / "prod.tpr", '-f', prod_dir / "prod.xtc", '-o', tmpf1, '-pbc', 'whole', '-center']
-        run_command(cmds, input=f"Protein\n{c_grp_idx}")
+        if version == 1:
+            # Step 1: make all the molecules as a whole and center the protein
+            LOGGER.info("Remove PBC Step 1: make all the molecules as a whole and center the protein")
+            tmpf1 = prod_dir / "prod_whole_center.xtc"
+            cmds = base_cmds.copy()
+            cmds += ['-s', prod_dir / "prod.tpr", '-f', prod_dir / "prod.xtc", '-o', tmpf1, '-pbc', 'whole', '-center']
+            run_command(cmds, input=f"Protein\n{c_grp_idx}")
+            
+            # Step 2: make all the molecules within the box
+            LOGGER.info("Remove PBC Step 2: make all the molecules within the box")
+            tmpf2 = prod_dir / "prod_whole_center_nojump.xtc"
+            cmds = base_cmds.copy()
+            cmds += ['-s', prod_dir.parent / 'complex' / "complex.gro", '-f', tmpf1, '-o', tmpf2, '-pbc', 'nojump']
+            run_command(cmds, input=str(c_grp_idx))
         
-        # Step 2: make all the molecules within the box
-        LOGGER.info("Remove PBC Step 2: make all the molecules within the box")
-        tmpf2 = prod_dir / "prod_whole_center_nojump.xtc"
-        cmds = base_cmds.copy()
-        cmds += ['-s', prod_dir.parent / 'complex' / "complex.gro", '-f', tmpf1, '-o', tmpf2, '-pbc', 'nojump']
-        run_command(cmds, input=str(c_grp_idx))
+        elif version == 2:
+            # Step 1: make all the molecules as a whole
+            LOGGER.info("Remove PBC Step 1: make all the molecules as a whole")
+            tmpf1 = prod_dir / "prod_whole.xtc"
+            cmds = base_cmds.copy()
+            cmds += ['-s', prod_dir / "prod.tpr", '-f', prod_dir / "prod.xtc", '-o', tmpf1, '-pbc', 'whole']
+            run_command(cmds, input=f"{c_grp_idx}")
+
+            #Step 2: make all the molecules within the box by centering the central atom
+            LOGGER.info("Remove PBC Step 2: make all the molecules within the box by centering the central atom")
+            tmpf2 = prod_dir / "prod_nojump_center.xtc"
+            cmds = base_cmds.copy()
+            cmds += ['-s', wdir / "complex" / "newbox.gro", '-f', tmpf1, '-o', tmpf2, '-pbc', 'nojump', '-center']
+            run_command(cmds, input=f"center\n{c_grp_idx}")
+
+        else:
+            raise NotImplementedError(f"Invalid remove PBC workflow version: {version}")
+        
         # Step 3: align
         LOGGER.info("Remove PBC Step 3: align")
         cmds = base_cmds.copy()
@@ -224,12 +255,6 @@ class MDProject(BaseProject):
         index_file = prod_dir / "index.ndx"
         traj_nopbc_file = prod_dir / "prod_align.xtc"
 
-        # post-process traj file
-        LOGGER.info("Post-process MD trajectory...")
-        with timer("Remove PBC", LOGGER):
-            self.remove_pbc_workflow(wdir)
-            LOGGER.info(f"Dry MD traj with pbc fixed: {traj_nopbc_file}")
-
         # rmsd
         f_xvg = prod_dir / "prod_rmsd.xvg"
         f_rmsd_png = prod_dir / "prod_rmsd.png"  
@@ -244,6 +269,7 @@ class MDProject(BaseProject):
             LOGGER.warning("Large RMSD found! PBC may not be fixed properly.")
         fig, ax = plot_rmsd(tlist, rmslist, name=lig_name)
         fig.savefig(f_rmsd_png, dpi=300)
+        plt.close(fig)
         LOGGER.info(f"RMSD Calculated: {f_rmsd_png}")
 
         # analyze interaction
@@ -272,6 +298,7 @@ class MDProject(BaseProject):
             )
             fig, ax = plot_interact(f_csv, title=lig_name)
             fig.savefig(f_interact_png, dpi=300)
+            plt.close(fig)
             LOGGER.info(f"Intearction analysis result save to: {f_interact_png}")
         
         return
@@ -346,9 +373,25 @@ class MDProject(BaseProject):
         succ = self.run_md(wdir)
         if not succ:
             return
-        log_step(6, "Post MD Analysis")
+        
+        log_step(6, "Remove PBC of MD Trajectory")
+        self.remove_pbc_workflow(wdir)
+        
+        log_step(7, "Analyze RMSD and Interactions")
         self.analyze_md_traj(wdir, lig_name)
-        log_step(7, "Clean working directory")
+        
+        log_step(8, "Clean working directory")
+        self.clean(wdir)
+        
         complex_dir = wdir.resolve() / "complex"
         prod_dir = wdir.resolve() / "prod"
+        
         return complex_dir / "ions.tpr", prod_dir/ "prod.xtc" 
+
+    def show_interaction(self, task_name: str):
+        from IPython.display import Image
+        return Image(str(self.project_path / "md" / task_name / "prod" / "interaction.png"))
+
+    def show_rmsd(self, task_name: str):
+        from IPython.display import Image
+        return Image(str(self.project_path / "md" / task_name / "prod" / "prod_rmsd.png"))

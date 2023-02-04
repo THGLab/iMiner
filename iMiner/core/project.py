@@ -8,15 +8,19 @@ The protein is supposed to be a pdb file and the ligand is supposed to be a sdf 
 
 import os
 import shutil
+import json
 from pathlib import Path
 from collections import OrderedDict
 from typing import Optional, Union, List
+
+from rdkit import Chem
+from rdkit.Chem import AllChem, Draw
+
 from iMiner.log import init_logger
-from rdkit.Chem import MolFromSmiles, AddHs, AllChem, SDWriter
 
 
 class BaseProject:
-    def __init__(self, project_name: str, project_path: Optional[os.PathLike] = None, verbose = True) -> None:
+    def __init__(self, project_name: Optional[str] = None, project_path: Optional[os.PathLike] = None, verbose = True) -> None:
         '''
         Initialize a project with a project name and a project path
 
@@ -25,10 +29,18 @@ class BaseProject:
         '''
 
         # setup project folders
+        if (project_name is None) and (project_path is None):
+            raise TypeError("project_name and project_path cannot be None simultaneously.")
+
         if project_path is None:
             project_path = Path.cwd() / project_name
         self.project_path = Path(project_path).resolve()
         self.project_path.mkdir(exist_ok=True, parents=True)
+
+        if project_name is None:
+            self.project_name = self.project_path.name
+        else:
+            self.project_name = project_name
         
         # setup ligands and proteins directory
         self.ligands_path = self.project_path  / "ligands"
@@ -37,7 +49,7 @@ class BaseProject:
         self.proteins_path.mkdir(exist_ok=True, parents=True)
 
         # prepare temp path
-        self.temp_path = Path('/tmp') / project_name
+        self.temp_path = Path('/tmp') / self.project_name
         self.temp_path.mkdir(exist_ok=True, parents=True)
 
         # prepare protein (with binding sites) mapping dicts that map names to the corresponding file paths
@@ -46,12 +58,38 @@ class BaseProject:
         self.binding_sites = OrderedDict()
         self.ligands = OrderedDict()
 
+        # load existing ligands
+        ligs = [sdf for sdf in self.ligands_path.glob('*.sdf')]
+        try:
+            ligs.sort(key=lambda p: int(p.stem))
+        except:
+            pass
+        for lig in ligs:
+            self.ligands[lig.stem] = lig
+        
+        # load existing proteins
+        proteins = [pdb for pdb in self.proteins_path.glob("*.pdb")]
+        try:
+            proteins.sort(key=lambda p: int(p.stem))
+        except:
+            pass
+        for protein in proteins:
+            self.proteins[protein.stem] = protein
+
         # provide a cache for processed protein pdb files (in case multiple binding sites are defined for the same protein)
         self._protein_processed_cache = set()
 
         # setup log file when verbose is True
         self.verbose = verbose
         self.logger = init_logger(self.project_path / "run.log")
+
+        # setup config dir
+        self.meta_dir = self.project_path / ".iminer"
+        self.meta_json = self.meta_dir / "meta.json"
+        self.meta_dir.mkdir(exist_ok=True)
+        self.meta_data = {"name": self.project_name, 'verbose': verbose}
+        with open(self.meta_json, 'w') as f:
+            json.dump(self.meta_data, f)
 
     def add_protein(self, protein_file_path, name=None, preprocess=False, binding_site=None):
         '''
@@ -196,11 +234,11 @@ class BaseProject:
 
         :return: str, the path to the ligand file
         '''
-        mol = MolFromSmiles(smiles)
+        mol = Chem.MolFromSmiles(smiles)
         # assert valid smiles
         if mol is None:
             raise RuntimeError(smiles + ' is not a valid smile string')
-        mh = AddHs(mol)
+        mh = Chem.AddHs(mol)
         embed = AllChem.EmbedMolecule(mh, useRandomCoords=False)
 
         # make sure embedding is successful
@@ -208,7 +246,7 @@ class BaseProject:
             raise RuntimeError('RDkit fails to embed molecule ' + smiles)
 
         # save the ligand file to the corresponding position
-        writer = SDWriter(save_path)
+        writer = Chem.SDWriter(save_path)
         writer.write(mh)
 
 
@@ -222,3 +260,10 @@ class BaseProject:
         :return: str, the path to the ligand file
         '''
         raise NotImplementedError()
+    
+    def show_ligand(self, name: str):
+        m = Chem.SDMolSupplier(str(self.ligands_path / f"{name}.sdf"))[0]
+        m = Chem.RemoveHs(m)
+        AllChem.Compute2DCoords(m)
+        img = Draw.MolToImage(m, size=(400, 400), legend=name)
+        return img
