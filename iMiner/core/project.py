@@ -180,6 +180,13 @@ class BaseProject:
         if self.verbose:
             self.logger.info(f"Added {len(smiles_or_paths)} ligands to the project. Current number of ligands: {len(self.ligands.items())}")
         return new_names
+
+    def clear_ligands(self):
+        '''
+        Clear all ligands in the project
+        '''
+        self.ligands = {}
+        self.logger.info("Cleared all ligands in the project")
     
     def get_ligand_with_name(self, name) -> Path:
         """
