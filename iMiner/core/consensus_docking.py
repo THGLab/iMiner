@@ -16,7 +16,8 @@ docking_protocol_map = {
     "ad4": AD4Docking,
     "vina": VinaDocking,
     "vina-gpu": VinaGPUDocking,
-    "icm": ICMDocking
+    "icm": ICMDocking,
+    "tankbind": TankBindDocking
 }
 
 class ConsensusDocking(BaseProject):
