@@ -17,6 +17,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, Draw
 
 from iMiner.log import init_logger
+from iMiner.utils import check_dict_identity
 
 
 class BaseProject:
@@ -58,36 +59,50 @@ class BaseProject:
         self.binding_sites = OrderedDict()
         self.ligands = OrderedDict()
 
-        # load existing ligands
-        ligs = [sdf for sdf in self.ligands_path.glob('*.sdf')]
-        try:
-            ligs.sort(key=lambda p: int(p.stem))
-        except:
-            pass
-        for lig in ligs:
-            self.ligands[lig.stem] = lig
-        
-        # load existing proteins
-        proteins = [pdb for pdb in self.proteins_path.glob("*.pdb")]
-        try:
-            proteins.sort(key=lambda p: int(p.stem))
-        except:
-            pass
-        for protein in proteins:
-            self.proteins[protein.stem] = protein
-
-        # provide a cache for processed protein pdb files (in case multiple binding sites are defined for the same protein)
-        self._protein_processed_cache = set()
-
         # setup log file when verbose is True
         self.verbose = verbose
         self.logger = init_logger(self.project_path / "run.log")
+        new_project = True
 
         # setup config dir
         self.meta_dir = self.project_path / ".iminer"
         self.meta_json = self.meta_dir / "meta.json"
         self.meta_dir.mkdir(exist_ok=True)
-        self.meta_data = {"name": self.project_name, 'verbose': verbose}
+        if os.path.exists(self.meta_json):
+            with open(self.meta_json, 'r') as f:
+                self.meta_data = json.load(f)
+            new_project = False
+        else:
+            self.meta_data = {"name": self.project_name, 'verbose': verbose}
+            self.update_meta_data()
+
+        if not new_project:
+            # load existing ligands
+            ligs = [sdf for sdf in self.ligands_path.glob('*.sdf')]
+            try:
+                ligs.sort(key=lambda p: int(p.stem))
+            except:
+                pass
+            for lig in ligs:
+                self.ligands[lig.stem] = lig
+            
+            # load existing proteins
+            proteins = [pdb for pdb in self.proteins_path.glob("*.pdb")]
+            try:
+                proteins.sort(key=lambda p: int(p.stem))
+            except:
+                pass
+            for protein in proteins:
+                self.proteins[protein.stem] = protein
+            assert check_dict_identity(self.proteins, self.meta_data['proteins']), "Protein files in the project folder and meta.json do not match."
+            self.binding_sites = self.meta_data['binding_sites']
+            self.logger.info(f"Loaded project {self.project_name} from {self.project_path}")
+
+        # provide a cache for processed protein pdb files (in case multiple binding sites are defined for the same protein)
+        self._protein_processed_cache = set()
+
+
+    def update_meta_data(self):
         with open(self.meta_json, 'w') as f:
             json.dump(self.meta_data, f)
 
@@ -112,6 +127,9 @@ class BaseProject:
         elif not os.path.exists(protein_path):
             shutil.copyfile(protein_file_path, protein_path)
         self.proteins[name] = protein_path
+        self.meta_data['proteins'] = self.proteins
+        self.meta_data['binding_sites'] = self.binding_sites
+        self.update_meta_data()
         if self.verbose:
             self.logger.info(f"Added protein {name} to the project. Current number of proteins: {len(self.proteins.items())}")
 

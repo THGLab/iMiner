@@ -11,14 +11,16 @@ import os
 from iMiner.docking.base import BaseDocking
 from iMiner.cmd import run_command, set_directory
 from iMiner.utils import random_id
-from iMiner.pathlib import tankbind_python_path, tankbind_src_path, p2rank_path
+from iMiner.pathlib import tankbind_python_path, tankbind_dir_path, tankbind_src_path, p2rank_path
 from rdkit import Chem
 import shutil
 import pandas as pd
 
-
+my_env = os.environ.copy()
+my_env["PATH"] = f"{tankbind_dir_path}:" + my_env["PATH"]
+os.environ.update(my_env)
 class TankBindDocking(BaseDocking):
-    def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, **kwargs) -> None:
+    def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
         super().__init__(protein_pdb, docking_box)
         self.working_path = temp_path / "{}-tankbind".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
@@ -29,18 +31,20 @@ class TankBindDocking(BaseDocking):
     def prepare_protein(self, protein_pdb, docking_box):
         center = [(docking_box[0] + docking_box[3]) / 2, (docking_box[1] + docking_box[4]) / 2, (docking_box[2] + docking_box[5]) / 2]
         center = ",".join([str(x) for x in center])
+        protein_pdb = os.path.abspath(protein_pdb)
         with set_directory(self.working_path):
-            cmd = f"{tankbind_python_path} {tankbind_src_path}/prepare_protein.py --protein_pdb {protein_pdb} " + \
-                    f"--center {center} --p2rank_cmd 'bash {p2rank_path}'"
+            cmd = [tankbind_python_path, f"{tankbind_src_path}/prepare_protein.py", f"--protein_pdb={protein_pdb}",
+                f'--center={center}', f'--p2rank_cmd="bash {p2rank_path}"']
             run_command(cmd)
             assert os.path.exists("protein.pkl"), "Failed to prepare protein"
 
     def run_docking(self, ligand_content_csv, unique_id, device):
         with set_directory(self.working_path):
-            cmd = f"{tankbind_python_path} {tankbind_src_path}/dock_ligands.py --protein_data protein.pkl" + \
+            # path_modifier = f"PATH={tankbind_dir_path}:$PATH"
+            cmd = f"{tankbind_python_path} {tankbind_src_path}/dock_ligands.py --protein_data protein.pkl " + \
                  f"--ligands {ligand_content_csv} --device {device} --output_dir {unique_id}"
             run_command(cmd)
-            assert os.path.exists("prediction_info.csv"), "Failed to generate docking results"
+            assert os.path.exists(os.path.join(unique_id, "prediction_info.csv")), "Failed to generate docking results"
 
 
     def dock(self, ligands, output_dir, gpu=None):
@@ -57,14 +61,16 @@ class TankBindDocking(BaseDocking):
         ligand_conformation_paths = []
 
         # First make sure output_dir exists
-        os.makedirs(output_dir, exist_ok = True)
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents = True, exist_ok = True)
 
         # generate a unique id for this batch of docking, so that files will not overwrite each other if multiprocessing
         unique_id = random_id()
 
         # prepare ligand content csv file
         ligand_names = [Path(ligand).stem for ligand in ligands]
-        ligand_content = pd.DataFrame({"compound_name": ligand_names, "sdf_path": ligands})
+        ligand_paths = [str(Path(ligand).absolute()) for ligand in ligands]
+        ligand_content = pd.DataFrame({"compound_name": ligand_names, "sdf_path": ligand_paths})
         ligand_content.to_csv(self.working_path / f"ligand_content_{unique_id}.csv", index = False)
 
         # run TankBind docking
@@ -78,14 +84,14 @@ class TankBindDocking(BaseDocking):
         docked_results = pd.read_csv(self.working_path / f"{unique_id}/prediction_info.csv")
         docked_results.index = docked_results.compound_name
         pockets = docked_results.pocket_name.to_dict()
-        scores = -docked_results.affinity.to_dict()  # keep in mind the original affinity is traned from -logK
+        scores = (-docked_results.affinity).to_dict()  # keep in mind the original affinity is traned from -logK
         for name, ligand in zip(ligand_names, ligands):
             # save the ligand smiles
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
-            ligand_scores.append(scores[ligand])
+            ligand_scores.append(scores[name])
             # copy the docked conformation to output_dir
-            ligand_pocket = pockets[ligand]
-            docked_sdf = self.working_path / f"{unique_id}/{ligand_pocket}_name.sdf"
+            ligand_pocket = pockets[name]
+            docked_sdf = self.working_path / f"{unique_id}/{ligand_pocket}_{name}.sdf"
             shutil.copy(docked_sdf, output_dir / f"{name}.sdf")
             ligand_conformation_paths.append(str(output_dir / f"{name}.sdf"))
 

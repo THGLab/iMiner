@@ -127,3 +127,14 @@ def get_free_gpu():
     if gpu_df.loc[idx, "avail"] < 0.1:
         idx = None
     return str(idx)
+
+def check_dict_identity(dict1, dict2):
+    '''
+    Check whether two dictionaries have the same keys and values
+    '''
+    if dict1.keys() != dict2.keys():
+        return False
+    for k in dict1.keys():
+        if str(dict1[k]) != str(dict2[k]):
+            return False
+    return True
