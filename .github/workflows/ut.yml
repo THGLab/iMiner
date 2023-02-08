@@ -22,7 +22,7 @@ jobs:
           $CONDA/bin/conda update -n base -c defaults conda
           conda install pip
           conda update pip
-          conda install tqdm numpy pandas acpype pytest pytest-xdist rdkit biopandas openbabel plip -c conda-forge
+          conda install python=${{ matrix.python-version }} tqdm numpy pandas acpype pytest pytest-xdist rdkit -c conda-forge
       - name: Install iMiner
         run: |
           source $CONDA/bin/activate
