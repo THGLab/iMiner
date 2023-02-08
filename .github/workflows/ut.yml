@@ -13,21 +13,18 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Dependencies
         run: |
           source $CONDA/bin/activate
-          $CONDA/bin/conda update -n base -c defaults conda
-          conda install pip
-          conda update pip
-          conda install python=${{ matrix.python-version }} tqdm numpy pandas acpype pytest pytest-xdist rdkit -c conda-forge
+          conda create iminer python=${{ matrix.python-version }} numpy pandas acpype pytest pytest-xdist rdkit tqdm -c conda-forge
       - name: Install iMiner
         run: |
-          source $CONDA/bin/activate
+          source $CONDA/bin/activate iminer
           python setup.py install
       - name: Run Tests
         run: |
-          source $CONDA/bin/activate
+          source $CONDA/bin/activate iminer
           pytest -vs tests/  
