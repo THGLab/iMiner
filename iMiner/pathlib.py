@@ -2,9 +2,9 @@ from pathlib import Path
 
 # CHANGE THESE UNDER DIFFERENT SYSTEMS
 # (LAWRENCIUM)
-ADFR_install_path = '/global/home/users/jerry-li1996/src/ADFRsuite_x86_64Linux_1.0/bin'
-meeko_install_path = '/global/home/users/jerry-li1996/.conda/envs/iMiner/bin'
-iMiner_path = '/global/scratch/users/jerry-li1996/iMiner/iMiner'
+ADFR_install_path = '/global/scratch/users/jerry-li1996/src/ADFRsuite_x86_64Linux_1.0/bin'
+meeko_install_path = '/global/scratch/users/ozhang/envs/iminer/bin'
+iMiner_path = '/global/scratch/users/ozhang/covid/iMiner/iMiner'
 ad4gpu_path = '/global/home/groups/co_armada2/local/AutoDock-GPU/bin/autodock_gpu_128wi'
 
 # (SAVIO)
@@ -16,7 +16,7 @@ ad4gpu_path = '/global/home/groups/co_armada2/local/AutoDock-GPU/bin/autodock_gp
 
 protein_prep_path = f'{ADFR_install_path}/prepare_receptor'
 meeko_ligprep_path = f"{meeko_install_path}/mk_prepare_ligand.py"
-meeko_ligconv_path = f"{meeko_install_path}/mk_copy_coords.py"
+meeko_ligconv_path = f"{meeko_install_path}/mk_export.py"
 
 autogrid_path = f'{ADFR_install_path}/autogrid4'
 

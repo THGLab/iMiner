@@ -63,6 +63,10 @@ class DrugLikeliness():
         self.alerts_LP = np.array([-0.764428382564909, -1.2986498512678444, -1.8263509139976741, -2.647896278282463, -3.7465085669505727, -5.099466507802871]) #np.arange(6)
         self.hetero_prop_LP = np.array([-7.600902459542082, -9, -9.210340371976182, -6.907755278982137, -6.645391014514646, -5.8781358618009785, -5.472670753692815, -5.149897361429764, -5.2030071867437115, -4.853631545286591, -4.154094566627875, -4.06284589516273, -3.9738984091462335, -3.543913683863751, -3.4357888264317746, -3.2570970376883985, -3.0159349808715104, -3.0159349808715104, -2.8788385220824915, -2.8577109756566164, -2.474560357733856, -3.028255465259551, -2.7045563118479543, -2.866459937849852, -3.085656981081978, -2.91139112512024, -2.928073625080176, -3.0512449834842497, -3.8076629901039034, -3.937340813412436, -3.825845309187094, -4.312500572025272, -4.193060535161258, -4.509860006183766, -4.6356293934728, -4.9062752787720125, -5.240048458424061, -5.035953102080546, -5.7763531674910364, -5.744604469176456, -7.013115794639964, -5.496768305271875, -8.111728083308073, -6.437751649736401, -6.725433722188183, -6.907755278982137, -8.111728083308073, -7.418580902748128, -8.517193191416238, -9.210340371976182, -6.074846156047033])  #np.linspace(0,0.6,51)
         self.max_ring_size_LP = np.array([ -4.64599114, -18.42068074, -18.42068074,  -7.41856424,        -8.51714319,  -3.84904774,  -0.08675685,  -3.27809492,-6.16581317,  -7.26441594,  -7.13088633,  -7.82402101,        -6.5712759 ,  -7.26441594,  -4.87960572]) # np.arange(15)
+        
+        # AutodockVina invalid atom types:
+        self.invalid_atom_types = ["B", "Si", "Te"]
+        
         if relative_weights == "inverse_entropy":
             weight_vectors = [-1 / x.dot(np.exp(x)) for x in [self.frac_csp3_LP, self.heavy_atom_LP, self.hbond_donor_LP, self.hbond_acceptor_LP, self.n_ring_aliphatic_LP, self.n_ring_aromatic_LP, self.n_rot_bond_LP, self.mw_LP, self.alogp_LP, self.psa_LP, self.alerts_LP, self.hetero_prop_LP, self.max_ring_size_LP]]
             self.relative_weights = np.array(weight_vectors) / np.sum(weight_vectors)
@@ -91,10 +95,30 @@ class DrugLikeliness():
         return [fraction_csp3, heavy_atoms, hbond_donor, hbond_acceptor, num_ring_aliphatic, num_ring_aromatic, num_rotatable_bond, \
                qed_default, qed_prop.MW, qed_prop.ALOGP, qed_prop.PSA, qed_prop.ALERTS, hetero_prop, max_ring_size]
     
+    def check_valid_atomtypes(self, input):
+        if type(input) is not str:
+            mol = Chem.SmilesFromMol(input)
+        else:
+            mol = input
+        for element in self.invalid_atom_types:
+            if element == "B":
+                items = mol.split("B")
+                if len(items) == 1:
+                    continue
+                for i in items[1:]:
+                    if not i.startswith("r"):
+                        return False
+            else:
+                if element in mol:
+                    return False
+        return True
+        
     def calc_score(self, input, offset=5):
         try:
             props = self.calc_props(input)
         except:
+            return 0
+        if not self.check_valid_atomtypes(input):
             return 0
         log_prob = np.array([
             make_onehot(props[0], np.linspace(0,1,51)).dot(self.frac_csp3_LP),
@@ -114,3 +138,9 @@ class DrugLikeliness():
         ])
         return log_prob.dot(self.relative_weights) + offset
     
+    
+if __name__ == '__main__':
+    drug = DrugLikeliness()
+    smiles = ["O=C(NC=CC=C(F)C=CF)C=CC=CCN[C@@H1][Si]/OI", "Br[C@@]=C", "O=CN=C(B)B=[C@][N+1][NH1]CBr"]
+    for s in smiles:
+        print(drug.check_valid_atomtypes(s))

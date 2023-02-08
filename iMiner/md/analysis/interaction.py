@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 from plip.structure.preparation import PDBComplex
 from plip.exchange.report import StructureReport
@@ -14,7 +14,7 @@ from plip.exchange.report import StructureReport
 from iMiner.cmd import run_command
 
 
-def analyze_single_frame(pdbpath):
+def analyze_single_frame(pdbpath, mol_name="MOL"):
     pdb = PDBComplex()
     pdb.load_pdb(pdbpath)
     pdb.analyze()
@@ -30,8 +30,20 @@ def analyze_single_frame(pdbpath):
     xmlobj = ET.fromstring(xmlstr.read())
 
     binding_sites = xmlobj.findall("./bindingsite")
-    bs = [bs for bs in binding_sites if bs.findall("identifiers/longname")[0].text == "MOL"][0]
-    itypes = bs.findall("interactions/")
+    try:
+        bs = [bs for bs in binding_sites if bs.findall("identifiers/longname")[0].text == mol_name][0]
+        itypes = bs.findall("interactions/")
+    except IndexError: 
+        itypes = []
+        bs = [bs for bs in binding_sites]
+        #print(pdbpath)
+        #print([bs.findall("identifiers/longname")[0].text for bs in binding_sites])
+        #with open(pdbpath, "r") as f:
+        #    c = f.read()
+        #    print("\n".join(c.split("TER\n")[1:]))
+        for site in bs:
+            itypes += list(site.findall("interactions/"))
+            
     interact_count_frame = {}
     for itype in itypes:
         for item in itype:

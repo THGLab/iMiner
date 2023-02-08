@@ -272,16 +272,9 @@ class AD4Docking(AutoDockBaseDocking):
 
         # convert the output file to sdf and extract the pose from the best run
         converted_sdf = self.result_path / "{}.sdf".format(ligand_name)
-        succ = self.convert_adresult_to_sdf(dlg_file, converted_sdf)
+        succ = self.convert_adresult_to_sdf(dlg_file, converted_sdf, num_run-1)
         if not (succ and os.path.exists(converted_sdf)):
             return [ligand_name, smile, best_score, None]
-            
-        with open(converted_sdf, "r") as f:
-            all_sdf = f.read().split("$$$$\n")
-        output_dir = Path(output_dir).resolve()
-        ligand_best_pose = output_dir / "{}-best-pose.sdf".format(ligand_name)
-        with open(ligand_best_pose, "w") as f1:
-            f1.write(all_sdf[num_run-1])
         
         return [ligand_name, smile, best_score, ligand_best_pose]
     
@@ -329,7 +322,7 @@ class AD4Docking(AutoDockBaseDocking):
             if verbose:
                 pbar.update(1)
         if self.logger is not None:
-            self.logger.info(f"Finished preparing pdbqt inputs.")
+            self.logger.info(f"Finished preparing Autodock4 pdbqt inputs.")
         
         # run autodock in batch mode
         #st = time.time()
@@ -352,7 +345,9 @@ class AD4Docking(AutoDockBaseDocking):
             if verbose:
                 pbar.update(1)
         if self.logger is not None:
-            self.logger.info(f"Outputs processed.")
+            self.logger.info(f"Autodock4 outputs processed.")
+        pool.close()
+        pool.join()
         return results
         
 

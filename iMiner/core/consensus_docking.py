@@ -8,7 +8,7 @@ A consensus docking module for iMiner
 from iMiner.core.project import BaseProject
 from iMiner.docking import *
 import pandas as pd
-
+import shutil
 
 docking_protocol_map = {
     "ad4": AD4Docking,
@@ -64,6 +64,10 @@ class ConsensusDocking(BaseProject):
             results["ligand_names"] = ligand_names
             results["protocol"] = protocol
             results_df.append(results)
+            if self.verbose:
+                self.logger.info(f"{protocol} docking finished")
+            # clean temporary file
+            shutil.rmtree(docking_obj.working_path)
 
         final_results = pd.concat(results_df)[["ligand_names", "score", "smiles", "protocol", "path", "original_names"]]
 

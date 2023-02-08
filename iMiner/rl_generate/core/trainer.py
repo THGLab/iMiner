@@ -186,20 +186,7 @@ class Trainer():
             else:
                 all_rewards, all_validities, mean_valid_rewards, df = collected_results
                 break
-
-
-            # reward_return = self.reward_assiner.calc_reward(final_seq)
-            # if type(reward_return) is list:
-            #     reward, single_seq_metrics = reward_return
-            #     reward -= self.prior_diff_coef * prob_diff # Maybe there are other ways to do this
-            #     single_seq_metrics = [reward] + single_seq_metrics + [prob_diff]
-            #     individual_metrics.append(single_seq_metrics)
-            # else:
-            #     reward = reward_return - self.prior_diff_coef * prob_diff
-            # rewards.extend([reward] * (len(final_seq) - 1))
-        
-        # individual_metrics = np.mean(individual_metrics, axis=0)
-        # skipping not-calculated rewards
+        print("Reward collection finished")
         rewards = []
         for reward_value, length in zip(all_rewards[all_validities], np.array(length_records)[all_validities]):
             rewards += [reward_value] * (length - 1)
@@ -210,3 +197,4 @@ class Trainer():
                 "actions": np.array(actions)[index_selector],
                 "rewards": np.array(rewards),
                 "probabilities": to_numpy(torch.cat(probabilities))[index_selector]}, individual_metrics, df
+                

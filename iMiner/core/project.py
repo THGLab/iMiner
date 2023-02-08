@@ -70,7 +70,7 @@ class BaseProject:
         '''
         self.binding_sites[name] = binding_site
         name = str(len(self.proteins.items()) + 1) if name is None else name
-        protein_path = os.path.join(self.project_path, "proteins", f"{name}.pdb")
+        protein_path = os.path.join(self.project_path, "proteins", f"{name}.{protein_file_path.split('.')[-1]}")
         if preprocess:
             raise NotImplementedError()
         elif not os.path.exists(protein_path):

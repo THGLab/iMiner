@@ -139,7 +139,8 @@ examples/*
 
 # local data
 local/
-zikv_pro/
+**/submit.sh
+**/slurm*.out
 
 # vscode
 .vscode/

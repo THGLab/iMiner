@@ -61,28 +61,41 @@ class RewardAssigner():
         self.output_path = output_path
         self.iteration = 0
 
-    def add_reward(self, reward_type, extra_params=None):
+    def add_reward(self, reward_type, weight=1., extra_params=None):
         self.reward_types.append(reward_type)
         if reward_type == "qed":
             self.reward_conversion_funcs.append(lambda x: x)
 
         elif reward_type == "drug_likeliness":
             from iMiner.rl_generate.evaluators.drug_likeliness import DrugLikeliness
-            self.reward_conversion_funcs.append(lambda x: max(x, 0))
+            self.reward_conversion_funcs.append(lambda x: max(x, 0)*weight)
             self.property_calculators[reward_type] = DrugLikeliness()
 
         elif reward_type == "vina_score":
             from iMiner.rl_generate.evaluators.vina_local import vina_score_assigner
-            self.reward_conversion_funcs.append(lambda x: max(-x, 0))
+            self.reward_conversion_funcs.append(lambda x: max(-x, 0)*weight)
             self.property_calculators[reward_type] = vina_score_assigner(path=self.output_path, **extra_params)
 
         elif reward_type == "fragment_similarity":
             from iMiner.rl_generate.evaluators.fragment_similarity import FragmentScorer
-            self.reward_conversion_funcs.append(lambda x: x)
+            self.reward_conversion_funcs.append(lambda x: x*weight)
             self.property_calculators[reward_type] = FragmentScorer(**extra_params)
-        
+            
+        elif reward_type == "interaction":
+            from iMiner.rl_generate.evaluators.interaction import InteractionScorer
+            self.reward_conversion_funcs.append(lambda x: x*weight)
+            self.property_calculators[reward_type] = InteractionScorer(**extra_params)
         else:
             raise RuntimeError("Unknown reward type: %s" % reward_type)
+            
+    def _reorder_reward_types(self):
+        if "interaction" in self.reward_types:
+            self.reward_names = [r for r in self.reward_types]
+            self.reward_names.remove("interaction")
+            vi = self.reward_names.index("vina_score")
+            self.reward_names.insert(vi, "interaction")
+        else:
+            self.reward_names = self.reward_types
 
     def calc_reward_parallel(self, inputs):
         '''
@@ -179,8 +192,19 @@ class RewardAssigner():
                 metrics.append([self.property_calculators[reward_item].calc_score(mol) for mol in mols])
             if reward_item == "vina_score":
                 vina_scores = self.property_calculators[reward_item].get_scores(mols, new_names, self.iteration)
-                metrics.append(vina_scores)
                 validities = ~np.isnan(vina_scores) 
+                metrics.append(vina_scores)
+                #print("iter %s finished vina calculation"%(self.iteration))
+                if "interaction" in self.reward_types:
+                    docking_df = self.property_calculators[reward_item].get_result_df(self.iteration)
+                    # interaction results ordered by df
+                    interaction_result = self.property_calculators["interaction"].calc_score_parallel(docking_df["path"])
+                    # align & reorder scores
+                    interaction_scores = self.property_calculators[reward_item].update_interaction(self.iteration, 
+                        new_names, interaction_result)
+                    metrics.append(interaction_scores)
+                    #print("iter %s finished interaction calculation"%(self.iteration))
+                    continue
             if reward_item == "fcd":
                 chemnet_dist = self.property_calculators[reward_item].get_chemnet_dist(mols)
                 metrics.append(chemnet_dist)
@@ -189,4 +213,5 @@ class RewardAssigner():
                 metrics.append(morgan_dist)
         if "vina_score" not in self.reward_types:
             validities = [True] * len(metrics[0])
+        #print("iter %s finished all reward evaluations"%(self.iteration))
         return metrics, validities, new_names

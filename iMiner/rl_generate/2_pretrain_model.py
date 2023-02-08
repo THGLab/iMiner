@@ -2,15 +2,7 @@ import os
 from fastai import *
 from fastai.text import *
 from utils import *
-# from rdkit import RDLogger
 
-try:
-    from azureml.core.run import Run
-    from AzureMetricLogger import MetricLogger
-    azure_training = True
-    run = Run.get_context()
-except:
-    azure_training = False
 
 # lg = RDLogger.logger()
 # lg.setLevel(RDLogger.CRITICAL)
@@ -60,13 +52,6 @@ print("Running script path:", running_path)
 wd, lr, n_epochs, bs, drops = 1e-2, 8e-3, 20, 512, 0.2
 '''
 
-if azure_training:
-    run.log('weight_decay', wd)
-    run.log('learning_rate', lr)
-    run.log('n_epochs', n_epochs)
-    run.log('batch_size', bs)
-    run.log('dropout', drops)
-
 #=================================================================================
 # read prepared data bunch
 os.makedirs("./outputs/", exist_ok=True)
@@ -104,8 +89,6 @@ print('learner wd:', learner.wd)
 #callbacks
 calls = []
 calls.append( callbacks.SaveModelCallback(learner,every='epoch',name="checkpoint") )
-if azure_training:
-    calls.append( MetricLogger(learner, run))
 
 
 #=================================================================================
