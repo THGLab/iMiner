@@ -19,7 +19,7 @@ jobs:
       - name: Install Dependencies
         run: |
           source $CONDA/bin/activate
-          conda create iminer python=${{ matrix.python-version }} numpy pandas acpype pytest pytest-xdist rdkit tqdm -c conda-forge
+          conda create -n iminer python=${{ matrix.python-version }} numpy pandas acpype pytest pytest-xdist rdkit tqdm -c conda-forge
       - name: Install iMiner
         run: |
           source $CONDA/bin/activate iminer
