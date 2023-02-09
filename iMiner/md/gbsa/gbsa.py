@@ -18,7 +18,6 @@ from iMiner.md.common import preprocess_index_file
 from iMiner.md.gbsa.parameters import generate_input_file, DEFAULT_PARAMS
 from iMiner.utils import file_abspath
 
-LOGGER = init_logger("iMiner.log")
 NUM_CORES = mp.cpu_count()
 
 try:
@@ -46,6 +45,7 @@ class GBSA:
         self.workdir = workdir
         self.use_mpi = use_mpi
         self.mpirun_exec = None
+        self.logger = init_logger(self.workdir / 'iMiner-gbsa.log')
 
         self.params = {
             "gmx_mmpbsa_exec": find_executable("gmx_MMPBSA"),
@@ -59,10 +59,10 @@ class GBSA:
         if self.use_mpi:
             try:
                 self.params['mpi_exec'] = find_executable("mpirun")
-                LOGGER.info(f"MPI is enabled. {num_threads} cores will be used.")
+                self.logger.info(f"MPI is enabled. {num_threads} cores will be used.")
             except ExecutableNotFoundError as e:
                 self.use_mpi = False
-                LOGGER.warning("mpirun is not found. MMPB/GBSA calculation will not run with MPI.")
+                self.logger.warning("mpirun is not found. MMPB/GBSA calculation will not run with MPI.")
                 
     def set_params(
         self,
@@ -124,7 +124,7 @@ class GBSA:
         clean: bool
             Whether to clean the working directory
         """
-        LOGGER.info(f"MMPB/GBSA calculation working directory set to: {self.workdir}")
+        self.logger.info(f"MMPB/GBSA calculation working directory set to: {self.workdir}")
         
         # Set up commands
         cmd = (
@@ -139,24 +139,24 @@ class GBSA:
         
         # start
         cmd = cmd.format(**self.params)
-        LOGGER.info(f"Start MMPB/GBSA calculation with command: {cmd}")
-        with timer("MMPB/GBSA Calculation", LOGGER):
+        self.logger.info(f"Start MMPB/GBSA calculation with command: {cmd}")
+        with timer("MMPB/GBSA Calculation", self.logger):
             with set_directory(self.workdir):
                 code, out, err = run_command(cmd)
             with open(self.workdir / 'mmpbsa.log', 'w') as f:
                 f.write(out)
-            LOGGER.info("MMPB/GBSA calculation finished.")
+            self.logger.info("MMPB/GBSA calculation finished.")
 
             # analyze result
-            LOGGER.info(f"Parsing results to {self.workdir / 'Energy.csv'}")
+            self.logger.info(f"Parsing results to {self.workdir / 'Energy.csv'}")
             self.analyze_results()
-            LOGGER.info(f"The average binding affinity is {self.delta_G:.4f} kcal/mol. ({self.result_df.shape[0]} frames evaulated)")
+            self.logger.info(f"The average binding affinity is {self.delta_G:.4f} kcal/mol. ({self.result_df.shape[0]} frames evaulated)")
 
             # clean
             if clean:
                 with set_directory(self.workdir):
                     run_command(f"{self.params['gmx_mmpbsa_exec']} --clean")
-                    LOGGER.info("Working directory is clean")
+                    self.logger.info("Working directory is clean")
 
     def analyze_results(self) -> float:
         """
@@ -178,9 +178,9 @@ class GBSA:
         self.result_df = pd.read_csv(str(self.workdir / "Energy.csv"))
         total = self.result_df['TOTAL']
         if total.max() - total.min() > 50:
-            LOGGER.warning("Large fluctuations in delta G, PBC may not be fixed properly!")
+            self.logger.warning("Large fluctuations in delta G, PBC may not be fixed properly!")
         if total.max() > 0:
-            LOGGER.warning("Positive delta G found, PBC may not be fixed properly!")
+            self.logger.warning("Positive delta G found, PBC may not be fixed properly!")
         self.delta_G = float(total.mean())
         with open(self.workdir / "dG.dat", 'w') as f:
              f.write(str(self.delta_G))

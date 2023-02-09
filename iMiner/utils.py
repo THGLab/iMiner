@@ -21,7 +21,7 @@ from logging import Logger
 
 
 @contextlib.contextmanager
-def timer(name: Optional[str] = None, logger: Logger = None):
+def timer(name: Optional[str] = None, logger: Optional[Logger] = None):
     """
     Logger timer
     """
@@ -29,7 +29,11 @@ def timer(name: Optional[str] = None, logger: Logger = None):
     yield
     end = time.time()
     msg = f"{name} finished. " if name else ""
-    logger.info(msg + f"Time Elapsed: {end - start:.3f} seconds")
+    msg += f"Time Elapsed: {end - start:.3f} seconds"
+    if logger:
+        logger.info(msg)
+    else:
+        print(msg)
 
 
 def file_abspath(path: os.PathLike) -> Path:

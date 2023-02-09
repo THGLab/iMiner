@@ -6,8 +6,13 @@ A consensus docking module for iMiner
 '''
 
 from iMiner.core.project import BaseProject
-from iMiner.docking import *
-from iMiner.log import init_logger
+from iMiner.docking import (
+    AD4Docking, 
+    VinaDocking, 
+    VinaGPUDocking, 
+    ICMDocking, 
+    TankBindDocking
+)
 import pandas as pd
 import shutil
 

@@ -8,12 +8,12 @@ import os
 import shutil
 from pathlib import Path
 from typing import Dict, Any, Optional
+from logging import Logger
 
 import gromacs
 gromacs.config.setup(Path(gromacs.__file__).parent / "templates/gromacswrapper.cfg")
 from gromacs.fileformats.mdp import MDP
 from iMiner.cmd import run_command, find_executable, set_directory
-from iMiner.log import LOGGER
 
 MAXWARN = 10
 
@@ -22,7 +22,8 @@ def run_preprocess_workflow(
     top: os.PathLike,
     gro: os.PathLike,
     wdir: os.PathLike = Path.cwd(),
-    verbose: bool = False
+    verbose: bool = False,
+    logger: Optional[Logger] = None,
 ):
     """
     Run preprocess workflow: add box with 1 nm buffer region, add water, add ions
@@ -41,11 +42,11 @@ def run_preprocess_workflow(
     gmx = find_executable(['gmx_mpi', 'gmx'])
     mdp = Path(__file__).with_name("em.mdp").resolve()
     with set_directory(wdir):
-        if verbose: LOGGER.info("Adding box...")
+        if logger and verbose: logger.info("Adding box...")
         run_command([gmx, "editconf", "-f", gro, "-o", "newbox.gro", "-c", "-d", str(1.0), "-bt", "dodecahedron"])
-        if verbose: LOGGER.info("Adding water...")
+        if logger and verbose: logger.info("Adding water...")
         run_command([gmx, "solvate", "-cp", "newbox.gro", "-cs", "spc216.gro", "-o", "solv.gro", "-p", top])
-        if verbose: LOGGER.info("Add ions...")
+        if logger and verbose: logger.info("Add ions...")
         run_command([gmx, "grompp", "-f", mdp, "-c", "solv.gro", "-p", top, "-o", "ions.tpr", "-maxwarn", MAXWARN])
         run_command([gmx, "genion", "-s", "ions.tpr", "-o", "ions.gro", "-p", top, "-pname", "NA", "-nname", "CL", "-neutral"], input="SOL")
         run_command([gmx, "grompp", "-c", "ions.gro", "-f", mdp, "-p", top, "-pp", "processed.top"])
@@ -134,14 +135,15 @@ def run_md_workflow(
     restart: bool = True,
     params: Dict[str, Dict[str, Any]] = {"em": {}, "nvt": {}, "npt": {}, "prod": {}},
     enforce_gpu: bool = False,
-    verbose: bool = False
+    verbose: bool = False,
+    logger: Optional[Logger] = None
 ):
     stages = ["em", "nvt", "npt", "prod"]
     with set_directory(wdir, mkdir=True) as w:
         for i, stage in enumerate(stages):
             Path.mkdir(w / stage, parents=True, exist_ok=True)
             shutil.copyfile(Path(__file__).with_name(f"{stage}.mdp"), w / stage / f"{stage}.mdp")
-            if verbose: LOGGER.info(f"Running {stage}...")
+            if verbose and logger: logger.info(f"Running {stage}...")
             run_md(
                 top = Path(top).resolve(),
                 gro = Path(gro).resolve(),

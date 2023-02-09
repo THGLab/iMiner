@@ -2,16 +2,8 @@ import os
 from pathlib import Path
 from typing import List, Optional
 
-from iMiner.log import LOGGER
 from iMiner.cmd import run_command, find_executable, set_directory
 from iMiner.utils import file_abspath
-
-try:
-    from pdbfixer import PDBFixer
-except ImportError:
-    LOGGER.warn("PDBFIXER is not installed, pre-process protein will be disabled")
-
-from openmm.app import PDBFile
 
 
 PROTEIN_FF_KEYS = {
@@ -51,6 +43,9 @@ def fix_protein(
     remove_chain_ids: List of str, optional
         chain ids to remove
     """
+    from pdbfixer import PDBFixer
+    from openmm.app import PDBFile
+
     fixer = PDBFixer(in_pdb)
     fixer.removeChains(chainIds=remove_chain_ids)
     fixer.findMissingResidues()

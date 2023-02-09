@@ -13,7 +13,6 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 
-from iMiner.log import init_logger
 from iMiner.utils import timer
 from iMiner.cmd import run_command, set_directory, find_executable, CommandExecuteError
 from iMiner.core.project import BaseProject
@@ -30,11 +29,6 @@ from iMiner.md.analysis.traj import (
     xtc_to_pdb,
     gmx_genidx
 )
-
-LOGGER = init_logger("iMiner.log")
-
-def log_step(n: int, msg: str):
-    LOGGER.info(f"===== Step {n}: {msg.capitalize()} =====")
 
 
 class MDProject(BaseProject):
@@ -107,12 +101,12 @@ class MDProject(BaseProject):
             try:
                 run_acpype("ligand.sdf", **kwargs)
             except CommandExecuteError:
-                LOGGER.error(f"Error in preparing ligand {self.get_ligand_with_name(name)}. See details in acpype log file.")
+                self.logger.error(f"Error in preparing ligand {self.get_ligand_with_name(name)}. See details in acpype log file.")
                 return False
             try:
                 run_command([obabel, 'ligand.sdf', '-O', 'MOL.gro'])
             except CommandExecuteError:
-                LOGGER.error(f"Error in converting ligand {self.get_ligand_with_name(name)} with obabel.")
+                self.logger.error(f"Error in converting ligand {self.get_ligand_with_name(name)} with obabel.")
                 return False
         return True
     
@@ -127,12 +121,12 @@ class MDProject(BaseProject):
             try:
                 run_tleap("protein.pdb", protein_ff=self.md_params['protein_ff'])
             except CommandExecuteError:
-                LOGGER.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in tleap log file.")
+                self.logger.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in tleap log file.")
                 return False
             try:
                 run_acpype(args=["-p", "protein.prmtop", "-x", "protein.inpcrd"])
             except CommandExecuteError:
-                LOGGER.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in acpype log file.")
+                self.logger.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in acpype log file.")
                 return False
         return True
     
@@ -162,10 +156,10 @@ class MDProject(BaseProject):
         # Generate index file
         gmx_genidx(prod_dir / "prod.gro", index_file)
         r_grp_idx, l_grp_idx, c_grp_idx = preprocess_index_file(index_file, index_file)
-        LOGGER.info(f"Index file generated: {index_file}")
-        LOGGER.info(f"Receptor group index: {r_grp_idx}")
-        LOGGER.info(f"Ligand group index: {l_grp_idx}")
-        LOGGER.info(f"Complex group index: {c_grp_idx}")
+        self.logger.info(f"Index file generated: {index_file}")
+        self.logger.info(f"Receptor group index: {r_grp_idx}")
+        self.logger.info(f"Ligand group index: {l_grp_idx}")
+        self.logger.info(f"Complex group index: {c_grp_idx}")
         
         if version == 2:
             coords = read_single_gro(wdir / "complex" / "complex.gro")
@@ -181,14 +175,14 @@ class MDProject(BaseProject):
         base_cmds = [find_executable(['gmx_mpi', 'gmx']), 'trjconv', '-n', index_file]
         if version == 1:
             # Step 1: make all the molecules as a whole and center the protein
-            LOGGER.info("Remove PBC Step 1: make all the molecules as a whole and center the protein")
+            self.logger.info("Remove PBC Step 1: make all the molecules as a whole and center the protein")
             tmpf1 = prod_dir / "prod_whole_center.xtc"
             cmds = base_cmds.copy()
             cmds += ['-s', prod_dir / "prod.tpr", '-f', prod_dir / "prod.xtc", '-o', tmpf1, '-pbc', 'whole', '-center']
             run_command(cmds, input=f"Protein\n{c_grp_idx}")
             
             # Step 2: make all the molecules within the box
-            LOGGER.info("Remove PBC Step 2: make all the molecules within the box")
+            self.logger.info("Remove PBC Step 2: make all the molecules within the box")
             tmpf2 = prod_dir / "prod_whole_center_nojump.xtc"
             cmds = base_cmds.copy()
             cmds += ['-s', prod_dir.parent / 'complex' / "complex.gro", '-f', tmpf1, '-o', tmpf2, '-pbc', 'nojump']
@@ -196,14 +190,14 @@ class MDProject(BaseProject):
         
         elif version == 2:
             # Step 1: make all the molecules as a whole
-            LOGGER.info("Remove PBC Step 1: make all the molecules as a whole")
+            self.logger.info("Remove PBC Step 1: make all the molecules as a whole")
             tmpf1 = prod_dir / "prod_whole.xtc"
             cmds = base_cmds.copy()
             cmds += ['-s', prod_dir / "prod.tpr", '-f', prod_dir / "prod.xtc", '-o', tmpf1, '-pbc', 'whole']
             run_command(cmds, input=f"{c_grp_idx}")
 
             #Step 2: make all the molecules within the box by centering the central atom
-            LOGGER.info("Remove PBC Step 2: make all the molecules within the box by centering the central atom")
+            self.logger.info("Remove PBC Step 2: make all the molecules within the box by centering the central atom")
             tmpf2 = prod_dir / "prod_nojump_center.xtc"
             cmds = base_cmds.copy()
             cmds += ['-s', wdir / "complex" / "newbox.gro", '-f', tmpf1, '-o', tmpf2, '-pbc', 'nojump', '-center']
@@ -213,13 +207,13 @@ class MDProject(BaseProject):
             raise NotImplementedError(f"Invalid remove PBC workflow version: {version}")
         
         # Step 3: align
-        LOGGER.info("Remove PBC Step 3: align")
+        self.logger.info("Remove PBC Step 3: align")
         cmds = base_cmds.copy()
         cmds += ['-s', prod_dir / 'prod.tpr', '-f', tmpf2, '-o', traj_nopbc_file, '-fit', 'rot+trans']
         run_command(cmds, input=f'{c_grp_idx}\n{c_grp_idx}')
         
         # Generate short trajectory for visualization
-        LOGGER.info("Remove PBC Step 4: generate short trajectory for visualization")
+        self.logger.info("Remove PBC Step 4: generate short trajectory for visualization")
         base_cmds += ['-s', prod_dir / 'prod.tpr', '-f', traj_nopbc_file]
         cmds = base_cmds.copy()
         cmds += ['-o', traj_nopbc_file.with_suffix('.pdb'), '-dump', 0] # dump 1st frame
@@ -232,7 +226,7 @@ class MDProject(BaseProject):
             run_command(cmds, input=str(c_grp_idx))
         
         # Generate sub tpr file for complex
-        LOGGER.info("Generate sub tpr file for dry complex structure")
+        self.logger.info("Generate sub tpr file for dry complex structure")
         run_command(
             [
                 find_executable(['gmx_mpi', 'gmx']),
@@ -266,15 +260,15 @@ class MDProject(BaseProject):
         )
         tlist, rmslist = read_xvg(f_xvg, tunit='ns', dunit='A')
         if np.any(rmslist > 30):
-            LOGGER.warning("Large RMSD found! PBC may not be fixed properly.")
+            self.logger.warning("Large RMSD found! PBC may not be fixed properly.")
         fig, ax = plot_rmsd(tlist, rmslist, name=lig_name)
         fig.savefig(f_rmsd_png, dpi=300)
         plt.close(fig)
-        LOGGER.info(f"RMSD Calculated: {f_rmsd_png}")
+        self.logger.info(f"RMSD Calculated: {f_rmsd_png}")
 
         # analyze interaction
-        LOGGER.info("Analyze interaction...")
-        with timer("Analyze interaction", LOGGER):
+        self.logger.info("Analyze interaction...")
+        with timer("Analyze interaction", self.logger):
             trajdir = prod_dir / "traj"
             f_csv = prod_dir / "interaction.csv"
             f_interact_png = prod_dir / 'interaction.png'
@@ -284,9 +278,9 @@ class MDProject(BaseProject):
                     ref_tpr_align, traj_nopbc_file, trajdir, 
                     self.md_params['interaction_analysis']['dt']
                 )
-                LOGGER.info(f"Convert trajectory to seperate pdb files: {trajdir}")
+                self.logger.info(f"Convert trajectory to seperate pdb files: {trajdir}")
             else:
-                LOGGER.warning(f"Found trajector directory: {trajdir}, xtc_to_pdb conversion is skipped.")
+                self.logger.warning(f"Found trajector directory: {trajdir}, xtc_to_pdb conversion is skipped.")
                 pdbs = list(trajdir.glob("*.pdb"))
             df = analyze_multiple_frames(
                 pdbs,
@@ -299,7 +293,7 @@ class MDProject(BaseProject):
             fig, ax = plot_interact(f_csv, title=lig_name)
             fig.savefig(f_interact_png, dpi=300)
             plt.close(fig)
-            LOGGER.info(f"Intearction analysis result save to: {f_interact_png}")
+            self.logger.info(f"Intearction analysis result save to: {f_interact_png}")
         
         return
 
@@ -309,9 +303,9 @@ class MDProject(BaseProject):
         """
         complex_dir = wdir.resolve() / "complex"
         try:
-            run_preprocess_workflow("topol.top", "complex.gro", complex_dir, verbose=True)
+            run_preprocess_workflow("topol.top", "complex.gro", complex_dir, verbose=True, logger=self.logger)
         except CommandExecuteError:
-            LOGGER.info("Error in gromacs prep steps. See complex folder.")
+            self.logger.info("Error in gromacs prep steps. See complex folder.")
             return False
         shutil.copyfile(complex_dir / "ions.gro", wdir / "ions.gro")
         shutil.copyfile(complex_dir / "processed.top", wdir / 'processed.top')
@@ -323,18 +317,19 @@ class MDProject(BaseProject):
         """
         try:
             run_md_workflow(
-            "processed.top", 
-            "ions.gro", 
-            wdir, 
-            restart=True, 
-            params=self.md_params, 
-            enforce_gpu=self.md_params['enforce_gpu'],
-            verbose=True
+                "processed.top", 
+                "ions.gro", 
+                wdir, 
+                restart=True, 
+                params=self.md_params, 
+                enforce_gpu=self.md_params['enforce_gpu'],
+                verbose=True,
+                logger=self.logger
             )
-        except CommandExecuteError:
-            LOGGER.error("Error in running gromacs. See complex folder.")
+            return True
+        except CommandExecuteError as e:
+            self.logger.error("Error in running gromacs. See complex folder.")
             return False
-        return True
     
     def clean(self, wdir: Path):
         """
@@ -342,6 +337,9 @@ class MDProject(BaseProject):
         """
         for tmpfile in Path(wdir).glob("*/#*#"):
             tmpfile.unlink()
+    
+    def log_step(self, n: int, msg: str):
+        self.logger.info(f"===== Step {n}: {msg.capitalize()} =====")
     
     def run(self, lig_name: str, prot_name: str, task_name: Optional[str] = None, 
             lig_charge = "guess"):
@@ -352,35 +350,35 @@ class MDProject(BaseProject):
         rmsd calculation inputs
         """
         task_name = f"{lig_name}_{prot_name}" if task_name is None else task_name
-        LOGGER.info(f"Running md for {lig_name}_{prot_name}")
+        self.logger.info(f"Running md for {lig_name}_{prot_name}")
         wdir = self.md_path / task_name
         
-        log_step(1, "Parametrize Ligand")
+        self.log_step(1, "Parametrize Ligand")
         succ = self.parametrize_ligand(lig_name, wdir, net_charge=lig_charge)
         if not succ:
             return
-        log_step(2, "Parametrize Protein")
+        self.log_step(2, "Parametrize Protein")
         succ = self.parametrize_protein(prot_name, wdir)
         if not succ:
             return
-        log_step(3, "Make Complex")
+        self.log_step(3, "Make Complex")
         self.make_complex(wdir)
-        log_step(4, "MD Preparation")
+        self.log_step(4, "MD Preparation")
         succ = self.prep_md(wdir)
         if not succ:
             return
-        log_step(5, "Run MD")
+        self.log_step(5, "Run MD")
         succ = self.run_md(wdir)
         if not succ:
             return
         
-        log_step(6, "Remove PBC of MD Trajectory")
+        self.log_step(6, "Remove PBC of MD Trajectory")
         self.remove_pbc_workflow(wdir)
         
-        log_step(7, "Analyze RMSD and Interactions")
+        self.log_step(7, "Analyze RMSD and Interactions")
         self.analyze_md_traj(wdir, lig_name)
         
-        log_step(8, "Clean working directory")
+        self.log_step(8, "Clean working directory")
         self.clean(wdir)
         
         complex_dir = wdir.resolve() / "complex"
