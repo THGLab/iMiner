@@ -101,7 +101,6 @@ class BaseProject:
         # provide a cache for processed protein pdb files (in case multiple binding sites are defined for the same protein)
         self._protein_processed_cache = set()
 
-
     def update_meta_data(self):
         with open(self.meta_json, 'w') as f:
             json.dump(self.meta_data, f)
@@ -110,7 +109,13 @@ class BaseProject:
         self.meta_dir = self.project_path / ".iminer"
         self.meta_json = self.meta_dir / "meta.json"
         self.meta_dir.mkdir(exist_ok=True)
-        self.meta_data = {"name": self.project_name, 'verbose': self.verbose}
+        self.meta_data = {
+            "name": self.project_name, 
+            'verbose': self.verbose, 
+            "ligands": self.ligands, 
+            "proteins": self.proteins,
+            "binding_sites": self.binding_sites
+        }
         with open(self.meta_json, 'w') as f:
             json.dump(self.meta_data, f)
 
@@ -180,6 +185,7 @@ class BaseProject:
             self._process_pdb(smiles_or_path, ligand_path)
         
         self.ligands[name] = ligand_path
+        self.update_meta_data()
         return name
 
     def add_multiple_ligands(self, smiles_or_paths, names=None, format='inferred') -> List[str]:
