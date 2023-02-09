@@ -1,11 +1,24 @@
 from pathlib import Path
+import os
 
 # CHANGE THESE UNDER DIFFERENT SYSTEMS
+# (LOCAL MACHINE)
+ADFR_install_path = '/home/jerry/src/ADFRsuite_x86_64Linux_1.0/bin'
+meeko_install_path = '/home/jerry/anaconda3/envs/iMiner/bin'
+iMiner_path = '/home/jerry/data/iMiner/iMiner'
+ad4gpu_path = '/Users/jerryli/Downloads/AutoDock-GPU/bin/autodock_gpu_128wi'
+tankbind_python_path = '/home/jerry/anaconda3/envs/tankbind/bin/python'
+tankbind_src_path = '/home/jerry/data/TankBind'
+p2rank_path = '/home/jerry/src/p2rank_2.4/prank'
+
 # (LAWRENCIUM)
-ADFR_install_path = '/global/home/users/jerry-li1996/src/ADFRsuite_x86_64Linux_1.0/bin'
-meeko_install_path = '/global/home/users/jerry-li1996/.conda/envs/iMiner/bin'
-iMiner_path = '/global/scratch/users/jerry-li1996/iMiner/iMiner'
-ad4gpu_path = '/global/home/groups/co_armada2/local/AutoDock-GPU/bin/autodock_gpu_128wi'
+# ADFR_install_path = '/global/home/users/jerry-li1996/src/ADFRsuite_x86_64Linux_1.0/bin'
+# meeko_install_path = '/global/home/users/jerry-li1996/.conda/envs/iMiner/bin'
+# iMiner_path = '/global/scratch/users/jerry-li1996/iMiner/iMiner'
+# ad4gpu_path = '/global/home/groups/co_armada2/local/AutoDock-GPU/bin/autodock_gpu_128wi'
+pythonsh_path = "/global/scratch/users/jerry-li1996/covid/rdkit_vina/bin/pythonsh"
+ligprep_path = "/global/scratch/users/jerry-li1996/covid/rdkit_vina/MGLToolsPckgs/AutoDockTools/Utilities24/prepare_ligand4.py"
+        
 
 # (SAVIO)
 # ADFR_install_path = '/global/home/groups/co_armada2/local/ADFRsuite/bin'
@@ -23,3 +36,5 @@ autogrid_path = f'{ADFR_install_path}/autogrid4'
 VINA_BINARY = Path(iMiner_path) / 'docking/bins/vina'
 VINA_GPU_SCRIPT = Path(iMiner_path) / 'docking/run_vina_gpu.sh'
 VINA_GPU_BINARY_PATH = Path(iMiner_path) / "docking/bins"
+
+tankbind_dir_path = os.path.dirname(tankbind_python_path)

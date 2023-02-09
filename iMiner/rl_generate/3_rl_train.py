@@ -74,7 +74,8 @@ config["run"]["output_dir"] = output_directory
 prior_model = Model(config["training_specs"]["prior_model"])
 prior_model.set_as_prior()
 policy_model = Model(config["training_specs"]["starting_policy_model"])
-
+if "model_weights" in config["training_specs"]:
+    policy_model.load_model_chk(config["training_specs"]["model_weights"])
 
 
 #####################

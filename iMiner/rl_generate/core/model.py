@@ -32,7 +32,7 @@ class Model():
         chk_path = os.path.dirname(chk_name)
         chk_filename = os.path.basename(chk_name)
         if ".pth" in chk_filename:
-            chk_filename.replace(".pth", "")
+            chk_filename = chk_filename.replace(".pth", "")
         self._language_model.path = Path(chk_path)
         self._language_model.model_dir = Path("./")
         self._language_model.load(chk_filename)

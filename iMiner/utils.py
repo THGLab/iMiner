@@ -17,11 +17,11 @@ import pandas as pd
 import numpy as np
 import subprocess
 
-from iMiner.log import LOGGER
+from logging import Logger
 
 
 @contextlib.contextmanager
-def timer(name: Optional[str] = None):
+def timer(name: Optional[str] = None, logger: Logger = None):
     """
     Logger timer
     """
@@ -29,7 +29,7 @@ def timer(name: Optional[str] = None):
     yield
     end = time.time()
     msg = f"{name} finished. " if name else ""
-    LOGGER.info(msg + f"Time Elapsed: {end - start:.3f} seconds")
+    logger.info(msg + f"Time Elapsed: {end - start:.3f} seconds")
 
 
 def file_abspath(path: os.PathLike) -> Path:
@@ -127,3 +127,14 @@ def get_free_gpu():
     if gpu_df.loc[idx, "avail"] < 0.1:
         idx = None
     return str(idx)
+
+def check_dict_identity(dict1, dict2):
+    '''
+    Check whether two dictionaries have the same keys and values
+    '''
+    if dict1.keys() != dict2.keys():
+        return False
+    for k in dict1.keys():
+        if str(dict1[k]) != str(dict2[k]):
+            return False
+    return True
