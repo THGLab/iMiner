@@ -1,0 +1,4 @@
+2023-01-30 22:59:12,782 - INFO - Added protein zikvpro to the project. Current number of proteins: 1
+2023-01-30 22:59:13,160 - INFO - Added 2 ligands to the project. Current number of ligands: 2
+2023-01-30 22:59:13,161 - INFO - Start docking with vina-gpu using 2 cores...
+2023-01-30 22:59:23,989 - INFO - Consensus docking completed! Results saved to /global/scratch/users/ozhang/covid/iMiner/examples/test_consensus_docking/consensus_docking/zikvpro/zikvpro_consensus_docking_results.csv

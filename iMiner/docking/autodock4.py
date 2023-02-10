@@ -59,15 +59,7 @@ class AD4Docking(AutoDockBaseDocking):
         """
         super().__init__(protein_pdb, docking_box, logger=logger)
         
-        # define name and convert pdb to pdbqt
-        if name == None:
-            self.protein_name = Path(protein_pdb).resolve().stem
-        else:
-            self.protein_name = name
-        
         self.ad4dir = Path(temp_path).resolve() / "{}-ad4".format(self.protein_name)
-        if self.ad4dir.exists() and self.ad4dir.is_dir():
-            shutil.rmtree(self.ad4dir)  
         self.ad4dir.mkdir(parents = True, exist_ok = True)
         
         # create folders corresponding to the project
@@ -238,6 +230,10 @@ class AD4Docking(AutoDockBaseDocking):
 
         @return a row of dataframe that has information of the best pose of a ligand
         """
+        if not os.path.isfile(dlg_file): 
+            print("DLG File %s not found."%dlg_file)
+            return
+
         ligand_name = Path(dlg_file).stem
         smile = self.read_smiles_from_dlg(dlg_file)
         with open(dlg_file, "r") as f:

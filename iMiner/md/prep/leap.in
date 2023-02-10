@@ -1,4 +1,4 @@
-source leaprc.protein.{protein_ff}
+source {protein_ff}
 source leaprc.water.{water_ff}
 protein = loadpdb {pdb}
 check protein

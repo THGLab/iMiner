@@ -7,6 +7,7 @@ A consensus docking module for iMiner
 
 from iMiner.core.project import BaseProject
 from iMiner.docking import *
+from iMiner.log import init_logger
 import pandas as pd
 import shutil
 
@@ -14,7 +15,8 @@ docking_protocol_map = {
     "ad4": AD4Docking,
     "vina": VinaDocking,
     "vina-gpu": VinaGPUDocking,
-    "icm": ICMDocking
+    "icm": ICMDocking,
+    "tankbind": TankBindDocking
 }
 
 class ConsensusDocking(BaseProject):
@@ -31,13 +33,14 @@ class ConsensusDocking(BaseProject):
         super().__init__(project_name, project_path, verbose)
         self.docking_protocols = {protocol_name: docking_protocol_map[protocol_name] for protocol_name in docking_protocols}
 
-    def run_consensus_docking(self, protein_name=None, ligand_names=None, output_csv=None, **kwargs):
+    def run_consensus_docking(self, protein_name=None, ligand_names=None, output_csv=None, clean_tmp_after_finish=False, **kwargs):
         '''
         Run consensus docking for all (or given) ligands in the project into the given protein, using different docking protocols
 
         :param protein_name: str, name of the protein to dock into
         :param ligand_names: list of str, names of the ligands to dock. When not specified, use all ligands
         :param output_csv: str, path to the output csv file
+        :param clean_tmp_after_finish: bool, whether to clean the temporary directory after the docking is finished
         '''
         # get protein name
         if protein_name is None:
@@ -47,9 +50,6 @@ class ConsensusDocking(BaseProject):
 
         results_df = []
         for protocol in self.docking_protocols:
-            if self.verbose:
-                n_cores = kwargs.get("n_jobs", 1)
-                self.logger.info(f"Start docking with {protocol} using {n_cores} cores...")
             docking_obj = self.docking_protocols[protocol](self.proteins[protein_name],
                                                            self.binding_sites[protein_name],
                                                            self.temp_path, self.logger, **kwargs)
@@ -60,6 +60,10 @@ class ConsensusDocking(BaseProject):
                 ligand_paths = self.ligands.values()
             else:
                 ligand_paths = [self.ligands[ligand_name] for ligand_name in ligand_names]
+            if self.verbose:
+                n_cores = kwargs.get("n_jobs", 1)
+                n_ligands = len(ligand_names)
+                self.logger.info(f"Start docking {n_ligands} ligands with {protocol} using {n_cores} cores...")
             results = docking_obj.dock_parallel(ligand_paths, docking_path, **kwargs)
             results["ligand_names"] = ligand_names
             results["protocol"] = protocol
@@ -78,3 +82,13 @@ class ConsensusDocking(BaseProject):
 
         if self.verbose:
             self.logger.info(f"Consensus docking completed! Results saved to {output_csv}")
+        
+        if clean_tmp_after_finish:
+            self.clean_tmp()
+
+    def clean_tmp(self):
+        '''
+        Clean the temporary directory
+        '''
+        shutil.rmtree(self.temp_path)
+        self.logger.info(f"Temporary directory {self.temp_path} cleaned!")

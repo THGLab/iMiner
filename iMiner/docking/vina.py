@@ -156,6 +156,9 @@ class VinaDocking(AutoDockBaseDocking):
             ligand_work_name = ligand_name + "_" + random_id()
             succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
             if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
+                ligand_smiles.append("")
+                ligand_scores.append(np.nan)
+                ligand_conformation_paths.append("")
                 continue
             # save the ligand smiles
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))

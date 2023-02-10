@@ -29,15 +29,16 @@ class SELFIESTokenizer(BaseTokenizer):
         self.tokens = ["#Branch1",	"#Branch2",	"#C",	"#N",	"#N+1",	"-/Ring2",	"/Br",	"/C",
         	"/C@",	"/C@@",	"/C@@H1",	"/C@H1",	"/Cl",	"/N",	"/N+1",	"/O",	"/S",
             	"=Branch1",	"=Branch2",	"=C",	"=N",	"=N+1",	"=N-1",	"=O",	"=P",	"=Ring1",
-                	"=Ring2",	"=S",	"=Se",	"B",	"B-1",	"Br",	"Branch1",	"Branch2",	"C",
+                	"=Ring2",	"=S",	"=Se",	"Br",	"Branch1",	"Branch2",	"C",
         	"C-1",	"C@",	"C@@",	"C@@H1",	"C@H1",	"Cl",	"F",	"I",	"N",	"N+1",	"N-1",
         	"NH1",	"O",	"O-1",	"OH0",	"P",	"P+1",	"P@",	"P@@",	"PH1",	"Ring1",	"Ring2",
-        	"S",	"S+1",	"Se",	"Si",	"Te",	"\\C",	"\\C@@H1",	"\\C@H1",	"\\Cl",	"\\N",
+        	"S",	"S+1",	"Se",	"\\C",	"\\C@@H1",	"\\C@H1",	"\\Cl",	"\\N",
             	"\\N+1",	"\\NH1",	"\\O",	"\\O-1",	"\\S"]
 
     def tokenizer(self, selfies: str) -> List[str]:
         selfies_tokens = selfies[1:-1].split("][")
         if np.any([tk not in self.tokens for tk in selfies_tokens]):
+            # print(selfies)
             return [BOS] # if any very rara token occurs in the SELFIES string, discard the sequence (should be rare)
         else:
             return [BOS] + selfies_tokens
