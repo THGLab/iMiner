@@ -190,7 +190,7 @@ class VinaDocking(AutoDockBaseDocking):
                 elif line.strip().split()[0] == "1":
                     energy = float(line.strip().split()[1])
                     break
-            if energy != np.nan and self.nmodes > 1:
+            if self.nmodes > 1 and energy != np.nan:
                 # untested; calculates averages of poses clustered with the top pose
                 rmsds = np.array([line.strip().split() for line in strings[n, n+self.nmodes]], dtype=np.float)
                 mask = rmsds[:, 2] < 2
@@ -325,15 +325,15 @@ class VinaGPUDocking(VinaDocking):
             print(err)
             return False
             
-        if isinstance(indices, int):
-            if indices >= 0:
-                return VinaGPUDocking.extract_pose(temp_path, output_path, indices)
+        if isinstance(indices, int) and indices >= 0:
+            return VinaGPUDocking.extract_pose(temp_path, output_path, indices)
         with open(temp_path, "r") as fi:
             outfile = fi.read()
         with open(output_path, "w") as fo:
             #fo.write("$$$$\n".join(outfile.split("$$$$\n")[:-1]))
             fo.write(outfile)
             if isinstance(indices, list):
+                print(indices, output_path, flush=True)
                 fo.write("\n>  <REMARK>\nSELECTED MODELS: "+" ".join(indices))
         return True
         

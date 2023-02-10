@@ -10,8 +10,8 @@ optimizer_specs:
   learning_rate: 1.0e-4
 
 training_specs:
-  batch_size: 1024
-  n_seq_per_iter: 1000 # for debug
+  batch_size: 2048
+  n_seq_per_iter: 1500 # for debug
   n_iters: 200 # for debug
 #  start_iter : 
   prior_diff_coef: 0
@@ -46,4 +46,4 @@ rewards:
 
 run:
   random_seed: 42
-  output_dir: /global/scratch/users/ozhang/covid/ZikvPro/active_interaction
+  output_dir: /global/scratch/users/ozhang/covid/ZikvPro/active_debug
