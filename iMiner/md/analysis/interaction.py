@@ -13,13 +13,6 @@ import pandas as pd
 
 from plip.structure.preparation import PDBComplex, logger as PLIP_LOGGER
 from plip.exchange.report import StructureReport
-<<<<<<< HEAD
-
-from iMiner.cmd import run_command
-
-
-def analyze_single_frame(pdbpath, mol_name="MOL"):
-=======
 from plip.basic import config as PLIP_CONFIG
 
 PLIP_LOGGER.setLevel(logging.ERROR)
@@ -28,6 +21,7 @@ PLIP_LOGGER.propagate = False
 
 def analyze_single_frame(
     pdbpath: os.PathLike, 
+    mol_name: str ="MOL",
     add_hydrogen: bool = False,
     resnr_renum: Optional[Dict[int, int]] = None
 ) -> Dict[str, int]:
@@ -54,7 +48,6 @@ def analyze_single_frame(
     else:
         PLIP_CONFIG.NOHYDRO = True
         
->>>>>>> 3b37fca539522c5b1c3007865a1249ed5e465527
     pdb = PDBComplex()
     pdb.load_pdb(str(pdbpath))
     pdb.analyze()
@@ -76,11 +69,6 @@ def analyze_single_frame(
     except IndexError: 
         itypes = []
         bs = [bs for bs in binding_sites]
-        #print(pdbpath)
-        #print([bs.findall("identifiers/longname")[0].text for bs in binding_sites])
-        #with open(pdbpath, "r") as f:
-        #    c = f.read()
-        #    print("\n".join(c.split("TER\n")[1:]))
         for site in bs:
             itypes += list(site.findall("interactions/"))
             

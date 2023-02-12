@@ -162,12 +162,17 @@ class VinaDocking(AutoDockBaseDocking):
                 continue
             # save the ligand smiles
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
-            # if contains invalid vina atom types
-            if not self.check_valid_atoms(ligand_smiles[-1]): 
-                # use 0 instead of nan, so that these molecules go into rl training
-                ligand_scores.append(0.)
-                ligand_conformation_paths.append("invalid atom types")
+            if ligand_smiles[-1] is None:
+                ligand_scores.append(np.nan)
+                ligand_conformation_paths.append("smiles sdf conversion error")
                 continue
+            
+            # if contains invalid vina atom types
+            #if not self.check_valid_atoms(ligand_smiles[-1]): 
+                # use 0 instead of nan, so that these molecules go into rl training
+            #    ligand_scores.append(0.)
+            #    ligand_conformation_paths.append("invalid atom types")
+            #    continue
             
             # execute vina docking under directory (for cpu: working directory, for gpu: binary directory)
             code, out, err = self._run_docking_under_folder(ligand_work_name, single_job_timeout) 

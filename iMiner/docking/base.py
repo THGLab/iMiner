@@ -111,5 +111,8 @@ class BaseDocking:
         '''
         sdmol = Chem.SDMolSupplier(sdf_path)
         mol = sdmol[0]
-        return Chem.MolToSmiles(mol)
+        try:
+            return Chem.MolToSmiles(mol)
+        except RuntimeError:
+            return None
 

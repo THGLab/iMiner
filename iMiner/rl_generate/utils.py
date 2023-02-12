@@ -43,69 +43,7 @@ class SELFIESTokenizer(BaseTokenizer):
         else:
             return [BOS] + selfies_tokens
 
-class SELFIESCompressedTokenizer(BaseTokenizer):
-    def __init__(self, lang):
-        self.pre_modifier = ["#", "/", "\\", "=", "-/", "-\\"]
-        self.tokens = ["Branch1", "Branch2", "As", "B", "Br", "C", "Cl", "F", "H", "I", "N", "O", "P", "Ring1", "Ring2", "S", "Se", "Si", "Te"]
-        self.post_modifier = ["+1", "-1", "@", "@@", "@H1", "@@H1", "H1"]
-        pass
-    def tokenizer(self, selfies):
-        orig_selfies_tokens = selfies[1:-1].split("][")
-        new_tokens = []
-        for tk in orig_selfies_tokens:
-            pre_modifier = ""
-            post_modifier = ""
-            for pre_mod in self.pre_modifier:
-                if tk.startswith(pre_mod):
-                    pre_modifier = pre_mod
-                    tk = tk[len(pre_mod):]
-                    break
-            for post_mod in self.post_modifier:
-                if tk.endswith(post_mod):
-                    post_modifier = post_mod
-                    tk = tk[:-len(post_mod)]
-                    break
-            if tk in self.tokens:
-                if pre_modifier != "":
-                    new_tokens.append(pre_modifier + "^")
-                new_tokens.append(tk)
-                if post_modifier != "":
-                    new_tokens.append("^" + post_modifier)
-            else:
-                # this is a token that cannot be broken (rara case), just ignore the whole sequence
-                return [BOS]
 
-        tokens = [BOS] + new_tokens
-        return tokens    
-    
-    def add_special_cases(self, toks):
-        pass
-
-class Mol2SELFIESTokenizer(BaseTokenizer):
-    def __init__(self, lang):
-        self.tokens = ['#C', '#N', '#O', '#S', '=B', '=C', '=I', '=N', '=O', '=P', '=S', '=Se', '=Si', 'B', 'Br', 'Br+2', 'Branch1_1', 'Branch1_2', 'Branch1_3', 'Branch2_1', 'Branch2_2', 'Branch2_3', 'C', 'Cl', 'Cl+2', 'Cl+3', 'Expl=Ring1', 'Expl=Ring2', 'F', 'I', 'I+2', 'I+3', 'N', 'O', 'P', 'Ring1', 'Ring2', 'S', 'Se', 'Si']
-        self.expl_tokens = ["H+expl", "H2+expl","H3+expl","+expl","Hexpl","H2expl","H-expl","H2-expl","H3-expl","-expl","expl"]
-        pass
-    def tokenizer(self, smiles):
-        selfies = sf.encoder(smiles)
-        if selfies is None:
-            return [BOS]
-        orig_selfies_tokens = selfies[1:-1].split("][")
-        new_tokens = []
-        for tk in orig_selfies_tokens:
-            if not "expl" in tk or tk == "Hexpl":
-                new_tokens.append(tk)
-            else:
-                for expl_tk in self.expl_tokens:
-                    if expl_tk in tk:
-                        new_tokens.append(tk.replace(expl_tk, ""))
-                        new_tokens.append("^" + expl_tk)
-                        break
-        tokens = [BOS] + new_tokens
-        return tokens    
-    
-    def add_special_cases(self, toks):
-        pass
 class ModelSampler():
     '''
     language_model = a fast.ai model that implements the forward() function

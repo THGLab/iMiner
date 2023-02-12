@@ -25,6 +25,19 @@ def unpack_helper(func, args):
     '''
     return func(*args)
 
+def nan_average(x):
+    """
+    return the average of an array excluding the nan/zero entries; 
+    return nan if x is nan
+    """
+    if x is np.nan or x is 0:
+        return x
+    cx = np.nan_to_num(x)
+    nnan = (cx == 0).sum()
+    if nnan == 0:
+        return np.mean(x)
+    return cx.sum()/(x.shape[0] - nnan)
+
 def calc_average_df(df, column_name, key="smiles"):
     """
     calculate average of data column sharing the same key;
@@ -35,16 +48,14 @@ def calc_average_df(df, column_name, key="smiles"):
     dkey = sorted_df[key].values
     new_scores = []
     st = 0
-    i = 1
-    while i < df.shape[0]:
+    for i in range(1, df.shape[0]):
         if i == df.shape[0] - 1:
-            score = np.mean(data[st:])
+            score = nan_average(data[st:]) 
             new_scores += [score]*(i + 1 - st)
         elif dkey[i] != dkey[st]:
-            score = np.mean(data[st : i])
+            score = nan_average(data[st:i])
             new_scores += [score]*(i - st)
             st = i
-        i += 1
     sorted_df["adjusted_"+column_name] = new_scores
     return sorted_df.sort_index()
         

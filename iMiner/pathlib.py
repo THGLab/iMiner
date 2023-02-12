@@ -30,4 +30,4 @@ VINA_BINARY = Path(iMiner_path) / 'docking/bins/vina'
 VINA_GPU_SCRIPT = Path(iMiner_path) / 'docking/run_vina_gpu.sh'
 VINA_GPU_BINARY_PATH = Path(iMiner_path) / "docking/bins"
 
-tankbind_dir_path = os.path.dirname(tankbind_python_path)
+#tankbind_dir_path = os.path.dirname(tankbind_python_path)

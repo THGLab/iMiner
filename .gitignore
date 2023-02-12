@@ -151,8 +151,5 @@ debug/
 # temp docs
 .docs/
 
-# slurm outputs
-slurm*.out
-
 # output folders
 *outputs*

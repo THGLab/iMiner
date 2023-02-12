@@ -118,8 +118,8 @@ class DrugLikeliness():
             props = self.calc_props(input)
         except:
             return 0
-        if not self.check_valid_atomtypes(input):
-            return 0
+        #if not self.check_valid_atomtypes(input):
+        #    return 0
         log_prob = np.array([
             make_onehot(props[0], np.linspace(0,1,51)).dot(self.frac_csp3_LP),
             make_onehot(props[1], np.arange(10,61)).dot(self.heavy_atom_LP),
