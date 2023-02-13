@@ -71,6 +71,11 @@ class RewardAssigner():
             self.reward_conversion_funcs.append(lambda x: max(x, 0))
             self.property_calculators[reward_type] = DrugLikeliness()
 
+        elif reward_type == "lead_likeness":
+            from iMiner.rl_generate.evaluators.drug_likeness import LeadLikeliness
+            self.reward_conversion_funcs.append(lambda x: max(x, 0))
+            self.property_calculators[reward_type] = LeadLikeliness()
+
         elif reward_type == "vina_score":
             from iMiner.rl_generate.evaluators.vina_local import vina_score_assigner
             self.reward_conversion_funcs.append(lambda x: max(-x, 0))
