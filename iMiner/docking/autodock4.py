@@ -238,6 +238,10 @@ class AD4Docking(AutoDockBaseDocking):
 
         @return a row of dataframe that has information of the best pose of a ligand
         """
+        if not os.path.isfile(dlg_file): 
+            print("DLG File %s not found."%dlg_file)
+            return
+
         ligand_name = Path(dlg_file).stem
         smile = self.read_smiles_from_dlg(dlg_file)
         with open(dlg_file, "r") as f:
