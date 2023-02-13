@@ -52,7 +52,7 @@ class BaseDocking:
         return zipped_args
 
 
-    def dock_parallel(self, ligands, output_dir, n_jobs=1, single_job_timeout=120, verbose=True, save_df_freq=500):
+    def dock_parallel(self, ligands, output_dir, n_jobs=1, single_job_timeout=120, verbose=True, save_df_freq=500, **kwargs):
         '''
         Dock a list of ligands to the pocket in the protein in parallel
 
@@ -68,6 +68,7 @@ class BaseDocking:
         pool = multiprocessing.Pool(n_jobs)
         ligands = [[ligand] for ligand in ligands]
         zipped_args = self._get_parallel_docking_args(ligands, output_dir, single_job_timeout, n_jobs)
+        # print(list(zipped_args))
         counter = 0
         results = []
         if verbose:
