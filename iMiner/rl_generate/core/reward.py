@@ -172,7 +172,7 @@ class RewardAssigner():
         for reward_item in self.reward_types:
             if reward_item == "qed":
                 metrics.append(qed(mol))
-            if reward_item in ["drug_likeliness", "fragment_similarity"]:
+            if reward_item in ["drug_likeliness", "lead_likeliness", "fragment_similarity"]:
                 metrics.append(self.property_calculators[reward_item].calc_score(mol))
         return metrics
 
@@ -180,7 +180,7 @@ class RewardAssigner():
         metrics = []
         new_names = [str(self.iteration) + "_" + str(i) for i in range(len(mols))]
         for reward_item in self.reward_types:
-            if reward_item in ["drug_likeliness", "fragment_similarity"]:
+            if reward_item in ["drug_likeliness", "lead_likeliness", "fragment_similarity"]:
                 metrics.append([self.property_calculators[reward_item].calc_score(mol) for mol in mols])
             if reward_item == "vina_score":
                 vina_scores = self.property_calculators[reward_item].get_scores(mols, new_names, self.iteration)
