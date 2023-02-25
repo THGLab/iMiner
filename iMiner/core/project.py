@@ -21,12 +21,29 @@ from iMiner.utils import check_dict_identity
 
 
 class BaseProject:
-    def __init__(self, project_name: Optional[str] = None, project_path: Optional[os.PathLike] = None, verbose = True) -> None:
+    def __init__(
+            self, 
+            project_name: Optional[str] = None, 
+            project_path: Optional[os.PathLike] = None, 
+            verbose: bool = True, 
+            logger: Optional[os.PathLike] = "iMiner.log"
+        ) -> None:
         '''
         Initialize a project with a project name and a project path
 
-        When project_path is None, the project will be initialized in the current working directory,
-        using the project_name as the project folder name
+        Parameters
+        ----------
+        project_name: str
+            Name of the project. If None, the name of the project will be determined from `project_path`. Default is None.
+        project_path: os.PathLike or None
+            Path of the project. If None, the path of the project will be `pwd/project_name`. Default is None.
+            If not None and `project_path/.iminer/meta.json` exists, the project will be initialized using the meta data.
+            Note that `project_path` and `project_name` cannot be set to None simultaneously.
+        verbose: bool
+            Whether to print verbose information. Default is True.
+        logger: os.PathLike
+            Path to log file. If relative path, the log file will be `project_path/logger`. If None, will not have log file.
+            Default is iMiner.log
         '''
 
         # setup project folders
@@ -61,7 +78,9 @@ class BaseProject:
 
         # setup log file when verbose is True
         self.verbose = verbose
-        self.logger = init_logger(self.project_path / "iMiner.log")
+        if logger and (not Path(logger).is_absolute()):
+            logger = self.project_path / logger
+        self.logger = init_logger(logger)
         new_project = True
 
         # setup config dir
@@ -94,12 +113,22 @@ class BaseProject:
                 pass
             for protein in proteins:
                 self.proteins[protein.stem] = protein
-            assert check_dict_identity(self.proteins, self.meta_data['proteins']), "Protein files in the project folder and meta.json do not match."
+            if not check_dict_identity(self.proteins, self.meta_data['proteins']):
+                self.logger.warn("Protein files in the project folder and meta.json do not match.")
             self.binding_sites = self.meta_data['binding_sites']
             self.logger.info(f"Loaded project {self.project_name} from {self.project_path}")
 
         # provide a cache for processed protein pdb files (in case multiple binding sites are defined for the same protein)
         self._protein_processed_cache = set()
+
+        # automatically update meta.json
+        self._auto_update_meta = True
+    
+    def set_auto_update_meta(self, flag: bool):
+        self._auto_update_meta = flag
+    
+    def get_auto_update_meta(self):
+        return self._auto_update_meta
 
     def update_meta_data(self):
         with open(self.meta_json, 'w') as f:
@@ -142,7 +171,8 @@ class BaseProject:
         self.proteins[name] = protein_path
         self.meta_data['proteins'] = self.proteins
         self.meta_data['binding_sites'] = self.binding_sites
-        self.update_meta_data()
+        if self._auto_update_meta:
+            self.update_meta_data()
         if self.verbose:
             self.logger.info(f"Added protein {name} to the project. Current number of proteins: {len(self.proteins.items())}")
 
@@ -185,7 +215,8 @@ class BaseProject:
             self._process_pdb(smiles_or_path, ligand_path)
         
         self.ligands[name] = ligand_path
-        self.update_meta_data()
+        if self._auto_update_meta:
+            self.update_meta_data()
         return name
 
     def add_multiple_ligands(self, smiles_or_paths, names=None, format='inferred') -> List[str]:
@@ -199,6 +230,8 @@ class BaseProject:
         :type names: list
         :type format: str
         '''
+        _auto_update = self.get_auto_update_meta()
+        self._auto_update_meta = False # update metadata once in the end
         new_names = []
         if names is None:
             names = [str(i) for i in range(len(self.ligands), len(self.ligands) + len(smiles_or_paths))]
@@ -211,6 +244,9 @@ class BaseProject:
 
         if self.verbose:
             self.logger.info(f"Added {len(smiles_or_paths)} ligands to the project. Current number of ligands: {len(self.ligands.items())}")
+        if _auto_update:
+            self.update_meta_data()
+        self.set_auto_update_meta(_auto_update)
         return new_names
 
     def clear_ligands(self):
