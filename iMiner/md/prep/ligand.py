@@ -51,6 +51,6 @@ def run_acpype(input: Union[str, Path, None] = None,
             else:
                 warnings.warn(f"Fail to parse input file {Path(input).resolve()}. iMiner will let acpype to determine net charge")
         if not isinstance(net_charge, str):
-            cmd = cmd.extend(["-n", str(net_charge)])
+            cmd.extend(["-n", str(net_charge)])
     return_code, out, err = run_command(cmd, raise_error=True)
     return 
