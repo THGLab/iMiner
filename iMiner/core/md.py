@@ -142,6 +142,8 @@ class MDProject(BaseProject):
             wdir.resolve() / "ligand" / "MOL.acpype" / "MOL_GMX.itp",
             wdir.resolve() / "protein" / "protein.amb2gmx" / "protein_GMX.gro",
             wdir.resolve() / "ligand" / "MOL.gro",
+            wdir.resolve() / 'protein' / 'protein.am2gmx' / 'posre_protein.itp',
+            wdir.resolve() / 'ligand' / 'MOL.acpype' / "posre_MOL.itp",
             prep_path
         )
     
@@ -342,7 +344,7 @@ class MDProject(BaseProject):
         self.logger.info(f"===== Step {n}: {msg.capitalize()} =====")
     
     def run(self, lig_name: str, prot_name: str, task_name: Optional[str] = None, 
-            lig_charge = "guess"):
+            lig_charge = "auto"):
         """
         Run iMiner Molecular Dynamics Workflow
         

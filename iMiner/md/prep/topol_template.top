@@ -10,7 +10,15 @@
 
 #include "MOL.itp"
 
+#ifdef POSRES
+#include "posre_MOL.itp"
+#endif
+
 #include "protein.itp"
+
+#ifdef POSRES
+#include "posre_protein.itp"
+#endif
 
 #include "amber99sb.ff/tip3p.itp"
 
