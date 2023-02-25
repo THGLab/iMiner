@@ -155,3 +155,6 @@ slurm*.out
 
 # output folders
 *outputs*
+
+# acpype
+.acpype/
