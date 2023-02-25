@@ -32,16 +32,37 @@ from iMiner.md.analysis.traj import (
 
 
 class MDProject(BaseProject):
-    def __init__(self, project_name: Optional[str] = None, project_path: Optional[os.PathLike] = None, engine: str = "gromacs") -> None:
+    def __init__(
+        self, 
+        project_name: Optional[str] = None, 
+        project_path: Optional[os.PathLike] = None, 
+        verbose: bool = True, 
+        logger: Optional[os.PathLike] = "iMiner.log",
+        temp_path: os.PathLike = "/tmp",
+        engine: str = "gromacs"
+    ) -> None:
         '''
-        Initialize a MD project with a project name and a project path
+        Initialize a molecule dynamics project
 
-        When project_path is None, the project will be initialized in the current working directory,
-        using the project_name as the project folder name
-
-        :param engine: molecular dynamics engine, only support "gromacs" currently
-        :type engine: str
+        Parameters
+        ----------
+        project_name: str
+            Name of the project. If None, the name of the project will be determined from `project_path`. Default is None.
+        project_path: os.PathLike or None
+            Path of the project. If None, the path of the project will be `pwd/project_name`. Default is None.
+            If not None and `project_path/.iminer/meta.json` exists, the project will be initialized using the meta data.
+            Note that `project_path` and `project_name` cannot be set to None simultaneously.
+        verbose: bool
+            Whether to print verbose information. Default is True.
+        logger: os.PathLike
+            Path to log file. If relative path, the log file will be `project_path/logger`. If None, will not have log file.
+            Default is iMiner.log
+        temp_path: os.PathLike
+            Path to store temporary files. Default is `/tmp`
+        engine: str
+            MD engine. Only "gromacs" supported currently.
         '''
+
         super().__init__(project_name, project_path)
         self.md_path = Path(self.project_path) / "md"
         self.md_path.mkdir(exist_ok=True, parents=True)

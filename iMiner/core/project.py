@@ -22,12 +22,13 @@ from iMiner.utils import check_dict_identity
 
 class BaseProject:
     def __init__(
-            self, 
-            project_name: Optional[str] = None, 
-            project_path: Optional[os.PathLike] = None, 
-            verbose: bool = True, 
-            logger: Optional[os.PathLike] = "iMiner.log"
-        ) -> None:
+        self, 
+        project_name: Optional[str] = None, 
+        project_path: Optional[os.PathLike] = None, 
+        verbose: bool = True, 
+        logger: Optional[os.PathLike] = "iMiner.log",
+        temp_path: os.PathLike = "/tmp"
+    ) -> None:
         '''
         Initialize a project with a project name and a project path
 
@@ -44,6 +45,8 @@ class BaseProject:
         logger: os.PathLike
             Path to log file. If relative path, the log file will be `project_path/logger`. If None, will not have log file.
             Default is iMiner.log
+        temp_path: os.PathLike
+            Path to store temporary files. Default is `/tmp`
         '''
 
         # setup project folders
@@ -67,7 +70,7 @@ class BaseProject:
         self.proteins_path.mkdir(exist_ok=True, parents=True)
 
         # prepare temp path
-        self.temp_path = Path('/tmp') / self.project_name
+        self.temp_path = Path(temp_path) / self.project_name
         self.temp_path.mkdir(exist_ok=True, parents=True)
 
         # prepare protein (with binding sites) mapping dicts that map names to the corresponding file paths
@@ -141,8 +144,8 @@ class BaseProject:
         self.meta_data = {
             "name": self.project_name, 
             'verbose': self.verbose, 
-            "ligands": self.ligands, 
-            "proteins": self.proteins,
+            "ligands": {k: str(v) for k, v in self.ligands.items()}, 
+            "proteins": {k: str(v) for k, v in self.proteins.items()},
             "binding_sites": self.binding_sites
         }
         with open(self.meta_json, 'w') as f:
