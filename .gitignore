@@ -157,4 +157,4 @@ slurm*.out
 *outputs*
 
 # acpype
-.acpype/
+*.acpype/
