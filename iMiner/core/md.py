@@ -83,6 +83,7 @@ class MDProject(BaseProject):
                 }
             }
         }
+        self.step_cnt = 0
 
     @property
     def md_params(self) -> Dict[str, Any]:
@@ -123,12 +124,12 @@ class MDProject(BaseProject):
                 run_acpype("ligand.sdf", **kwargs)
             except CommandExecuteError:
                 self.logger.error(f"Error in preparing ligand {self.get_ligand_with_name(name)}. See details in acpype log file.")
-                return False
+                exit(1)
             try:
                 run_command([obabel, 'ligand.sdf', '-O', 'MOL.gro'])
             except CommandExecuteError:
                 self.logger.error(f"Error in converting ligand {self.get_ligand_with_name(name)} with obabel.")
-                return False
+                exit(1)
         return True
     
     def parametrize_protein(self, name: str, wdir: Path):
@@ -143,12 +144,12 @@ class MDProject(BaseProject):
                 run_tleap("protein.pdb", protein_ff=self.md_params['protein_ff'])
             except CommandExecuteError:
                 self.logger.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in tleap log file.")
-                return False
+                exit(1)
             try:
                 run_acpype(args=["-p", "protein.prmtop", "-x", "protein.inpcrd"])
             except CommandExecuteError:
                 self.logger.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in acpype log file.")
-                return False
+                exit(1)
         return True
     
     def make_complex(self, wdir: Path):
@@ -329,7 +330,7 @@ class MDProject(BaseProject):
             run_preprocess_workflow("topol.top", "complex.gro", complex_dir, verbose=True, logger=self.logger)
         except CommandExecuteError:
             self.logger.info("Error in gromacs prep steps. See complex folder.")
-            return False
+            exit(1)
         shutil.copyfile(complex_dir / "ions.gro", wdir / "ions.gro")
         shutil.copyfile(complex_dir / "processed.top", wdir / 'processed.top')
         return True
@@ -349,10 +350,10 @@ class MDProject(BaseProject):
                 verbose=True,
                 logger=self.logger
             )
-            return True
         except CommandExecuteError as e:
             self.logger.error("Error in running gromacs. See complex folder.")
-            return False
+            exit(1)
+        return True
     
     def clean(self, wdir: Path):
         """
@@ -361,8 +362,9 @@ class MDProject(BaseProject):
         for tmpfile in Path(wdir).glob("*/#*#"):
             tmpfile.unlink()
     
-    def log_step(self, n: int, msg: str):
-        self.logger.info(f"===== Step {n}: {msg.capitalize()} =====")
+    def log_step(self, msg: str):
+        self.step_cnt += 1
+        self.logger.info(f"===== Step {self.step_cnt}: {msg.capitalize()} =====")
     
     def run(self, lig_name: str, prot_name: str, task_name: Optional[str] = None, 
             lig_charge = "auto"):
@@ -373,35 +375,31 @@ class MDProject(BaseProject):
         rmsd calculation inputs
         """
         task_name = f"{lig_name}_{prot_name}" if task_name is None else task_name
-        self.logger.info(f"Running md for {lig_name}_{prot_name}")
+        self.logger.info(f"Running md for {task_name}")
         wdir = self.md_path / task_name
         
-        self.log_step(1, "Parametrize Ligand")
-        succ = self.parametrize_ligand(lig_name, wdir, net_charge=lig_charge)
-        if not succ:
-            return
-        self.log_step(2, "Parametrize Protein")
-        succ = self.parametrize_protein(prot_name, wdir)
-        if not succ:
-            return
-        self.log_step(3, "Make Complex")
+        self.log_step("Parametrize Ligand")
+        self.parametrize_ligand(lig_name, wdir, net_charge=lig_charge)
+
+        self.log_step("Parametrize Protein")
+        self.parametrize_protein(prot_name, wdir)
+
+        self.log_step("Make Complex")
         self.make_complex(wdir)
-        self.log_step(4, "MD Preparation")
-        succ = self.prep_md(wdir)
-        if not succ:
-            return
-        self.log_step(5, "Run MD")
-        succ = self.run_md(wdir)
-        if not succ:
-            return
         
-        self.log_step(6, "Remove PBC of MD Trajectory")
+        self.log_step("MD Preparation")
+        self.prep_md(wdir)
+        
+        self.log_step("Run MD")
+        self.run_md(wdir)
+        
+        self.log_step("Remove PBC of MD Trajectory")
         self.remove_pbc_workflow(wdir)
         
-        self.log_step(7, "Analyze RMSD and Interactions")
+        self.log_step("Analyze RMSD and Interactions")
         self.analyze_md_traj(wdir, lig_name)
         
-        self.log_step(8, "Clean working directory")
+        self.log_step("Clean working directory")
         self.clean(wdir)
         
         complex_dir = wdir.resolve() / "complex"
