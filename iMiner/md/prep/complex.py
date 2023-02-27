@@ -79,3 +79,24 @@ def make_complex(
         shutil.copyfile(ligand_posre, "posre_MOL.itp")
         shutil.copyfile(Path(__file__).with_name("topol_template.top"), complex_top_name)
         shutil.copyfile(Path(__file__).with_name("water_and_ions.atp"), "water_and_ions.atp")
+
+
+def make_solvated(
+    ligand_top: os.PathLike,
+    ligand_gro: os.PathLike,
+    ligand_posre: os.PathLike,
+    wdir: os.PathLike,
+    solvated_top_name: str = "topol.top"
+):
+    """
+    Make solvated system
+    """
+    ligand_top = Path(ligand_top).resolve()
+    ligand_gro = Path(ligand_gro).resolve()
+    ligand_posre = Path(ligand_posre).resolve()
+    with set_directory(wdir):
+        split_top(ligand_top, "MOL.atp", "MOL.itp")
+        shutil.copyfile(ligand_posre, "posre_MOL.itp")
+        shutil.copyfile(ligand_gro, "ligand.gro")
+        shutil.copyfile(Path(__file__).with_name("solvated_template.top"), solvated_top_name)
+        shutil.copyfile(Path(__file__).with_name("water_and_ions.atp"), "water_and_ions.atp")
