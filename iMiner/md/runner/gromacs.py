@@ -135,14 +135,16 @@ def run_md_workflow(
     restart: bool = True,
     params: Dict[str, Dict[str, Any]] = {"em": {}, "nvt": {}, "npt": {}, "prod": {}},
     enforce_gpu: bool = False,
-    verbose: bool = False,
-    logger: Optional[Logger] = None
+    verbose: bool = True,
+    logger: Optional[Logger] = None,
+    mdp_dir: Optional[os.PathLike] = None,
 ):
     stages = ["em", "nvt", "npt", "prod"]
+    mdp_dir = Path(__file__).parent
     with set_directory(wdir, mkdir=True) as w:
         for i, stage in enumerate(stages):
             Path.mkdir(w / stage, parents=True, exist_ok=True)
-            shutil.copyfile(Path(__file__).with_name(f"{stage}.mdp"), w / stage / f"{stage}.mdp")
+            shutil.copyfile(mdp_dir / f"{stage}.mdp", w / stage / f"{stage}.mdp")
             if verbose and logger: logger.info(f"Running {stage}...")
             run_md(
                 top = Path(top).resolve(),
