@@ -160,7 +160,12 @@ class GromacsTopologyFilePerturb(parmed.gromacs.GromacsTopologyFile):
                     if atomB.element_name == "H":
                         atomA = self.add_dummy_atom("du_h", "DH", atomB.mass)
                     else:
-                        atomA = self.add_dummy_atom("du", "DU", atomB.mass)              
+                        atomA = self.add_dummy_atom("du", "DU", atomB.mass)
+                    # copy atom coordinates
+                    try:  
+                        atomA.xx, atomA.xy, atomA.xz = atomB.xx, atomB.xy, atomB.xz
+                    except AttributeError as e:
+                        pass        
                 else:
                     atomA = self.get_atom_with_idx(mapping[i, 0])
                 # set atom type B
@@ -315,7 +320,7 @@ class GromacsTopologyFilePerturb(parmed.gromacs.GromacsTopologyFile):
                             dtypeItem.scee, dtypeItem.scnb, None
                         )
                         dihe.typeB.append(dtypeItemB)
-
+            
     def write(self, dest: Optional[os.PathLike] = None, itp: bool = False) -> str:
         """
         Constuct gromacs topology file with perturbations, based on Structure of both states
