@@ -2,7 +2,7 @@ title                   = NVT
 define                  = -DPOSRES  ; position restrain the protein
 ; Run parameters
 integrator              = md        ; leap-frog integrator
-nsteps                  = 500000     ; 2 * 50000 = 100 ps
+nsteps                  = 500000    ; 2 * 50000 = 100 ps
 dt                      = 0.002     ; 2 fs
 ; Output control
 nstxout                 = 0       ; save coordinates every 1.0 ps
@@ -20,8 +20,8 @@ lincs_order             = 4         ; also related to accuracy
 cutoff-scheme           = Verlet    ; Buffered neighbor searching
 ns_type                 = grid      ; search neighboring grid cells
 nstlist                 = 10        ; 20 fs, largely irrelevant with Verlet
-rcoulomb                = 1.0       ; short-range electrostatic cutoff (in nm)
-rvdw                    = 1.0       ; short-range van der Waals cutoff (in nm)
+rcoulomb                = 1.1       ; short-range electrostatic cutoff (in nm)
+rvdw                    = 1.1       ; short-range van der Waals cutoff (in nm)
 DispCorr                = EnerPres  ; account for cut-off vdW scheme
 ; Electrostatics
 coulombtype             = PME       ; Particle Mesh Ewald for long-range electrostatics
@@ -31,7 +31,7 @@ fourierspacing          = 0.16      ; grid spacing for FFT
 tcoupl                  = V-rescale             ; modified Berendsen thermostat
 tc-grps                 = System
 tau_t                   = 0.1
-ref_t                   = 300
+ref_t                   = 298.15
 ; Pressure coupling is off
 pcoupl                  = no        ; no pressure coupling in NVT
 ; Periodic boundary conditions

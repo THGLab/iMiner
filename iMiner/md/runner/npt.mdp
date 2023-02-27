@@ -20,8 +20,8 @@ lincs_order             = 4         ; also related to accuracy
 cutoff-scheme           = Verlet    ; Buffered neighbor searching
 ns_type                 = grid      ; search neighboring grid cells
 nstlist                 = 10        ; 20 fs, largely irrelevant with Verlet scheme
-rcoulomb                = 1.0       ; short-range electrostatic cutoff (in nm)
-rvdw                    = 1.0       ; short-range van der Waals cutoff (in nm)
+rcoulomb                = 1.1       ; short-range electrostatic cutoff (in nm)
+rvdw                    = 1.1       ; short-range van der Waals cutoff (in nm)
 DispCorr                = EnerPres  ; account for cut-off vdW scheme
 ; Electrostatics
 coulombtype             = PME       ; Particle Mesh Ewald for long-range electrostatics
@@ -31,7 +31,7 @@ fourierspacing          = 0.16      ; grid spacing for FFT
 tcoupl                  = V-rescale             ; modified Berendsen thermostat
 tc-grps                 = System
 tau_t                   = 0.1
-ref_t                   = 300
+ref_t                   = 298.15
 ; Pressure coupling is on
 pcoupl                  = Parrinello-Rahman     ; Pressure coupling on in NPT
 pcoupltype              = isotropic             ; uniform scaling of box vectors
