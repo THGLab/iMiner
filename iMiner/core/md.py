@@ -394,11 +394,11 @@ class MDProject(BaseProject):
         self.logger.info(f"Running md for {task_name}")
         wdir = self.md_path / task_name
         
-        self.log_step("Parametrize Ligand")
-        self.parametrize_ligand(lig_name, wdir, net_charge=lig_charge)
-
         self.log_step("Parametrize Protein")
         self.parametrize_protein(prot_name, wdir)
+
+        self.log_step("Parametrize Ligand")
+        self.parametrize_ligand(lig_name, wdir, net_charge=lig_charge)
 
         self.log_step("Make Complex")
         self.make_complex(wdir)
