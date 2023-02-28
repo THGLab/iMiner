@@ -17,7 +17,6 @@ from iMiner.utils import timer
 from iMiner.cmd import run_command, set_directory, find_executable, CommandExecuteError
 from iMiner.core.project import BaseProject
 from iMiner.md.prep.ligand import run_acpype
-from iMiner.md.prep.protein import run_tleap
 from iMiner.md.prep.complex import make_complex
 from iMiner.md.runner.gromacs import run_preprocess_workflow, run_md_workflow
 from iMiner.md.common import preprocess_index_file, read_single_gro, parse_index_file, mk_index_file
@@ -136,18 +135,26 @@ class MDProject(BaseProject):
         """
         Parametrize protein
         """
+        from iMiner.md.prep.protein import run_tleap, fix_hydrogen
+
         prep_path = wdir.resolve() / "protein"
         prep_path.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(self.get_protein_with_name(name), prep_path / "protein.pdb")
         with set_directory(prep_path):
             try:
-                run_tleap("protein.pdb", protein_ff=self.md_params['protein_ff'])
-            except CommandExecuteError:
+                fix_hydrogen("protein.pdb", "protein_processed.pdb")
+            except CommandExecuteError as e:
+                self.logger.error(f"Error in fixing hydrogen atoms: {e}")
+                sys.exit(1)
+
+            try:
+                run_tleap("protein_processed.pdb", protein_ff=self.md_params['protein_ff'])
+            except CommandExecuteError as e:
                 self.logger.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in tleap log file.")
                 sys.exit(1)
             try:
                 run_acpype(args=["-p", "protein.prmtop", "-x", "protein.inpcrd"])
-            except CommandExecuteError:
+            except CommandExecuteError as e:
                 self.logger.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in acpype log file.")
                 sys.exit(1)
         return True

@@ -64,6 +64,22 @@ def fix_protein(
         PDBFile.writeFile(fixer.topology, fixer.positions, f)
     
 
+def fix_hydrogen(in_pdb: os.PathLike, out_pdb: Optional[os.PathLike] = None):
+    """
+    Fix hydrogen atom types using pdb4amber program
+    """
+    in_pdb = Path(in_pdb).resolve()
+    if out_pdb is None:
+        out_pdb = in_pdb.with_name(f"{in_pdb.stem}_processed.pdb")
+    tmp_pdb = in_pdb.with_name(f"{in_pdb.stem}_no_h.pdb")
+    pdb4amber = find_executable("pdb4amber")
+    # remove hydrogen first
+    run_command([pdb4amber, "-i", in_pdb, '-o', tmp_pdb, "-y"])
+    # use reduce to add hydrogen
+    run_command([pdb4amber, "-i", tmp_pdb, "-o", out_pdb, '--reduce'])
+    return out_pdb
+
+
 def run_tleap(
     pdb: os.PathLike,
     prmtop: os.PathLike = "protein.prmtop",
