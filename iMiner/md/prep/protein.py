@@ -21,7 +21,7 @@ def fix_protein(
     add_hydrogen_pH: float = 7.0,
     remove_heterogens: bool = True,
     keep_water: bool = False,
-    remove_chain_ids: Optional[List[str]] = None
+    keep_chain_ids: Optional[List[str]] = None
 ):
     """
     Fix protein with `pdbfixer`
@@ -40,13 +40,18 @@ def fix_protein(
         whether to remove heterogens
     keep_water: bool
         whether to keep water
-    remove_chain_ids: List of str, optional
-        chain ids to remove
+    keep_chain_ids: List of str, optional
+        Chain ids to keep. If None, will keep all the chains
     """
     from pdbfixer import PDBFixer
     from openmm.app import PDBFile
 
     fixer = PDBFixer(in_pdb)
+    chainIds = set(c.id for c in fixer.topology.chains())
+    if keep_chain_ids:
+        remove_chain_ids = [c for c in chainIds if c not in keep_chain_ids]
+    else:
+        remove_chain_ids = []
     fixer.removeChains(chainIds=remove_chain_ids)
     fixer.findMissingResidues()
     fixer.findMissingAtoms()
