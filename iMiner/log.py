@@ -5,7 +5,7 @@ import os
 
 def init_logger(logname: Optional[os.PathLike] = None) -> logging.Logger:
     # logging
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger()
     logger.propagate = False
     logger.setLevel(level = logging.INFO)
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
