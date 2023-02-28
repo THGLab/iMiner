@@ -16,18 +16,6 @@ import matplotlib.pyplot as plt
 from iMiner.utils import timer
 from iMiner.cmd import run_command, set_directory, find_executable, CommandExecuteError
 from iMiner.core.project import BaseProject
-from iMiner.md.prep.ligand import run_acpype
-from iMiner.md.prep.complex import make_complex
-from iMiner.md.runner.gromacs import run_preprocess_workflow, run_md_workflow
-from iMiner.md.common import preprocess_index_file, read_single_gro, parse_index_file, mk_index_file
-from iMiner.md.analysis.interaction import analyze_multiple_frames, plot_interact
-from iMiner.md.analysis.traj import (
-    plot_rmsd,
-    read_xvg,
-    gmx_rms,
-    xtc_to_pdb,
-    gmx_genidx
-)
 
 
 class MDProject(BaseProject):
@@ -111,6 +99,8 @@ class MDProject(BaseProject):
         """
         Parametrize ligand
         """
+        from iMiner.md.prep.ligand import run_acpype
+
         prep_path = wdir.resolve() / "ligand"
         # delete all existing acpype files, otherwise acpype reuses old files
         if prep_path.exists() and prep_path.is_dir():
@@ -136,6 +126,7 @@ class MDProject(BaseProject):
         Parametrize protein
         """
         from iMiner.md.prep.protein import run_tleap, fix_hydrogen
+        from iMiner.md.prep.ligand import run_acpype
 
         prep_path = wdir.resolve() / "protein"
         prep_path.mkdir(parents=True, exist_ok=True)
@@ -164,6 +155,8 @@ class MDProject(BaseProject):
         Make protein-ligand complex
         TODO: error handlings
         """
+        from iMiner.md.prep.complex import make_complex
+
         prep_path = wdir.resolve() / "complex"
         prep_path.mkdir(parents=True, exist_ok=True)
         make_complex(
@@ -180,6 +173,10 @@ class MDProject(BaseProject):
         """
         Remove PBC
         """
+        from iMiner.md.common import (
+            preprocess_index_file, read_single_gro, parse_index_file, mk_index_file, gmx_genidx
+        )
+
         prod_dir = wdir.resolve() / "prod"
         index_file = prod_dir / "index.ndx"
         traj_nopbc_file = prod_dir / "prod_align.xtc"
@@ -274,7 +271,15 @@ class MDProject(BaseProject):
     def analyze_md_traj(self, wdir: Path, lig_name: str):
         """
         Analyze MD trajectories: calculating RMSD and do interaction analysis
-        """            
+        """ 
+        from iMiner.md.analysis.interaction import analyze_multiple_frames, plot_interact
+        from iMiner.md.analysis.traj import (
+            plot_rmsd,
+            read_xvg,
+            gmx_rms,
+            xtc_to_pdb,
+        )
+
         prod_dir = wdir.resolve() / "prod"
         ref_tpr_align = prod_dir / "prod_align.tpr"
         index_file = prod_dir / "index.ndx"
@@ -332,6 +337,8 @@ class MDProject(BaseProject):
         """
         Run MD preparation workflow
         """
+        from iMiner.md.runner.gromacs import run_preprocess_workflow
+
         complex_dir = wdir.resolve() / "complex"
         try:
             run_preprocess_workflow("topol.top", "complex.gro", complex_dir, verbose=True, logger=self.logger)
@@ -346,6 +353,8 @@ class MDProject(BaseProject):
         """
         Run molecular dynamics workflow
         """
+        from iMiner.md.runner.gromacs import run_md_workflow
+
         try:
             run_md_workflow(
                 "processed.top", 
