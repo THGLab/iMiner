@@ -4,7 +4,7 @@ Data Created: 10/24/2022
 
 This package contains class for running molecular dynamics project
 """
-import os
+import os, sys
 import shutil
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -124,12 +124,12 @@ class MDProject(BaseProject):
                 run_acpype("ligand.sdf", **kwargs)
             except CommandExecuteError:
                 self.logger.error(f"Error in preparing ligand {self.get_ligand_with_name(name)}. See details in acpype log file.")
-                exit(1)
+                sys.exit(1)
             try:
                 run_command([obabel, 'ligand.sdf', '-O', 'MOL.gro'])
             except CommandExecuteError:
                 self.logger.error(f"Error in converting ligand {self.get_ligand_with_name(name)} with obabel.")
-                exit(1)
+                sys.exit(1)
         return True
     
     def parametrize_protein(self, name: str, wdir: Path):
@@ -144,12 +144,12 @@ class MDProject(BaseProject):
                 run_tleap("protein.pdb", protein_ff=self.md_params['protein_ff'])
             except CommandExecuteError:
                 self.logger.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in tleap log file.")
-                exit(1)
+                sys.exit(1)
             try:
                 run_acpype(args=["-p", "protein.prmtop", "-x", "protein.inpcrd"])
             except CommandExecuteError:
                 self.logger.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in acpype log file.")
-                exit(1)
+                sys.exit(1)
         return True
     
     def make_complex(self, wdir: Path):
@@ -330,7 +330,7 @@ class MDProject(BaseProject):
             run_preprocess_workflow("topol.top", "complex.gro", complex_dir, verbose=True, logger=self.logger)
         except CommandExecuteError:
             self.logger.info("Error in gromacs prep steps. See complex folder.")
-            exit(1)
+            sys.exit(1)
         shutil.copyfile(complex_dir / "ions.gro", wdir / "ions.gro")
         shutil.copyfile(complex_dir / "processed.top", wdir / 'processed.top')
         return True
@@ -352,7 +352,7 @@ class MDProject(BaseProject):
             )
         except CommandExecuteError as e:
             self.logger.error("Error in running gromacs. See complex folder.")
-            exit(1)
+            sys.exit(1)
         return True
     
     def clean(self, wdir: Path):
