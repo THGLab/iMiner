@@ -15,15 +15,6 @@ plt.rcParams['font.size'] = 14
 from iMiner.cmd import run_command, find_executable
 
 
-def gmx_genidx(input_file: os.PathLike, output_file: Optional[os.PathLike] = None):
-    gmx = find_executable(["gmx_mpi", "gmx"])
-    cmds = [gmx, 'make_ndx', '-f', input_file]
-    if output_file:
-        cmds += ['-o', output_file]
-    run_command(cmds, input='q\n')
-    return 
-
-
 def gmx_extract_and_align_traj(
     ref_file: os.PathLike,
     traj_file: os.PathLike,

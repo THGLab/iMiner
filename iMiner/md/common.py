@@ -6,8 +6,18 @@ Common functions used in iMiner.md sub-package
 """
 
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 import numpy as np
+from iMiner.cmd import find_executable, run_command
+
+
+def gmx_genidx(input_file: os.PathLike, output_file: Optional[os.PathLike] = None, input: str = ""):
+    gmx = find_executable(["gmx_mpi", "gmx"])
+    cmds = [gmx, 'make_ndx', '-f', input_file]
+    if output_file:
+        cmds += ['-o', output_file]
+    run_command(cmds, input=input+'q\n')
+    return 
 
 
 def read_single_gro(fname: os.PathLike):
