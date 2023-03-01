@@ -5,7 +5,6 @@ Date Created: Oct 31, 2022
 Implementation of the autodock docking protocol, including Autodock4, Autodock Vina, and Autodock Vina GPU
 '''
 from pathlib import Path
-import subprocess
 import os
 from copy import deepcopy
 from typing import Optional, Union
@@ -16,7 +15,7 @@ from rdkit import Chem
 
 from iMiner.utils import dist_mat
 from iMiner.docking.base import BaseDocking
-from iMiner.pathlib import *
+from iMiner.cmd import find_executable, run_command, CommandExecuteError
 
 
 class LigandPDBQT:
@@ -120,7 +119,27 @@ class AutoDockBaseDocking(BaseDocking):
         :param docking_box: (xmin, ymin, zmin, xmax, ymax, zmax), the docking box definition
         '''
         super().__init__(protein_pdb, docking_box, temp_path, **kwargs)
-
+    
+    @property
+    def protein_prep_path(self):
+        """
+        Get ADFR Suite protein preparation program
+        """
+        return find_executable("prepare_receptor")
+    
+    @property
+    def meeko_ligprep_path(self):
+        """
+        Get Meeko ligand preparation path
+        """
+        return find_executable("mk_prepare_ligand.py")
+    
+    @property
+    def meeko_ligconv_path(self):
+        """
+        Get Meeko ligand file conversion path
+        """
+        return find_executable("mk_copy_coords.py")
 
     def convert_pdb_to_pdbqt(self, pdb_path, output_path, add_h = True):
         '''
@@ -147,15 +166,17 @@ class AutoDockBaseDocking(BaseDocking):
         # run protein preparation depending on if there's need to add H
         if add_h:
             try:
-                out = subprocess.run([protein_prep_path, '-r', processed_fp, '-o', output_path,\
-                '-A', 'checkhydrogens'])
-            except subprocess.CalledProcessError as e:
-                return e.output
+                return_code, out, err = run_command([
+                    self.protein_prep_path, '-r', processed_fp, '-o', output_path,
+                    '-A', 'checkhydrogens'
+                ])
+            except CommandExecuteError as e:
+                return err
         else:
             try:
-                out = subprocess.run([protein_prep_path, '-r', processed_fp, '-o', output_path,])
-            except subprocess.CalledProcessError as e:
-                return e.output
+                return_code, out, err = run_command([self.protein_prep_path, '-r', processed_fp, '-o', output_path,])
+            except CommandExecuteError as e:
+                return err
         
         return True
 
@@ -169,8 +190,8 @@ class AutoDockBaseDocking(BaseDocking):
         :return: True, if the run is successful
         '''
         try:
-            out = subprocess.run([meeko_ligprep_path, '-i', sdf_path, '-o', output_path])
-        except subprocess.CalledProcessError as e:
+            run_command([self.meeko_ligprep_path, '-i', sdf_path, '-o', output_path])
+        except CommandExecuteError as e:
             print('Bad molecule: '+ sdf_path)
             return False
         
@@ -186,8 +207,8 @@ class AutoDockBaseDocking(BaseDocking):
         :return: True, if the run is successful
         '''
         try:
-            out = subprocess.run([meeko_ligconv_path, adresult_path, '-o', output_path])
-        except subprocess.CalledProcessError as e:
+            run_command([self.meeko_ligconv_path, adresult_path, '-o', output_path])
+        except CommandExecuteError as e:
             return False
         
         return True

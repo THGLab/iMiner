@@ -38,3 +38,11 @@ VINA_GPU_SCRIPT = Path(iMiner_path) / 'docking/run_vina_gpu.sh'
 VINA_GPU_BINARY_PATH = Path(iMiner_path) / "docking/bins"
 
 tankbind_dir_path = os.path.dirname(tankbind_python_path)
+
+def use_savio_path_config():
+    paths = [
+        "/global/home/groups/co_armada2/local/ADFRsuite/bin",
+        "/global/home/groups/co_armada2/conda_envs/vina/bin",
+        Path(__file__).parent / "docking/bins"
+    ]
+    os.environ['PATH'] = os.environ.get("PATH") + ":" + ":".join(str(x) for x in paths)

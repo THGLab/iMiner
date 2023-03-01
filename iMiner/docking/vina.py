@@ -6,7 +6,7 @@ Defines the docking class for AutoDock Vina and Autodock Vina GPU
 '''
 
 from iMiner.docking.autodock import AutoDockBaseDocking
-from iMiner.cmd import run_command, set_directory
+from iMiner.cmd import run_command, set_directory, find_executable
 from iMiner.utils import random_id, get_free_gpu
 from iMiner.pathlib import *
 from pathlib import Path
@@ -60,8 +60,14 @@ class VinaDocking(AutoDockBaseDocking):
             lines.append("exhaustiveness = {}".format(exhaustiveness))
         with open(config_fp, "w") as f:
             f.write("\n".join(lines))
+    
+    @property
+    def vina_exec(self):
+        """
+        Get Vina Executable
+        """
+        return find_executable("vina")
 
-            
     def rescore(self, ligands):
         '''
         Rescore given ligand conformations using the current docking protocol
@@ -87,7 +93,7 @@ class VinaDocking(AutoDockBaseDocking):
 
             # execute vina docking under the working directory
             with set_directory(self.working_path):
-                cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt --score_only"
+                cmd = f"{self.vina_exec} --config config.txt --ligand {ligand_work_name}.pdbqt --score_only"
                 code, out, err = run_command(cmd, timeout=100)
 
             # special handling if calculation job times out
@@ -108,7 +114,7 @@ class VinaDocking(AutoDockBaseDocking):
         return df
 
     def _run_docking_under_folder(self, ligand_work_name, single_job_timeout):
-        cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt " + \
+        cmd = f"{self.vina_exec} --config config.txt --ligand {ligand_work_name}.pdbqt " + \
                     f"--out {ligand_work_name}_out.pdbqt"
         with set_directory(self.working_path):
             code, out, err = run_command(cmd, timeout=single_job_timeout, raise_error=False)
@@ -339,5 +345,3 @@ class VinaGPUDocking(VinaDocking):
     #     df = pd.DataFrame({"smiles": ligand_smiles, "score": ligand_scores, "path": ligand_conformation_paths})
     #     return df
 
-if __name__ == "__main__":
-    print(VINA_BINARY)
