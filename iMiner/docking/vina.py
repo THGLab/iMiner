@@ -22,6 +22,7 @@ import pandas as pd
 class VinaDocking(AutoDockBaseDocking):
     def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
         super().__init__(protein_pdb, docking_box, logger=logger)
+        temp_path = Path.cwd() if temp_path is None else temp_path
         self.working_path = Path(temp_path) / "{}-vina".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
         if not os.path.exists(self.working_path / "{}.pdbqt".format(self.protein_name)):
@@ -134,11 +135,9 @@ class VinaDocking(AutoDockBaseDocking):
         ligand_scores = []
         ligand_conformation_paths = []
 
-        # First make sure output_dir exists
-        os.makedirs(output_dir, exist_ok = True)
-
         # convert output_dir to Path object
-        output_dir = Path(output_dir)
+        output_dir = Path(output_dir).resolve()
+        output_dir.mkdir(exist_ok=True, parents=True)
 
         for ligand in ligands:
             ligand_name = Path(ligand).stem

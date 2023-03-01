@@ -4,7 +4,7 @@ Date Created: Oct 21, 2022
 
 This file defines the BaseDocking class with interfaces to be realized by different docking protocols
 '''
-
+import os
 from pathlib import Path
 from rdkit import Chem
 import multiprocessing
@@ -98,7 +98,7 @@ class BaseDocking:
         '''
         pass
 
-    def convert_sdf_to_smiles(self, sdf_path):
+    def convert_sdf_to_smiles(self, sdf_path: os.PathLike):
         '''
         Convert a ligand sdf file to a smiles string, to be used by any of the docking protocols
 
@@ -106,7 +106,7 @@ class BaseDocking:
 
         :return: str, the smiles string
         '''
-        sdmol = Chem.SDMolSupplier(sdf_path)
+        sdmol = Chem.SDMolSupplier(str(sdf_path))
         mol = sdmol[0]
         return Chem.MolToSmiles(mol)
 

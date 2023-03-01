@@ -207,9 +207,9 @@ class AutoDockBaseDocking(BaseDocking):
         :return: True, if the run is successful
         '''
         try:
-            run_command([self.meeko_ligconv_path, adresult_path, '-o', output_path])
+            return_code, err, out = run_command([self.meeko_ligconv_path, adresult_path, '-o', output_path])
         except CommandExecuteError as e:
-            return False
+            return err
         
         return True
     
