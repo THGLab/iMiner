@@ -4,7 +4,9 @@
 
 #include "protein.atp"
 
-#include "water_and_ions.atp"
+#include "water.atp"
+
+#include "ions.atp"
 
 #include "MOL.atp"
 
@@ -27,6 +29,3 @@
 [ system ]
  Complex
 
-[ molecules ]
-MOL           1
-protein       1

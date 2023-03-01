@@ -2,7 +2,9 @@
 ; nbfunc        comb-rule       gen-pairs       fudgeLJ fudgeQQ
 1               2               yes             0.5     0.8333
 
-#include "water_and_ions.atp"
+#include "water.atp"
+
+#include "ions.atp"
 
 #include "MOL.atp"
 
@@ -19,6 +21,3 @@
 [ system ]
  Solvated
 
-[ molecules ]
-MOL           1
-protein       1
