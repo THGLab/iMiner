@@ -139,7 +139,7 @@ class AutoDockBaseDocking(BaseDocking):
         """
         Get Meeko ligand file conversion path
         """
-        return find_executable("mk_copy_coords.py")
+        return find_executable("mk_export.py")
 
     def convert_pdb_to_pdbqt(self, pdb_path, output_path, add_h = True):
         '''
