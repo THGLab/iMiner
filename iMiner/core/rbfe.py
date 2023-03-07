@@ -152,7 +152,7 @@ class RbfeProject(MDProject):
         fp.write("[ position_restraints ]\n")
         fp.write("; atom  type    fx    fy    fz\n")
         for i, atom in enumerate(structA.atoms):
-            if "H" in atom.name:
+            if "H" not in atom.name:
                 fp.write(f"{i+1:>6}     1  1000  1000 1000\n")
         fp.write("\n\n")
         fp.close()
