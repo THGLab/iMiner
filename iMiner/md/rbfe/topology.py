@@ -102,8 +102,8 @@ class GromacsTopologyFilePerturb(parmed.gromacs.GromacsTopologyFile):
         dihe = None
         for ls in permutations((atom1, atom2, atom3, atom4)):
             key = (ls[0], ls[1], ls[2], ls[3])
-            if key in self._improper_dihedrals_dict:
-                dihe = self._improper_dihedrals_dict[key]
+            if key in self.improper_dihedrals_dict:
+                dihe = self.improper_dihedrals_dict[key]
                 break
         if dihe:
             return dihe
