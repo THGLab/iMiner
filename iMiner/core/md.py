@@ -345,6 +345,7 @@ class MDProject(BaseProject):
             sys.exit(1)
         shutil.copyfile(complex_dir / "ions.gro", wdir / "ions.gro")
         shutil.copyfile(complex_dir / "processed.top", wdir / 'processed.top')
+        shutil.copyfile(complex_dir / "processed_posre.top", wdir / 'processed_posre.top')
         return True
     
     def run_md(self, wdir: Path):
@@ -362,7 +363,8 @@ class MDProject(BaseProject):
                 params=self.md_params, 
                 enforce_gpu=self.md_params['enforce_gpu'],
                 verbose=True,
-                logger=self.logger
+                logger=self.logger,
+                top_posre="processed_posre.top"
             )
         except CommandExecuteError as e:
             self.logger.error("Error in running gromacs. See complex folder.")

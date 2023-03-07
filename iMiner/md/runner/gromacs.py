@@ -41,6 +41,7 @@ def run_preprocess_workflow(
     """
     gmx = find_executable(['gmx_mpi', 'gmx'])
     mdp = Path(__file__).with_name("em.mdp").resolve()
+    posre_mdp = Path(__file__).with_name("nvt.mdp").resolve()
     with set_directory(wdir):
         if logger and verbose: logger.info("Adding box...")
         run_command([gmx, "editconf", "-f", gro, "-o", "newbox.gro", "-c", "-d", str(1.0), "-bt", "dodecahedron"])
@@ -50,6 +51,7 @@ def run_preprocess_workflow(
         run_command([gmx, "grompp", "-f", mdp, "-c", "solv.gro", "-p", top, "-o", "ions.tpr", "-maxwarn", MAXWARN])
         run_command([gmx, "genion", "-s", "ions.tpr", "-o", "ions.gro", "-p", top, "-pname", "NA", "-nname", "CL", "-neutral"], input="SOL")
         run_command([gmx, "grompp", "-c", "ions.gro", "-f", mdp, "-p", top, "-pp", "processed.top"])
+        run_command([gmx, "grompp", "-c", "ions.gro", "-f", posre_mdp, "-p", top, "-pp", "processed_posre.top"])
 
 
 def run_md(
@@ -138,6 +140,7 @@ def run_md_workflow(
     verbose: bool = True,
     logger: Optional[Logger] = None,
     mdp_dir: Optional[os.PathLike] = None,
+    top_posre: Optional[os.PathLike] = None,
 ):
     stages = ["em", "nvt", "npt", "prod"]
     mdp_dir = Path(__file__).parent
@@ -146,8 +149,12 @@ def run_md_workflow(
             Path.mkdir(w / stage, parents=True, exist_ok=True)
             shutil.copyfile(mdp_dir / f"{stage}.mdp", w / stage / f"{stage}.mdp")
             if verbose and logger: logger.info(f"Running {stage}...")
+            if stage in ['nvt', 'npt'] and top_posre is not None:
+                top_use = Path(top_posre).resolve()
+            else:
+                top_use = Path(top).resolve()
             run_md(
-                top = Path(top).resolve(),
+                top = top_use,
                 gro = Path(gro).resolve(),
                 mdp = w / stage / f"{stage}.mdp",
                 deffnm = stage,
