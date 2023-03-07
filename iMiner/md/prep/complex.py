@@ -131,7 +131,8 @@ def make_solvated(
     ligand_gro: os.PathLike,
     ligand_posre: os.PathLike,
     wdir: os.PathLike,
-    solvated_top_name: str = "topol.top"
+    solvated_top_name: str = "topol.top",
+    solvated_gro_name: str = "ligand.gro"
 ):
     """
     Make solvated system
@@ -143,6 +144,7 @@ def make_solvated(
         lig_info = split_top(ligand_top, "MOL.atp", "MOL.itp")
         if len(lig_info) == 0: lig_info = {"MOL": 1} # default number of lig to 1 with name "MOL"
         shutil.copyfile(ligand_posre, "posre_MOL.itp")
+        shutil.copyfile(ligand_gro, solvated_gro_name)
 
         with open(Path(__file__).with_name("solvated_template.top")) as f:
             tstr = f.read()

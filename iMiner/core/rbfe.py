@@ -117,6 +117,7 @@ class RbfeProject(MDProject):
         from iMiner.md.prep.ligand import run_acpype
         
         for tag, name in zip(["A", "B"], names):
+            self.logger.info(f"Paramterizing ligand {tag}: {name}")
             prep_path = wdir.resolve() / f"ligand{tag}"
             # delete all existing acpype files, otherwise acpype reuses old files
             if remove_cache and prep_path.is_dir():
@@ -142,9 +143,10 @@ class RbfeProject(MDProject):
             str(wdir / "ligandB" / "MOL.acpype" / "MOL_GMX.top"),
             xyz=str(wdir / "ligandB" / "MOL.gro")
         )
+        structA.reset_box() # MOL.gro with box vector 0
         structA.perturb(structB, mapping)
-        structA.write(wdir / "merged.top", itp=False)
-        structA.save(wdir / "merged.gro", overwrite=True)
+        structA.write(str(wdir / "merged.top"), itp=False)
+        structA.save(str(wdir / "merged.gro"), overwrite=True)
         # Generate Restraint File
         fp = open(wdir / "posre_merged.itp", "w")
         fp.write("[ position_restraints ]\n")
@@ -188,9 +190,9 @@ class RbfeProject(MDProject):
         """
         Run MD preparation workflow
         """
-        self.logger.log("Prepare MD for solvated system...")
+        self.logger.info("Prepare MD for solvated system...")
         run_preprocess_workflow("topol.top", "ligand.gro", wdir.resolve() / "solvated", verbose=True, logger=self.logger)
-        self.logger.log("Prepare MD for complex system...")
+        self.logger.info("Prepare MD for complex system...")
         run_preprocess_workflow("topol.top", "complex.gro", wdir.resolve() / "complex", verbose=True, logger=self.logger)
         
     def run_md(self, wdir: Path):

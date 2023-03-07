@@ -18,6 +18,11 @@ class GromacsTopologyFilePerturb(parmed.gromacs.GromacsTopologyFile):
     A chemical structure composed of atoms, bonds, angles, torsions, and other topological features.
     Inherited from `parmed.gromacs.GromacsTopologyFile` and add features to support perturbed topology
     """
+    def reset_box(self):
+        self.box[0] = 10.0
+        self.box[1] = 10.0
+        self.box[2] = 10.0
+
     @property
     def bonds_dict(self) -> Dict[Tuple[int, int], parmed.Bond]:
         if hasattr(self, "_bonds_dict"):
@@ -181,6 +186,11 @@ class GromacsTopologyFilePerturb(parmed.gromacs.GromacsTopologyFile):
         
         map_A_to_B = {aA: aB for aA, aB in mapping_list}
         map_B_to_A = {aB: aA for aA, aB in mapping_list}
+
+        # AtomTypes
+        for key in other.parameterset.atom_types:
+            if key not in self.parameterset.atom_types:
+                self.parameterset.atom_types[key] = other.parameterset.atom_types[key]
         
         # Bonds
         for bondB in other.bonds:
@@ -193,6 +203,7 @@ class GromacsTopologyFilePerturb(parmed.gromacs.GromacsTopologyFile):
                 btype = parmed.BondType(bondB.type.k, bondB.type.req, self.bond_types)
                 bond = parmed.Bond(atom1, atom2, btype, bondB.order)
                 self.bonds.append(bond)
+                self.bond_types.append(btype)
         
         for bond in self.bonds:
             try:
@@ -214,7 +225,9 @@ class GromacsTopologyFilePerturb(parmed.gromacs.GromacsTopologyFile):
                     adjustB.type.rmin, adjustB.type.epsilon, adjustB.type.chgscale, self.adjust_types
                 )
                 nbe = parmed.NonbondedException(atom1, atom2, nbetype)
+                nbe.funct = adjustB.funct
                 self.adjusts.append(nbe)
+                self.adjust_types.append(nbetype)
         
         # Angles
         for angleB in other.angles:
@@ -228,6 +241,7 @@ class GromacsTopologyFilePerturb(parmed.gromacs.GromacsTopologyFile):
                 angtype = parmed.AngleType(angleB.type.k, angleB.type.theteq, self.angle_types)
                 angle = parmed.Angle(atom1, atom2, atom3, angtype)
                 self.angles.append(angle)
+                self.angle_types.append(angtype)
         
         for angle in self.angles:
             try:
@@ -268,6 +282,7 @@ class GromacsTopologyFilePerturb(parmed.gromacs.GromacsTopologyFile):
                     improper=diheB.improper, ignore_end=diheB.ignore_end, type=dtype
                 )
                 self.dihedrals.append(dihe)
+                self.dihedral_types.append(dtype)
         
         for dihe in self.dihedrals:
             try:
