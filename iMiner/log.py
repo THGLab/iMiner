@@ -6,7 +6,7 @@ import uuid
 
 def init_logger(logname: Optional[os.PathLike] = None) -> logging.Logger:
     # logging
-    logger = logging.getLogger(uuid.uuid4())
+    logger = logging.getLogger(str(uuid.uuid4()))
     logger.propagate = False
     logger.setLevel(level = logging.INFO)
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
