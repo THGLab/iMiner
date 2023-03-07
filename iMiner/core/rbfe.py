@@ -48,7 +48,7 @@ class RbfeProject(MDProject):
             MD engine. Only "gromacs" supported currently.
         '''
 
-        super().__init__(project_name, project_path)
+        super().__init__(project_name, project_path, verbose, logger, temp_path, engine)
         self.md_path = Path(self.project_path) / "rbfe"
         self.md_path.mkdir(exist_ok=True, parents=True)
         assert engine in ['gromacs'], f"Not supported MD engine: {engine}"
