@@ -51,7 +51,7 @@ def run_preprocess_workflow(
         run_command([gmx, "grompp", "-f", mdp, "-c", "solv.gro", "-p", top, "-o", "ions.tpr", "-maxwarn", MAXWARN])
         run_command([gmx, "genion", "-s", "ions.tpr", "-o", "ions.gro", "-p", top, "-pname", "NA", "-nname", "CL", "-neutral"], input="SOL")
         run_command([gmx, "grompp", "-c", "ions.gro", "-f", mdp, "-p", top, "-pp", "processed.top"])
-        run_command([gmx, "grompp", "-c", "ions.gro", "-f", posre_mdp, "-p", top, "-pp", "processed_posre.top"])
+        run_command([gmx, "grompp", "-c", "ions.gro", "-f", posre_mdp, "-r", "ions.gro", "-p", top, "-pp", "processed_posre.top"])
 
 
 def run_md(
@@ -143,7 +143,10 @@ def run_md_workflow(
     top_posre: Optional[os.PathLike] = None,
 ):
     stages = ["em", "nvt", "npt", "prod"]
-    mdp_dir = Path(__file__).parent
+    if mdp_dir is None:
+        mdp_dir = Path(__file__).parent
+    else:
+        mdp_dir = Path(mdp_dir).resolve()
     with set_directory(wdir, mkdir=True) as w:
         for i, stage in enumerate(stages):
             Path.mkdir(w / stage, parents=True, exist_ok=True)
