@@ -51,8 +51,6 @@ class MDProject(BaseProject):
         '''
 
         super().__init__(project_name, project_path, verbose, logger, temp_path)
-        self.md_path = Path(self.project_path) / "md"
-        self.md_path.mkdir(exist_ok=True, parents=True)
         assert engine in ['gromacs'], f"Not supported MD engine: {engine}"
         self.params = {
             "md": {
@@ -392,6 +390,9 @@ class MDProject(BaseProject):
         """
         task_name = f"{lig_name}_{prot_name}" if task_name is None else task_name
         self.logger.info(f"Running md for {task_name}")
+        self.md_path = Path(self.project_path) / "md"
+        self.md_path.mkdir(exist_ok=True, parents=True)
+        
         wdir = self.md_path / task_name
         
         self.log_step("Parametrize Protein")

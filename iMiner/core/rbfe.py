@@ -49,8 +49,6 @@ class RbfeProject(MDProject):
         '''
 
         super().__init__(project_name, project_path, verbose, logger, temp_path, engine)
-        self.md_path = Path(self.project_path) / "rbfe"
-        self.md_path.mkdir(exist_ok=True, parents=True)
         assert engine in ['gromacs'], f"Not supported MD engine: {engine}"
         self.params = {
             "rbfe": {
@@ -239,6 +237,10 @@ class RbfeProject(MDProject):
         """
         task_name = f"{lig_names[0]}~{lig_names[1]}" if task_name is None else task_name
         self.logger.info(f"Running RBFE calculation for {task_name}")
+
+        self.md_path = Path(self.project_path) / "rbfe"
+        self.md_path.mkdir(exist_ok=True, parents=True)
+
         wdir = self.md_path / task_name
         
         self.log_step("Parametrize Ligand")
@@ -248,7 +250,7 @@ class RbfeProject(MDProject):
         self.parametrize_protein(prot_name, wdir)
         
         self.log_step("Make Perturbed Topology")
-        if isinstance(mapping, os.PathLike):
+        if isinstance(mapping, str) or isinstance(mapping, Path):
             mapping = np.loadtxt(mapping, dtype=int)
         else:
             mapping = np.array(mapping, dtype=int)
