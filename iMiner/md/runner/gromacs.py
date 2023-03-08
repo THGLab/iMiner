@@ -50,8 +50,8 @@ def run_preprocess_workflow(
         if logger and verbose: logger.info("Add ions...")
         run_command([gmx, "grompp", "-f", mdp, "-c", "solv.gro", "-p", top, "-o", "ions.tpr", "-maxwarn", MAXWARN])
         run_command([gmx, "genion", "-s", "ions.tpr", "-o", "ions.gro", "-p", top, "-pname", "NA", "-nname", "CL", "-neutral"], input="SOL")
-        run_command([gmx, "grompp", "-c", "ions.gro", "-f", mdp, "-p", top, "-pp", "processed.top"])
-        run_command([gmx, "grompp", "-c", "ions.gro", "-f", posre_mdp, "-r", "ions.gro", "-p", top, "-pp", "processed_posre.top"])
+        run_command([gmx, "grompp", "-c", "ions.gro", "-f", mdp, "-p", top, "-pp", "processed.top", '-maxwarn', MAXWARN])
+        run_command([gmx, "grompp", "-c", "ions.gro", "-f", posre_mdp, "-r", "ions.gro", "-p", top, "-pp", "processed_posre.top", '-maxwarn', MAXWARN])
 
 
 def run_md(
