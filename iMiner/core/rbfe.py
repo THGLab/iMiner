@@ -232,7 +232,8 @@ class RbfeProject(MDProject):
         lig_names: Tuple[str, str], 
         prot_name: str, 
         mapping: Union[os.PathLike, np.ndarray],
-        task_name: Optional[str] = None
+        task_name: Optional[str] = None,
+        remove_cache: bool = True
     ):
         """
         Run iMiner Relative Binding Free Energy Calculation Workflow
@@ -246,7 +247,7 @@ class RbfeProject(MDProject):
         wdir = self.md_path / task_name
         
         self.log_step("Parametrize Ligand")
-        self.parametrize_ligand(lig_names, wdir)
+        self.parametrize_ligand(lig_names, wdir, remove_cache)
         
         self.log_step("Parametrize Protein")
         self.parametrize_protein(prot_name, wdir)
