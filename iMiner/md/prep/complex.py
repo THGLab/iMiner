@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 from typing import List
 
-from iMiner.cmd import set_directory
+from iMiner.cmd import set_directory, find_executable, run_command
 
 
 def split_top(top: os.PathLike, atp: os.PathLike, itp: os.PathLike):
@@ -100,7 +100,7 @@ def make_complex(
         merge_gro(protein_gro, ligand_gro, complex_gro_name)
         
         # Restraints
-        shutil.copyfile(protein_posre, "posre_protein.itp")
+        run_command([find_executable(['gmx_mpi', 'gmx']), 'genrestr', '-f', protein_gro, '-o', 'posre_protein.itp'], input="Protein-H")
         shutil.copyfile(ligand_posre, "posre_MOL.itp")
 
         with open(Path(__file__).with_name("complex_template.top")) as f:
