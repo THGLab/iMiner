@@ -122,7 +122,7 @@ class RbfeProject(MDProject):
             # delete all existing acpype files, otherwise acpype reuses old files
             if remove_cache and prep_path.is_dir():
                 shutil.rmtree(prep_path)
-            prep_path.mkdir(parents=True)
+            prep_path.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(self.get_ligand_with_name(name), prep_path / "ligand.sdf")
             with set_directory(prep_path):
                 obabel = find_executable(['obabel'])
