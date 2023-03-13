@@ -46,11 +46,13 @@ def perturb_rdmol(molA: Chem.Mol, molB: Chem.Mol, mapping: np.ndarray, pos_offse
         else:
             newpos[atomIdx1] = posA[atomIdx1]
 
-    mapping_B_to_A = {int(m[1]): int(m[0]) for m in mapping if m[1] != -1}
+    mapping_B_to_A = {int(m[1]): int(m[0]) for m in mapping_du if m[1] != -1}
     for atomIdx1, atomIdx2 in duIndices:
         for nei in molB.GetAtomWithIdx(atomIdx2).GetNeighbors():
             neiIdx1 = mapping_B_to_A[nei.GetIdx()]
-            rwmol.AddBond(atomIdx1, neiIdx1)
+            b = rwmol.GetBondBetweenAtoms(atomIdx1, neiIdx1)
+            if not b:
+                rwmol.AddBond(atomIdx1, neiIdx1)
     
     mol = rwmol.GetMol()
     mol.RemoveAllConformers()
@@ -64,24 +66,39 @@ def perturb_rdmol(molA: Chem.Mol, molB: Chem.Mol, mapping: np.ndarray, pos_offse
 class PyMOLVisualizer:
     def __init__(
         self,
-        molA_sdf: os.PathLike, 
-        molB_sdf: os.PathLike, 
+        molA: Union[os.PathLike, Chem.Mol], 
+        molB: Union[os.PathLike, Chem.Mol], 
         mapping: Union[os.PathLike, np.ndarray], 
         wdir: os.PathLike = "visualization/",
-        molA_name: Optional[str] = None,
-        molB_name: Optional[str] = None,
+        molA_name: str = "molA",
+        molB_name: str = "molB",
     ):
-        self.molA = Chem.SDMolSupplier(str(molA_sdf), removeHs=False)[0]
-        self.molB = Chem.SDMolSupplier(str(molB_sdf), removeHs=False)[0]
+        self.molA, self.molA_name = self.read_mol(molA)
+        self.molB, self.molB_name = self.read_mol(molB)
         if isinstance(mapping, np.ndarray):
             self.mapping = np.array(mapping, dtype=int)
         else:
             self.mapping = np.loadtxt(mapping, dtype=int)
         self.wdir = Path(wdir).resolve()
         self.wdir.mkdir(parents=True, exist_ok=True)
-        self.molA_name = Path(molA_sdf).stem if molA_name is None else molA_name
-        self.molB_name = Path(molB_sdf).stem if molB_name is None else molB_name 
+        if (not self.molA_name) or (not self.molB_name) or (self.molA_name == self.molB_name):
+            self.molA_name = molA_name
+            self.molB_name = molB_name
     
+    def read_mol(self, mol: Union[os.PathLike, Chem.Mol]):
+        if isinstance(mol, Chem.Mol):
+            return mol, mol.GetProp("_Name")
+        else:
+            suffix = Path(mol).suffix
+            name = Path(mol).stem
+            if suffix == '.sdf':
+                mol = Chem.SDMolSupplier(mol, removeHs=False)[0]
+            elif suffix == ".mol":
+                mol = Chem.MolFromMolFile(mol, removeHs=False)
+            else:
+                raise NotImplementedError()
+            return mol, name
+            
     def perturb(self):
         """
         Perturbation on rdkit mol
@@ -101,7 +118,6 @@ class PyMOLVisualizer:
         writer.write(pert_molB)
         writer.close()
 
-    
     def make_pymol_session(self):
         """
         Make PyMOL session to visualize perturbation
@@ -116,11 +132,14 @@ class PyMOLVisualizer:
         cmd.load(self.pert_molB_path, object=self.molB_name)
         cmd.label(self.molA_name, "rank")
         cmd.label(self.molB_name, "rank")
+        perts = []
         for i, j in zip(self.mapping_du[:, 0], self.mapping_du[:, 1]):
+            p = f"A{i}-B{j}"
             cmd.select("tmp_a", f"index {i+1} & {self.molA_name}")
             cmd.select("tmp_b", f"index {j+1} & {self.molB_name}")
-            cmd.distance(f"A{i}-B{j}", 'tmp_a', 'tmp_b', label=0)
+            cmd.distance(p, 'tmp_a', 'tmp_b', label=0)
             cmd.delete("tmp_a")
             cmd.delete("tmp_b")
+            perts.append(p)
         cmd.zoom("visible")
         cmd.save(str(session_path))
