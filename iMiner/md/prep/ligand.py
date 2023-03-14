@@ -1,10 +1,19 @@
-from typing import Union, List
+import os
+from typing import Union, List, Optional
 from pathlib import Path
 import warnings
+from rdkit import Chem
 from iMiner.cmd import find_executable, run_command
 
 
-def run_acpype(input: Union[str, Path, None] = None,
+def run_openff(input: Union[os.PathLike, Chem.Mol]):
+    """
+    Parametrize Ligand with OpenFF
+    """
+    pass
+
+
+def run_acpype(input: Optional[os.PathLike] = None,
                basename: str = "MOL",
                charge_method: str = "bcc",
                atom_type: str = "gaff2",
@@ -37,7 +46,6 @@ def run_acpype(input: Union[str, Path, None] = None,
         cmd = [acpype, "-i", str(input), "-b", basename, "-c", charge_method, "-a", atom_type]            
         if net_charge == "auto":
             suffix = Path(input).suffix
-            from rdkit import Chem
             if suffix == ".mol":
                 mol = Chem.MolFromMolFile(input, removeHs=False)
             elif suffix == ".sdf":
