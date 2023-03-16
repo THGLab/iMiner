@@ -21,15 +21,15 @@ from iMiner.pathlib import *
 class VinaDocking(AutoDockBaseDocking):
     def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
         super().__init__(protein_pdb, docking_box, logger=logger)
-        temp_path = Path.cwd() if temp_path is None else temp_path
+        temp_path = Path.cwd() if temp_path is None else Path(temp_path).resolve()
         self.working_path = Path(temp_path) / "{}-vina".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
 
-        dest_pdbqt = self.working_path / "{}.pdbqt".format(self.protein_name)
+        self.protein_path = self.working_path / "{}.pdbqt".format(self.protein_name)
         if Path(protein_pdb).suffix == ".pdbqt":
-            shutil.copyfile(protein_pdb, dest_pdbqt)
-        if not os.path.exists(dest_pdbqt):
-            self.convert_pdb_to_pdbqt(protein_pdb, dest_pdbqt)
+            shutil.copyfile(protein_pdb, self.protein_path)
+        if not os.path.exists(self.protein_path):
+            self.convert_pdb_to_pdbqt(protein_pdb, self.protein_path)
         self.docking_box = docking_box
 
         self.write_config(**kwargs)
@@ -45,25 +45,25 @@ class VinaDocking(AutoDockBaseDocking):
         '''
 
         config_fp = self.working_path / "config.txt"
-        lines = ["receptor = {}/{}.pdbqt".format(self.working_path, self.protein_name),
-                 "",
-                 "center_x = {}".format((self.docking_box[0] + self.docking_box[3]) / 2),
-                 "center_y = {}".format((self.docking_box[1] + self.docking_box[4]) / 2),
-                 "center_z = {}".format((self.docking_box[2] + self.docking_box[5]) / 2),
-                 "",
-                 "size_x = {}".format(self.docking_box[3] - self.docking_box[0]),
-                 "size_y = {}".format(self.docking_box[4] - self.docking_box[1]),
-                 "size_z = {}".format(self.docking_box[5] - self.docking_box[2]),
-                 "",
-                 "num_modes = {}".format(num_modes),
-                 "energy_range = {}".format(energy_range),
-        ]
+        config_dict = {
+            "receptor": self.protein_path,
+            "center_x": (self.docking_box[0] + self.docking_box[3]) / 2,
+            "center_y": (self.docking_box[1] + self.docking_box[4]) / 2,
+            "center_z": (self.docking_box[2] + self.docking_box[5]) / 2,
+            "size_x": self.docking_box[3] - self.docking_box[0],
+            "size_y": self.docking_box[4] - self.docking_box[1],
+            "size_z": self.docking_box[5] - self.docking_box[2],
+            "num_modes": num_modes,
+            "energy_range": energy_range,
+            "exhaustiveness": exhaustiveness
+        }
+        config_dict.update(kwargs)
 
-        # exhaustiveness may be None to accomondate Vina-GPU config
-        if exhaustiveness is not None:
-            lines.append("exhaustiveness = {}".format(exhaustiveness))
         with open(config_fp, "w") as f:
-            f.write("\n".join(lines))
+            for k, v in config_dict.items():
+                if v is not None:
+                    # exhausitiveness may be None in Vina-GPU
+                    f.write(f"{k} = {v}\n")
     
     @property
     def vina_exec(self):
