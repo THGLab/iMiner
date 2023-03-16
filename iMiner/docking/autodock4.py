@@ -230,7 +230,7 @@ class AD4Docking(AutoDockBaseDocking):
         
         return True
     
-    def dlg_analysis(self, dlg_file, output_dir, rescore=False):
+    def dlg_analysis(self, dlg_file, output_dir, rescore=False, write_best_pose = True, write_best_cluster_pose = True):
         """
         Take in a dlg filepath and return necessary information for the best docked pose
 
@@ -256,10 +256,19 @@ class AD4Docking(AutoDockBaseDocking):
         # Universal Patterns/Names
         rmsd_pattern =\
         "_____|______|______|___________|_________|_________________|___________\n"
+        cluster_pattern1 =\
+        "_____|___________|_____|___________|_____|____:____|____:____|____:____|____:___\n"
+        cluster_pattern2 =\
+        "_____|___________|_____|___________|_____|______________________________________\n"
+        
         rmsd_columns = ["Rank","Sub-Rank", "Run", "Binding Energy", \
                         "Cluster RMSD","Reference RMSD", "Grep Pattern"]
         rmsd_table = file.split(rmsd_pattern)[-1].split("\n")[:-4]
-        
+        cluster_data = file[file.find(cluster_pattern1):\
+                            file.find(cluster_pattern2)].split("\n")[1:-1]
+        best_cluster = cluster_data[np.argmax([s.count("#") for s in cluster_data])]\
+                        .replace("|","").split()
+        score_cluster, run_cluster = float(best_cluster[1]), int(best_cluster[2])
         # write out the rmsd dataframe and extract lowest energy run
         with open(f"rmsd_table_{ligand_name}.txt","w") as f:
             f.write("\n".join(rmsd_table))
@@ -267,8 +276,8 @@ class AD4Docking(AutoDockBaseDocking):
                             names = rmsd_columns, engine = 'python')
         os.remove(f"rmsd_table_{ligand_name}.txt")
 
-        best_score = rmsd_df.set_index('Run')['Binding Energy'].min()
         try:
+            best_score = rmsd_df.set_index('Run')['Binding Energy'].min()
             num_run = rmsd_df.set_index('Run')['Binding Energy'].idxmin()
         except TypeError:
             print('Errors in binding energy for %s'%dlg_file)
@@ -283,10 +292,17 @@ class AD4Docking(AutoDockBaseDocking):
         with open(converted_sdf, "r") as f:
             all_sdf = f.read().split("$$$$\n")
         output_dir = Path(output_dir).resolve()
-        ligand_best_pose = output_dir / "{}-best-pose.sdf".format(ligand_name)
-        with open(ligand_best_pose, "w") as f1:
-            f1.write(all_sdf[num_run-1])
         
+        if write_best_pose:
+            ligand_best_pose = output_dir / "{}.sdf".format(ligand_name)
+            with open(ligand_best_pose, "w") as f1:
+                f1.write(all_sdf[num_run-1])
+        
+        if write_best_cluster_pose:
+            ligand_cluster_pose = output_dir / "cluster-score-{}-{}.sdf".format(score_cluster, ligand_name)
+            with open(ligand_cluster_pose, "w") as f1:
+                f1.write(all_sdf[run_cluster-1])
+            
         return [ligand_name, smile, best_score, ligand_best_pose]
     
     def convert_ligand(self, file):
