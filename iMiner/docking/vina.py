@@ -1,22 +1,21 @@
 '''
-Author: Jie Li, Oufan Zhang
+Author: Jie Li, Oufan Zhang, Eric Wang
 Date Created: Nov 3, 2022
 
 Defines the docking class for AutoDock Vina and Autodock Vina GPU
 '''
+from pathlib import Path
+from typing import Optional
+import os
+import numpy as np
+import re
+import pandas as pd
+import shutil
 
 from iMiner.docking.autodock import AutoDockBaseDocking
 from iMiner.cmd import run_command, set_directory, find_executable
 from iMiner.utils import random_id, get_free_gpu
 from iMiner.pathlib import *
-from pathlib import Path
-from typing import Optional
-import itertools
-import os
-from os import path
-import numpy as np
-import re
-import pandas as pd
 
 
 class VinaDocking(AutoDockBaseDocking):
@@ -25,8 +24,12 @@ class VinaDocking(AutoDockBaseDocking):
         temp_path = Path.cwd() if temp_path is None else temp_path
         self.working_path = Path(temp_path) / "{}-vina".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
-        if not os.path.exists(self.working_path / "{}.pdbqt".format(self.protein_name)):
-            self.convert_pdb_to_pdbqt(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name))
+
+        dest_pdbqt = self.working_path / "{}.pdbqt".format(self.protein_name)
+        if Path(protein_pdb).suffix == ".pdbqt":
+            shutil.copyfile(protein_pdb, dest_pdbqt)
+        if not os.path.exists(dest_pdbqt):
+            self.convert_pdb_to_pdbqt(protein_pdb, dest_pdbqt)
         self.docking_box = docking_box
 
         self.write_config(**kwargs)
