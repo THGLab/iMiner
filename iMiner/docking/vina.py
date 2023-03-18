@@ -1,5 +1,5 @@
 '''
-Author: Jie Li, Oufan Zhang
+Author: Jie Li, Oufan Zhang, Oliver Sun
 Date Created: Nov 3, 2022
 
 Defines the docking class for AutoDock Vina and Autodock Vina GPU
@@ -12,6 +12,7 @@ from iMiner.pathlib import *
 from pathlib import Path
 from typing import Optional
 import itertools
+import shutil
 import os
 from os import path
 import numpy as np
@@ -24,10 +25,15 @@ class VinaDocking(AutoDockBaseDocking):
         super().__init__(protein_pdb, docking_box, logger=logger)
         self.working_path = Path(temp_path) / "{}-vina".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
-        if not os.path.exists(self.working_path / "{}.pdbqt".format(self.protein_name)):
-            self.convert_pdb_to_pdbqt(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name))
+        self.protein_path = self.working_path / "{}.pdbqt".format(self.protein_name)
+        
+        if not os.path.exists(self.protein_path):
+            if protein_pdb.endswith('.pdb'):
+                self.convert_pdb_to_pdbqt(protein_pdb, self.protein_path)
+            elif protein_pdb.endswith('.pdbqt'):
+                shutil.copy(protein_pdb, self.protein_path)
+        
         self.docking_box = docking_box
-
         self.write_config(**kwargs)
 
     def write_config(self, exhaustiveness=8, num_modes=1, energy_range=30, **kwargs):
