@@ -62,7 +62,7 @@ class BaseProject:
         # setup log file when verbose is True
         self.verbose = verbose
         self.logger = init_logger(self.project_path / "run.log")
-        new_project = True
+        self._new_project = True
 
         # setup config dir
         self.meta_dir = self.project_path / ".iminer"
@@ -71,12 +71,12 @@ class BaseProject:
         if os.path.exists(self.meta_json):
             with open(self.meta_json, 'r') as f:
                 self.meta_data = json.load(f)
-            new_project = False
+            self._new_project = False
         else:
-            self.meta_data = {"name": self.project_name, 'verbose': verbose}
+            self.meta_data = {"name": self.project_name, 'verbose': verbose, 'proteins': {}, 'ligands': {}, 'binding_sites': {}}
             self.update_meta_data()
 
-        if not new_project:
+        if not self._new_project:
             # load existing ligands
             ligs = [sdf for sdf in self.ligands_path.glob('*.sdf')]
             try:

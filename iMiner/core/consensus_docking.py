@@ -61,6 +61,8 @@ class ConsensusDocking(BaseProject):
                 ligand_paths = self.ligands.values()
             else:
                 ligand_paths = [self.ligands[ligand_name] for ligand_name in ligand_names]
+            
+            assert len(ligand_names) > 0, "No ligand for docking!"
             if self.verbose:
                 n_cores = kwargs.get("n_jobs", 1)
                 n_ligands = len(ligand_names)
