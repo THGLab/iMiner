@@ -49,7 +49,7 @@ class AD4Docking(AutoDockBaseDocking):
     """
     Run AutoDock4 with predefined binding pocket for ligands
     """
-    def __init__(self, protein_pdb, docking_box, temp_path = None, name = None, logger = None, **kwargs):
+    def __init__(self, protein_pdb, docking_box, is_flex = False, flex_res = None, temp_path = None, name = None, logger = None, **kwargs):
         """
         Initialize autodock4 with a protein and a docking box
         @param protein_pdb: str, path to the protein pdb file
@@ -88,17 +88,13 @@ class AD4Docking(AutoDockBaseDocking):
                 shutil.copy(protein_pdb, self.protein_path)
         
         # support for flexible docking
-        self.flex_docking = False
-        if 'flex' in kwargs:
+        if is_flex:
+            flex_residues = "_".join(flex_res)
             self.flex_docking = True
-            if not protein_pdb.endswith('.pdbqt'):
-                raise RuntimeError('Using flexible docking. Your protein input must be a processed rigid protein pdbqt.')
-            flexres = self.grid_path / "{}_flex.pdbqt".format(self.protein_name)
-            if not os.path.exists(flexres):
-                if kwargs['flex'].endswith('.pdbqt'):
-                    shutil.copy(kwargs['flex'], flexres)
-                else:
-                    raise RuntimeError('flexible protein file not supported')
+            with set_directory(self.working_path):
+                self.convert_pdbqt_to_flex_rigid("{}.pdbqt".format(self.protein_name), flex_residues)
+            self.protein_path = self.grid_path / "{}_rigid.pdbqt".format(self.protein_name)
+            self.flex_path = self.grid_path / "{}_flex.pdbqt".format(self.protein_name)
         
         # docking box information
         self.docking_box = docking_box
@@ -135,8 +131,8 @@ class AD4Docking(AutoDockBaseDocking):
 
         # fill in the necessary information
         gpf_final = gpf.replace('RECTYPES',   rectypes)
-        gpf_final = gpf_final.replace('PREFIX',     str(self.protein_name))
-        gpf_final = gpf_final.replace('REC',         "{}.pdbqt".format(self.protein_name))
+        gpf_final = gpf_final.replace('PREFIX',     str(self.protein_path.stem))
+        gpf_final = gpf_final.replace('REC',         "{}.pdbqt".format(self.protein_path.stem))
         gpf_final = gpf_final.replace('NPTS_X',     '%d' % npts_x)
         gpf_final = gpf_final.replace('NPTS_Y',     '%d' % npts_y)
         gpf_final = gpf_final.replace('NPTS_Z',     '%d' % npts_z)
@@ -220,7 +216,7 @@ class AD4Docking(AutoDockBaseDocking):
         cmd = [ad4gpu_path, '--filelist', batch_file,\
                 "--nrun", str(nrun), "-x", "0", "--rlige", "1"]
         if self.flex_docking:
-            cmd += ['-F', '%s/%s_flex.pdbqt'%(self.grid_path, self.protein_name)]
+            cmd += ['-F', self.flex_path]
             
         try:
             out = subprocess.run(cmd, stdout=subprocess.DEVNULL,

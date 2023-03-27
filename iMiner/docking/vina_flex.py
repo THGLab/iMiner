@@ -21,20 +21,28 @@ import pandas as pd
 
 
 class VinaDocking(AutoDockBaseDocking):
-    def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
+    def __init__(self, protein_pdb, docking_box, flex_res, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
+        """
+        :param flex_res: list of residues that are kept flexible during the docking,
+        should be in the form of RESID three letter code + residue index (e.g.: THR315)
+        
+        For right now, flexible docking could only take in protein with one chain. 
+        """
         
         super().__init__(protein_pdb, docking_box, logger=logger)
         self.working_path = Path(temp_path) / "{}-vina".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
-        self.protein_path = self.working_path / "{}.pdbqt".format(self.protein_name)
-        
+        protein_path = self.working_path / "{}.pdbqt".format(self.protein_name)
+        flex_residues = "_".join(flex_res)
+
         if not os.path.exists(self.protein_path):
             if protein_pdb.endswith('.pdb'):
-                self.convert_pdb_to_pdbqt(protein_pdb, self.protein_path)
+                self.convert_pdb_to_pdbqt(protein_pdb, protein_path)
             elif protein_pdb.endswith('.pdbqt'):
-                shutil.copy(protein_pdb, self.protein_path)
+                shutil.copy(protein_pdb, protein_path)
         
-        
+        with set_directory(self.working_path):
+            self.convert_pdbqt_to_flex_rigid("{}.pdbqt".format(self.protein_name), flex_residues)
         
         self.docking_box = docking_box
         self.write_config(**kwargs)
@@ -50,7 +58,8 @@ class VinaDocking(AutoDockBaseDocking):
         '''
 
         config_fp = self.working_path / "config.txt"
-        lines = ["receptor = {}/{}.pdbqt".format(self.working_path, self.protein_name),
+        lines = ["receptor = {}/{}_rigid.pdbqt".format(self.working_path, self.protein_name),
+                 "receptor = {}/{}_flex.pdbqt".format(self.working_path, self.protein_name),
                  "",
                  "center_x = {}".format((self.docking_box[0] + self.docking_box[3]) / 2),
                  "center_y = {}".format((self.docking_box[1] + self.docking_box[4]) / 2),
@@ -69,52 +78,6 @@ class VinaDocking(AutoDockBaseDocking):
             lines.append("exhaustiveness = {}".format(exhaustiveness))
         with open(config_fp, "w") as f:
             f.write("\n".join(lines))
-
-            
-    def rescore(self, ligands):
-        '''
-        Rescore given ligand conformations using the current docking protocol
-
-        :param ligands: list of ligands, each ligand is a path to the corresponding .sdf/.pdbqt file
-
-        :return: pd.DataFrame with columns ["original_names", "smiles", "score"]
-        '''
-        
-         # prepare lists to record results
-        ligand_smiles = []
-        ligand_scores = []
-        ligand_conformation_paths = []
-
-        for ligand in ligands:
-            ligand_name = Path(ligand).stem
-            ligand_work_name = ligand_name + "_" + random_id()
-            succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
-            if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
-                continue
-            # save the ligand smiles
-            ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
-
-            # execute vina docking under the working directory
-            with set_directory(self.working_path):
-                cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt --score_only"
-                code, out, err = run_command(cmd, timeout=100)
-
-            # special handling if calculation job times out
-            if code == 999:
-                ligand_scores.append(np.nan)
-                ligand_conformation_paths.append("calculation timed out!")
-                continue
-
-            # obtain docking score from the results
-            strings = re.split('Estimated Free Energy of Binding   :', out)
-            line = strings[1].split('\n')[0]
-            energy = float(line.strip().split()[0])
-            ligand_scores.append(energy)
-        
-        # generate the final pandas dataframe and return
-        df = pd.DataFrame({"original_names": ligands, "smiles": ligand_smiles,
-             "score": ligand_scores})
-        return df
 
     def _run_docking_under_folder(self, ligand_work_name, single_job_timeout):
         cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt " + \

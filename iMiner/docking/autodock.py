@@ -158,6 +158,21 @@ class AutoDockBaseDocking(BaseDocking):
                 return e.output
         
         return True
+    
+    def convert_pdbqt_to_flex_rigid(self, pdbqt_path, flex_res):
+        """
+        Convert a prepared pdbqt to a rigid file and flexible file for 
+        flexible residue docking.
+
+        :param pdbqt_path: str, relative path to the prepared pdbqt file
+        :param flex_res: str, prepared string for flexible residues
+        """
+        try:
+            out = subprocess.run([pythonsh_path, flexrec_prep_path, '-r', pdbqt_path, '-s', flex_res])
+        except subprocess.CalledProcessError as e:
+            print(e.output)
+        
+        return True
 
     def convert_sdf_to_pdbqt(self, sdf_path, output_path):
         '''
