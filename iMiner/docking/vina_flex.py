@@ -56,8 +56,8 @@ class VinaFlexDocking(AutoDockBaseDocking):
         '''
 
         config_fp = self.working_path / "config.txt"
-        lines = ["receptor = {}/{}_rigid.pdbqt".format(self.working_path, self.protein_name),
-                 "flex = {}/{}_flex.pdbqt".format(self.working_path, self.protein_name),
+        lines = ["receptor = {}_rigid.pdbqt".format(self.protein_name),
+                 "flex = {}_flex.pdbqt".format(self.protein_name),
                  "",
                  "center_x = {}".format((self.docking_box[0] + self.docking_box[3]) / 2),
                  "center_y = {}".format((self.docking_box[1] + self.docking_box[4]) / 2),
