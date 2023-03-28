@@ -31,14 +31,13 @@ class VinaFlexDocking(AutoDockBaseDocking):
         super().__init__(protein_pdb, docking_box, logger=logger)
         self.working_path = Path(temp_path) / "{}-vina".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
-        protein_path = self.working_path / "{}.pdbqt".format(self.protein_name)
-        flex_residues = "_".join(flex_res)
-
+        self.protein_path = self.working_path / "{}.pdbqt".format(self.protein_name)
+        
         if not os.path.exists(self.protein_path):
             if protein_pdb.endswith('.pdb'):
-                self.convert_pdb_to_pdbqt(protein_pdb, protein_path)
+                self.convert_pdb_to_pdbqt(protein_pdb, self.protein_path)
             elif protein_pdb.endswith('.pdbqt'):
-                shutil.copy(protein_pdb, protein_path)
+                shutil.copy(protein_pdb, self.protein_path)
         
         with set_directory(self.working_path):
             self.convert_pdbqt_to_flex_rigid("{}.pdbqt".format(self.protein_name), flex_residues)
@@ -164,7 +163,7 @@ class VinaFlexDocking(AutoDockBaseDocking):
             
 
 
-class VinaGPUDocking(VinaDocking):
+class VinaGPUDocking(VinaFlexDocking):
     def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
         AutoDockBaseDocking.__init__(self, protein_pdb, docking_box, logger=logger)
         self.working_path = Path(temp_path) / "{}-vina-gpu".format(self.protein_name)
