@@ -32,6 +32,7 @@ class VinaFlexDocking(AutoDockBaseDocking):
         self.working_path = Path(temp_path) / "{}-vina".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
         self.protein_path = self.working_path / "{}.pdbqt".format(self.protein_name)
+        flex_residues = "_".join(flex_res)
         
         if not os.path.exists(self.protein_path):
             if protein_pdb.endswith('.pdb'):
