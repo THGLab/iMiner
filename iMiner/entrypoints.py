@@ -19,7 +19,7 @@ def parse_args():
     return dict_args
 
 
-def gbsa(task_name: Optional[str] = None, wdir: Optional[os.PathLike] = None, use_mpi: bool = False, num_threads: int = 1):
+def gbsa(task_name: Optional[str] = None, wdir: Optional[os.PathLike] = None, use_mpi: bool = False, num_threads: int = 1, **kwargs):
     assert (task_name is not None) or (wdir is not None), "either task_name or working_dir must be specified"
     if wdir is not None:
         wdir = Path(wdir).resolve()
