@@ -9,10 +9,10 @@ def parse_args():
     subparsers = parser.add_subparsers(title="Valid subcommands", dest="command")
 
     gbsa_parser = subparsers.add_parser("gbsa")
-    gbsa_parser.add_argument("-t", "--task_name", dest='task_name', default=None)
-    gbsa_parser.add_argument("-w", "--working_dir", dest='wdir', default=None)
-    gbsa_parser.add_argument("-m", "--use_mpi", dest='use_mpi', default=False)
-    gbsa_parser.add_argument("-n", "--num_threads", dest='num_threads', default=1)
+    gbsa_parser.add_argument("-t", "--task_name", dest='task_name', default=None, help="Task name")
+    gbsa_parser.add_argument("-w", "--working_dir", dest='wdir', default=None, help="Working directory. Either task_name or working_dir should be specified")
+    gbsa_parser.add_argument("-m", "--use_mpi", dest='use_mpi', action="store_true", help="Use MPI if this toogle is set.")
+    gbsa_parser.add_argument("-n", "--num_threads", dest='num_threads', default=1, help="Number of CPU cores to use in MPI.")
 
     args = parser.parse_args()
     dict_args = vars(args)
