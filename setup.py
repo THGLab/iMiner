@@ -39,7 +39,7 @@ def setup(scm=None):
         zip_safe=False,
         entry_points={
             "console_scripts": [
-                "iMiner = iMiner.entrypoints.main:main"
+                "iMiner = iMiner.entrypoints:main"
             ]
         }
     )
