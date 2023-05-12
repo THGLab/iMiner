@@ -8,7 +8,7 @@ import os
 
 # (LAWRENCIUM)
 ADFR_install_path = '/global/scratch/users/jerry-li1996/src/ADFRsuite_x86_64Linux_1.0/bin'
-meeko_install_path = '/global/scratch/users/ozhang/envs/iminer/bin'
+meeko_install_path = '/global/scratch/users/ozhang/env/iminer-rl/bin'
 iMiner_path = '/global/scratch/users/ozhang/covid/iMiner/iMiner'
 ad4gpu_path = '/global/home/groups/co_armada2/local/AutoDock-GPU/bin/autodock_gpu_128wi'
 
@@ -31,3 +31,14 @@ VINA_GPU_SCRIPT = Path(iMiner_path) / 'docking/run_vina_gpu.sh'
 VINA_GPU_BINARY_PATH = Path(iMiner_path) / "docking/bins"
 
 #tankbind_dir_path = os.path.dirname(tankbind_python_path)
+
+RF_model_path = Path(iMiner_path) / 'docking/bins/RF_newsplit.pkl'
+RF_col_mask = [True,  True,  True,  True,  True,  True,  True,  True,  True,
+               True,  True,  True,  True,  True,  True,  True,  True,  True,
+               True,  True,  True,  True,  True,  True,  True,  True,  True,
+               False, False, False, False, False, False, False, False, False,
+               False, False, False, False, False, False, False, False, False,
+               True,  True,  True,  True,  True,  True,  True,  True,  True,
+               False, False, False, False, False, False, False, False, False,
+               False, False, False, False, False, False, False, False, False,
+               False, False, False, False, False, False, False, False, False]

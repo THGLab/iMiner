@@ -23,8 +23,8 @@ Distributions generated from 10000 random samples of CHEMBL molecules
 
 import numpy as np
 from rdkit import Chem
-from rdkit.Chem import QED, Lipinski
-
+from rdkit.Chem import QED, Lipinski, Descriptors, Crippen
+from collections import namedtuple
 
 def log_prob(vector, bin_range):
     vector=np.array(vector)
@@ -137,6 +137,59 @@ class DrugLikeliness():
             make_onehot(props[13], np.arange(15)).dot(self.max_ring_size_LP)
         ])
         return log_prob.dot(self.relative_weights) + offset
+    
+        
+# ESOL:  Estimating Aqueous Solubility Directly from Molecular Structure 
+# John S. Delaney, J. Chem. Inf. Comput. Sci., 2004, 44, 1000 - 1005
+# https://pubs.acs.org/doi/abs/10.1021/ci034243x 
+# Adapted from https://github.com/PatWalters/solubility.git
+
+class ESOLCalculator():
+    def __init__(self):
+        self.aromatic_query = Chem.MolFromSmarts("a")
+        self.Descriptor = namedtuple("Descriptor", "mw logp rotors ap".split())
+
+    def calc_ap(self, mol):
+        """
+        Calculate aromatic proportion #aromatic atoms/#atoms total
+        :param mol: input molecule
+        :return: aromatic proportion
+        """
+        matches = mol.GetSubstructMatches(self.aromatic_query)
+        return len(matches) / mol.GetNumAtoms()
+
+    def calc_esol_descriptors(self, mol):
+        """
+        Calcuate mw,logp,rotors and aromatic proportion (ap)
+        :param mol: input molecule
+        :return: named tuple with descriptor values
+        """
+        mw = Descriptors.MolWt(mol)
+        logp = Crippen.MolLogP(mol)
+        rotors = Lipinski.NumRotatableBonds(mol)
+        ap = self.calc_ap(mol)
+        return self.Descriptor(mw=mw, logp=logp, rotors=rotors, ap=ap)
+
+    def calc_score(self, input):
+        """
+        Calculate ESOL based on descriptors in the Delaney paper, coefficients refit for the RDKit using the
+        routine refit_esol below
+        :param input: input molecule (smiles string)
+        :return: predicted solubility
+        """
+        # original coef from delaney
+        #intercept = 0.16
+        #coef = {"logp": -0.63, "mw": -0.0062, "rotors": 0.066, "ap": -0.74}
+        intercept = 0.26121066137801696
+        coef = {'mw': -0.0066138847738667125, 'logp': -0.7416739523408995, 'rotors': 0.003451545565957996, 'ap': -0.42624840441316975}
+        if type(input) is str:
+            mol = Chem.MolFromSmiles(input)
+        else:
+            mol = input
+        desc = self.calc_esol_descriptors(mol)
+        esol = intercept + coef["logp"] * desc.logp + coef["mw"] * desc.mw + coef["rotors"] * desc.rotors \
+               + coef["ap"] * desc.ap
+        return esol
     
     
 if __name__ == '__main__':

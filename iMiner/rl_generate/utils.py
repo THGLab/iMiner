@@ -1,14 +1,42 @@
-from fastai import *
-from fastai.text import *
-
+        #from fastai import *
+from fastai.text import (
+  BaseTokenizer, 
+  BOS, PAD,
+  defaults
+)
+from typing import List
 import torch.nn.functional as F
 import torch
 from torch.distributions import Categorical
 import numpy as np
-import selfies as sf
+#from multiprocessing import Pool
+
+#import selfies as sf
+from rdkit import Chem
+from group_selfies import (
+    fragment_mols, 
+    Group, 
+    GroupGrammar, 
+)
 
 defaults.text_spec_tok = [BOS, PAD]
 
+def split_selfies(selfies: str):
+
+    left_idx = selfies.find("[")
+    while 0 <= left_idx < len(selfies):
+       
+        right_idx = selfies.find("]", left_idx + 1)
+        if right_idx == -1:
+            raise ValueError("malformed SELFIES string, hanging '[' bracket")
+            
+        next_symbol = selfies[left_idx: right_idx + 1]
+        yield next_symbol
+        left_idx = right_idx + 1
+        if selfies[left_idx: left_idx + 1] == ".":
+            yield "."
+            left_idx += 1
+            
 class MolTokenizer(BaseTokenizer):
     def __init__(self, lang):
         self.encode_dict = {"Br": 'Y', "Cl": 'X', "Si": 'A', 'Se': 'Z', '@@': 'R', 'se': 'E'}
@@ -26,22 +54,62 @@ class MolTokenizer(BaseTokenizer):
 
 class SELFIESTokenizer(BaseTokenizer):
     def __init__(self, lang: str):
-        self.tokens = ["#Branch1",	"#Branch2",	"#C",	"#N",	"#N+1",	"-/Ring2",	"/Br",	"/C",
-        	"/C@",	"/C@@",	"/C@@H1",	"/C@H1",	"/Cl",	"/N",	"/N+1",	"/O",	"/S",
-            	"=Branch1",	"=Branch2",	"=C",	"=N",	"=N+1",	"=N-1",	"=O",	"=P",	"=Ring1",
-                	"=Ring2",	"=S",	"=Se",	"Br",	"Branch1",	"Branch2",	"C",
-        	"C-1",	"C@",	"C@@",	"C@@H1",	"C@H1",	"Cl",	"F",	"I",	"N",	"N+1",	"N-1",
-        	"NH1",	"O",	"O-1",	"OH0",	"P",	"P+1",	"P@",	"P@@",	"PH1",	"Ring1",	"Ring2",
-        	"S",	"S+1",	"Se",	"\\C",	"\\C@@H1",	"\\C@H1",	"\\Cl",	"\\N",
-            	"\\N+1",	"\\NH1",	"\\O",	"\\O-1",	"\\S"]
+        self.tokens = { 
+            "#Branch1", "#Branch2", "#C", "#N", "#N+1", "-/Ring2", "/Br", "/C", "/C@", "/C@@", 
+            "/C@@H1", "/C@H1", "/Cl", "/N", "/N+1", "/O", "/S", "\\S",
+            "=Branch1",	"=Branch2", "=C", "=N",	"=N+1",	"=N-1",	"=O", "=P", "=Ring1",
+            "=Ring2", "=S", "Br", "Branch1", "Branch2", "C", "C-1", "C@", "C@@",	"C@@H1", 
+            "C@H1", "Cl", "F", "I", "N", "N+1",	"N-1", "NH1", "O", "O-1", "OH0", "\\O", "\\O-1",
+            "P", "P+1",	"P@", "P@@", "PH1", "Ring1", "Ring2", "S", "S+1", 
+            "\\C", "\\C@@H1", "\\C@H1", "\\Cl", "\\N", "\\N+1", "\\NH1", "pop"}
+        self.grammar = GroupGrammar.essential_set()
+    
+    def g_encoder(self, smi):
+        try:
+            mol = Chem.MolFromSmiles(smi)
+            encoded = self.grammar.full_encoder(mol)
+        except ValueError:
+            print(smi)
+            return ""
+        return encoded
+    
+    def add_frag_to_tokens(self, frags, frag_names=[]):
+        if len(frag_names) == 0:
+            frag_names = [f'{f}{i}' for i in range(len(frag_names))]
+        assert len(frags) == len(frag_names)
+        g = GroupGrammar([Group(f, n) for f, n in zip(frags, frag_names)])
+        self.grammar = self.grammar | g
+    
+    def set_grammar_from_file(self, file):
+        self.grammar = GroupGrammar.from_file(file) #| self.grammar
+        
+    def set_grammar_from_mol(self, smis, method="mmpa", name="mfrag"):
+        f = fragment_mols(smis, convert=True, method=method, target=500)
+        vocab = dict([(f'{name}{idx}', Group(f'{name}{idx}', frag)) for idx, frag in enumerate(f)])
+        self.grammar = self.grammar | GroupGrammar(vocab=vocab)
+        
+    def smi_to_gselfies(self, smiles, extract_grammar=False):
+        if extract_grammar:
+            self.define_grammar_from_mol(smiles)
+            
+        #print('Encoding... ', end='')
+        #parallel not working properly on cluster 
+        #with Pool() as pool:
+        #    gselfies = pool.map(self.g_encoder, smiles)
+        #print('Done encoding')
 
+        # update token 
+        #self.set_token_from_gsf(gselfies)
+        #return gselfies
+        return [self.g_encoder(s) for s in smiles]
+    
+    def set_token_from_gsf(self, gselfies):
+        for sf in gselfies:
+            self.tokens.update(sf[1:-1].split("]["))
+    
     def tokenizer(self, selfies: str) -> List[str]:
         selfies_tokens = selfies[1:-1].split("][")
-        if np.any([tk not in self.tokens for tk in selfies_tokens]):
-            # print(selfies)
-            return [BOS] # if any very rara token occurs in the SELFIES string, discard the sequence (should be rare)
-        else:
-            return [BOS] + selfies_tokens
+        return [BOS] + selfies_tokens
 
 
 class ModelSampler():

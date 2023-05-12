@@ -1,3 +1,0 @@
-ligand_names,score,smiles,protocol,path,original_names
-0,-7.5,COC=CC1=C[C@H]2C(=O)N[CH][C@@H]3CC[C@@H](C)C[C@@H]3C[C@@H]1C(=O)N(c1cccc(O)c1)C2=O,vina-gpu,/global/scratch/users/ozhang/covid/iMiner/examples/test_consensus_docking/consensus_docking/zikvpro/vina-gpu/0.sdf,/global/scratch/users/ozhang/covid/iMiner/examples/test_consensus_docking/ligands/0.sdf
-1,-8.0,C[C@@H]1/C=C\c2nonc2C2=CN1C=C[C@H]2Nc1cccc2cnccc12,vina-gpu,/global/scratch/users/ozhang/covid/iMiner/examples/test_consensus_docking/consensus_docking/zikvpro/vina-gpu/1.sdf,/global/scratch/users/ozhang/covid/iMiner/examples/test_consensus_docking/ligands/1.sdf

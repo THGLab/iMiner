@@ -100,15 +100,13 @@ class InteractionScorer():
         return max_score 
     
     def calc_score_parallel(self, ligands):
-        pool = multiprocessing.Pool(self.n_jobs)
         ligands = [[ligand] for ligand in ligands]
         results = []
         #print("parallel interaction calculation")
-        for result in pool.imap(partial(unpack_helper, self.calc_score), ligands):
-            results.append(result)
-        # clean up
-        pool.close()
-        pool.join()
+        with multiprocessing.Pool(self.n_jobs) as pool:
+            for result in pool.map(self.calc_score, ligands):
+                results.append(result)
+        
         return np.array(results)
     
 # for testing

@@ -45,7 +45,7 @@ def calc_fragment_position(pose_path, fragment, frag_cm, threshold=2):
         #print("error fragmenting molecule")
         return None
     scores = [DataStructs.DiceSimilarity(fragment_fp, fb) for fb in pose_fbit]
-    if np.max(scores) < 0.2:
+    if np.max(scores) < 0.3:
         #print("low similarity score")
         return None
     # choose highest scored fragment
