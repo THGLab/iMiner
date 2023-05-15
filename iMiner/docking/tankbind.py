@@ -11,40 +11,69 @@ import os
 from iMiner.docking.base import BaseDocking
 from iMiner.cmd import run_command, set_directory
 from iMiner.utils import random_id
-from iMiner.pathlib import tankbind_python_path, tankbind_dir_path, tankbind_src_path, p2rank_path
+from iMiner.pathlib import rcPath
 from rdkit import Chem
 import shutil
 import pandas as pd
 
-my_env = os.environ.copy()
-my_env["PATH"] = f"{tankbind_dir_path}:" + my_env["PATH"]
-os.environ.update(my_env)
+
 class TankBindDocking(BaseDocking):
-    def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
-        super().__init__(protein_pdb, docking_box)
-        self.working_path = temp_path / "{}-tankbind".format(self.protein_name)
-        os.makedirs(self.working_path, exist_ok = True)
+    def __init__(self, protein, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
+        super().__init__(protein, docking_box)
+        # prep working path
+        self.working_path = Path(temp_path) / "{}-tankbind".format(self.protein_name)
+        self.working_path.mkdir(exist_ok=True, parents=True)
+        self.working_path = self.working_path.resolve()
+        
+        # docking box
         self.docking_box = docking_box
-        self.prepare_protein(protein_pdb, docking_box)
+        
+        # setup TankBind envs
+        self.tankbind_python_path = rcPath.get('tankbind_python_path', 'python')
+        self.tankbind_src_path = rcPath['tankbind_src_path']
+        self.p2rank_path = rcPath['p2rank_path']
+        if self.tankbind_python_path != "python":
+            tankbind_lib_path = Path(self.tankbind_python_path).parent.parent / 'lib'
+            os.environ['LD_LIBRARY_PATH'] = f"{tankbind_lib_path}:" + os.environ['LD_LIBRARY_PATH']
+            os.environ['PATH'] = str(Path(self.tankbind_python_path).parent) + ":" + os.environ['PATH']
+        
+        # prepare protein
+        self.prepare_protein(protein, docking_box)
+        
+        # setup TankBind model path
+        self.model_path = kwargs.get("model_path", None)
+        self.model_path = Path(self.model_path).resolve() if self.model_path else None
 
-
-    def prepare_protein(self, protein_pdb, docking_box):
+    def prepare_protein(self, protein, docking_box):
         center = [(docking_box[0] + docking_box[3]) / 2, (docking_box[1] + docking_box[4]) / 2, (docking_box[2] + docking_box[5]) / 2]
         center = ",".join([str(x) for x in center])
-        protein_pdb = os.path.abspath(protein_pdb)
-        with set_directory(self.working_path):
-            cmd = [tankbind_python_path, f"{tankbind_src_path}/prepare_protein.py", f"--protein_pdb={protein_pdb}",
-                f'--center={center}', f'--p2rank_cmd="bash {p2rank_path}"']
-            run_command(cmd)
-            assert os.path.exists("protein.pkl"), "Failed to prepare protein"
+        protein = Path(protein).resolve()
+        
+        if protein.suffix == '.pkl':
+            shutil.copyfile(protein, self.working_path / "protein.pkl")
+        elif protein.suffix == '.pdb':
+            with set_directory(self.working_path):
+                cmd = [self.tankbind_python_path, f"{self.tankbind_src_path}/prepare_protein.py", f"--protein_pdb={protein}",
+                    f'--center={center}', f'--p2rank_cmd="bash {self.p2rank_path}"']
+                run_command(cmd)
+                assert os.path.exists("protein.pkl"), "Failed to prepare protein"
+        else:
+            raise RuntimeError(f"Unsupported format: {protein.suffix}")
 
-    def run_docking(self, ligand_content_csv, unique_id, device):
+    def run_docking(self, ligand_content_csv, output_dir, device):
+        ligand_content_csv = Path(ligand_content_csv).resolve()
         with set_directory(self.working_path):
-            # path_modifier = f"PATH={tankbind_dir_path}:$PATH"
-            cmd = f"{tankbind_python_path} {tankbind_src_path}/dock_ligands.py --protein_data protein.pkl " + \
-                 f"--ligands {ligand_content_csv} --device {device} --output_dir {unique_id}"
+            cmd = [
+                self.tankbind_python_path, f"{self.tankbind_src_path}/dock_ligands.py",
+                "--protein_data", "protein.pkl",
+                "--ligands", ligand_content_csv,
+                "--device", device,
+                "--output_dir", output_dir
+            ]
+            if self.model_path is not None:
+                cmd += ['--model_path', self.model_path]
             run_command(cmd)
-            assert os.path.exists(os.path.join(unique_id, "prediction_info.csv")), "Failed to generate docking results"
+            assert os.path.exists(os.path.join(output_dir, "prediction_info.csv")), "Failed to generate docking results"
 
 
     def dock(self, ligands, output_dir, gpu=None):

@@ -39,9 +39,28 @@ VINA_GPU_BINARY_PATH = Path(iMiner_path) / "docking/bins"
 
 tankbind_dir_path = os.path.dirname(tankbind_python_path)
 
+rcPath = {
+    "tankbind_python_path": '/home/jerry/anaconda3/envs/tankbind/bin/python',
+    "tankbind_src_path": '/home/jerry/data/TankBind',
+    "p2rank_path": '/home/jerry/src/p2rank_2.4/prank',
+}
+
 def use_savio_path_config():
     paths = [
         "/global/home/groups/co_armada2/local/ADFRsuite/bin",
         Path(__file__).parent / "docking/bins"
     ]
     os.environ['PATH'] = os.environ.get("PATH") + ":" + ":".join(str(x) for x in paths)
+
+def use_gcc_740_savio():
+    env = dict(
+        CPATH="/global/software/sl-7.x86_64/modules/langs/gcc/7.4.0/include",
+        FPATH="/global/software/sl-7.x86_64/modules/langs/gcc/7.4.0/include",
+        GCC_DIR="/global/software/sl-7.x86_64/modules/langs/gcc/7.4.0",
+        INCLUDE="/global/software/sl-7.x86_64/modules/langs/gcc/7.4.0/include",
+        PATH=f"/global/software/sl-7.x86_64/modules/langs/gcc/7.4.0/bin:{os.environ['PATH']}",
+        LD_LIBRARY_PATH=f"/global/software/sl-7.x86_64/modules/langs/gcc/7.4.0/lib64:{os.environ['LD_LIBRARY_PATH']}",
+        LIBRARY_PATH=f"/global/software/sl-7.x86_64/modules/langs/gcc/7.4.0/lib64:{os.environ['LIBRARY_PATH']}"
+    )
+    os.environ.update(env)
+        
