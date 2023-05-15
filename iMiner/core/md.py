@@ -93,7 +93,7 @@ class MDProject(BaseProject):
             else:
                 self.md_params[key] = jdata['md'][key]
 
-    def parametrize_ligand(self, name: str, wdir: Path, **kwargs):
+    def parametrize_ligand(self, name: str, wdir: Path, use_cache: bool = False, **kwargs):
         """
         Parametrize ligand
         """
@@ -101,7 +101,7 @@ class MDProject(BaseProject):
 
         prep_path = wdir.resolve() / "ligand"
         # delete all existing acpype files, otherwise acpype reuses old files
-        if prep_path.exists() and prep_path.is_dir():
+        if prep_path.exists() and prep_path.is_dir() and (not use_cache):
             shutil.rmtree(prep_path) 
         prep_path.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(self.get_ligand_with_name(name), prep_path / "ligand.sdf")
@@ -148,25 +148,40 @@ class MDProject(BaseProject):
                 sys.exit(1)
         return True
     
-    def make_complex(self, wdir: Path):
+    def make_complex(self, wdir: Path, ligand_only: bool = False, protein_only: bool = False):
         """
         Make protein-ligand complex
         TODO: error handlings
         """
-        from iMiner.md.prep.complex import make_complex
+        from iMiner.md.prep.complex import make_complex, make_solvated
 
         prep_path = wdir.resolve() / "complex"
         prep_path.mkdir(parents=True, exist_ok=True)
-        make_complex(
-            wdir.resolve() / "protein" / "protein.amb2gmx" / "protein_GMX.top",
-            wdir.resolve() / "ligand" / "MOL.acpype" / "MOL_GMX.itp",
-            wdir.resolve() / "protein" / "protein.amb2gmx" / "protein_GMX.gro",
-            wdir.resolve() / "ligand" / "MOL.gro",
-            wdir.resolve() / 'protein' / 'protein.amb2gmx' / 'posre_protein.itp',
-            wdir.resolve() / 'ligand' / 'MOL.acpype' / "posre_MOL.itp",
-            prep_path
-        )
-    
+        if ligand_only:
+            make_solvated(
+                wdir.resolve() / "ligand" / "MOL.acpype" / "MOL_GMX.itp",
+                wdir.resolve() / "ligand" / "MOL.gro",
+                wdir.resolve() / "ligand" / "MOL.acpype" / "posre_MOL.itp",
+                prep_path, "topol.top", "complex.gro"
+            )
+        elif protein_only:
+            make_solvated(
+                wdir.resolve() / "protein" / "protein.amb2gmx" / "protein_GMX.top",
+                wdir.resolve() / "protein" / "protein.amb2gmx" / "protein_GMX.gro",
+                wdir.resolve() / "protein" / "protein.amb2gmx" / "posre_protein.itp",
+                prep_path, "topol.top", "complex.gro"
+            )
+        else:
+            make_complex(
+                wdir.resolve() / "protein" / "protein.amb2gmx" / "protein_GMX.top",
+                wdir.resolve() / "ligand" / "MOL.acpype" / "MOL_GMX.itp",
+                wdir.resolve() / "protein" / "protein.amb2gmx" / "protein_GMX.gro",
+                wdir.resolve() / "ligand" / "MOL.gro",
+                wdir.resolve() / 'protein' / 'protein.amb2gmx' / 'posre_protein.itp',
+                wdir.resolve() / 'ligand' / 'MOL.acpype' / "posre_MOL.itp",
+                prep_path
+            )
+
     def remove_pbc_workflow(self, wdir: Path, version: int = 1):
         """
         Remove PBC
@@ -382,8 +397,8 @@ class MDProject(BaseProject):
         self.step_cnt += 1
         self.logger.info(f"===== Step {self.step_cnt}: {msg.capitalize()} =====")
     
-    def run(self, lig_name: str, prot_name: str, task_name: Optional[str] = None, 
-            lig_charge = "auto"):
+    def run(self, lig_name: str, prot_name: Optional[str] = None, task_name: Optional[str] = None, 
+            lig_charge = "auto", analysis: bool = True, use_cache: bool = False):
         """
         Run iMiner Molecular Dynamics Workflow
         
@@ -397,26 +412,31 @@ class MDProject(BaseProject):
         
         wdir = self.md_path / task_name
         
-        self.log_step("Parametrize Protein")
-        self.parametrize_protein(prot_name, wdir)
-
-        self.log_step("Parametrize Ligand")
-        self.parametrize_ligand(lig_name, wdir, net_charge=lig_charge)
-
-        self.log_step("Make Complex")
-        self.make_complex(wdir)
+        if prot_name:
+            self.log_step("Parametrize Protein")
+            self.parametrize_protein(prot_name, wdir)
         
+        if lig_name:
+            self.log_step("Parametrize Ligand")
+            self.parametrize_ligand(lig_name, wdir, net_charge=lig_charge, use_cache=use_cache)
+        
+        ligand_only = (lig_name is not None) and (prot_name is None)
+        protein_only = (prot_name is not None) and (lig_name is None)
+        self.log_step("Make Complex")
+        self.make_complex(wdir, ligand_only, protein_only)
+
         self.log_step("MD Preparation")
         self.prep_md(wdir)
         
         self.log_step("Run MD")
         self.run_md(wdir)
         
-        self.log_step("Remove PBC of MD Trajectory")
-        self.remove_pbc_workflow(wdir)
-        
-        self.log_step("Analyze RMSD and Interactions")
-        self.analyze_md_traj(wdir, lig_name)
+        analysis = analysis and (not ligand_only) and (not protein_only)
+        if analysis:
+            self.log_step("Remove PBC of MD Trajectory")
+            self.remove_pbc_workflow(wdir)
+            self.log_step("Analyze RMSD and Interactions")
+            self.analyze_md_traj(wdir, lig_name)
         
         self.log_step("Clean working directory")
         self.clean(wdir)
