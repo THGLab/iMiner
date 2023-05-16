@@ -264,7 +264,8 @@ class RbfeProject(MDProject):
         prot_name: str, 
         mapping: Union[os.PathLike, np.ndarray],
         task_name: Optional[str] = None,
-        remove_cache: bool = True
+        remove_cache: bool = True,
+        use_dispatcher: bool = False
     ):
         """
         Run iMiner Relative Binding Free Energy Calculation Workflow
@@ -297,7 +298,7 @@ class RbfeProject(MDProject):
         self.prep_md(wdir)
         
         self.log_step("Run MD")
-        self.run_md(wdir)        
+        self.run_md(wdir, use_dispatcher)        
         
         self.log_step("Clean working directory")
         self.clean(wdir)
