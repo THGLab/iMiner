@@ -5,6 +5,7 @@ from pathlib import Path
 from iMiner.cmd import set_directory
 from iMiner.md.prep.protein import run_tleap
 from iMiner.md.prep.complex import split_top, make_complex, make_solvated
+from iMiner.md.runner.gromacs import run_md_workflow
 
 
 @pytest.mark.parametrize(
@@ -75,10 +76,24 @@ def test_make_solvated():
     with set_directory(datadir):
         make_solvated(
             ligand_top="MOL.top",
-            ligand_gro='ligand.gro',
+            ligand_gro='MOL.gro',
             ligand_posre='posre_MOL.itp',
             wdir=wdir,
             solvated_top_name="topol.top",
         )
     assert Path.is_file(wdir / "topol.top")
+    shutil.rmtree(wdir)
+
+
+def test_make_commands():
+    datadir = Path(__file__).parent / "data"
+    wdir = datadir / 'test_make_commands'
+    commands = run_md_workflow(
+        top = datadir / 'MOL.top',
+        gro = datadir / 'MOL.gro',
+        wdir = wdir,
+        enforce_gpu=True,
+        restart=True,
+        return_commands_only=True
+    )
     shutil.rmtree(wdir)

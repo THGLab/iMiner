@@ -7,7 +7,7 @@ Codes of iMiner util functions
 import random
 import time
 import datetime
-import sys, os
+import sys, os, shutil
 from io import StringIO
 from pathlib import Path
 import contextlib
@@ -54,6 +54,27 @@ def dir_abspath(path: os.PathLike) -> Path:
     if not abs_path.is_dir():
         raise FileNotFoundError(f'{abs_path} not exist')
     return abs_path
+
+
+def safe_copy(src, dest):
+    dest = Path(dest)
+    src = Path(src)
+    if dest.is_dir():
+        if Path.is_file(dest / src.name):
+            cnt = len(list(dest.glob(f"{src.name}.backup.*")))
+            shutil.move(dest / src.name, dest / f"{src.name}.backup.{cnt}")
+        shutil.copyfile(src, dest / src.name)
+    else:
+        cnt = len(list(dest.parent.glob(f"{dest.name}.backup.*")))
+        shutil.move(dest, dest.with_name(f"{dest.name}.backup.{cnt}"))
+        shutil.copyfile(src, dest)
+
+
+def to_relpath(path: os.PathLike, reldir: os.PathLike):
+    reldir = Path(reldir).resolve()
+    assert reldir.is_dir()
+    path = Path(path).resolve()
+    return os.path.relpath(path, reldir)
 
 
 def dist_mat(crd1: np.ndarray, crd2: np.ndarray) -> np.ndarray:

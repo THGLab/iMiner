@@ -24,7 +24,9 @@ class RbfeProject(MDProject):
         verbose: bool = True, 
         logger: Optional[os.PathLike] = "iMiner.log",
         temp_path: os.PathLike = "/tmp",
-        engine: str = "gromacs"
+        engine: str = "gromacs",
+        machine_dict: Optional[Dict[str, Any]] = None,
+        resources_dict: Optional[Dict[str, Any]] = None
     ) -> None:
         '''
         Initialize a molecule dynamics project
@@ -46,6 +48,10 @@ class RbfeProject(MDProject):
             Path to store temporary files. Default is `/tmp`
         engine: str
             MD engine. Only "gromacs" supported currently.
+        machine_dict: dict
+            Config for dpdispatcher.Machine
+        resources_dict: dict
+            Config for dpdispatcher.Resources
         '''
 
         super().__init__(project_name, project_path, verbose, logger, temp_path, engine)
@@ -71,6 +77,8 @@ class RbfeProject(MDProject):
             }
         }
         self.update_lambdas()
+        self.machine_dict = {"batch_type": "Slurm", "context": "LocalContext"}
+        self.resources_dict = resources_dict
 
     def update_lambdas(self):
         lambda_keys = [
@@ -195,12 +203,19 @@ class RbfeProject(MDProject):
         self.logger.info("Prepare MD for complex system...")
         run_preprocess_workflow("topol.top", "complex.gro", wdir.resolve() / "complex", verbose=True, logger=self.logger)
         
-    def run_md(self, wdir: Path):
+    def run_md(self, wdir: Path, use_dispatcher: bool = False):
         """
         Run molecular dynamics workflow
         """
         import iMiner.md.rbfe as rbfe
         
+        if use_dispatcher:
+            from dpdispatcher import Machine, Resources, Submission, Task
+
+            machine = Machine.load_from_dict(self.machine_dict.update({"local_root": str(wdir), "remote_root": str(wdir)}))
+            resources = Resources.load_from_dict(self.resources_dict)
+            task_list = []
+
         for tag in ["solvated", "complex"]:
             for i in range(self.num_lambdas):
                 self.logger.info(f"Running MD for {tag}/lambda{i}...")
@@ -208,7 +223,7 @@ class RbfeProject(MDProject):
                 md_dir.mkdir(parents=True, exist_ok=True)
                 for stage in ['em', 'nvt', 'npt', 'prod']:
                     self.md_params[stage]['init-lambda-state'] = i
-                run_md_workflow(
+                commands = run_md_workflow(
                     wdir / tag / "processed.top", 
                     wdir / tag / "ions.gro", 
                     md_dir, 
@@ -217,8 +232,24 @@ class RbfeProject(MDProject):
                     enforce_gpu=self.md_params['enforce_gpu'],
                     verbose=True,
                     logger=self.logger,
-                    mdp_dir=Path(rbfe.__path__[0]).resolve()
+                    mdp_dir=Path(rbfe.__path__[0]).resolve(),
+                    top_posre=wdir / tag / "processed_posre.top",
+                    return_commands_only=use_dispatcher
                 )
+                if use_dispatcher:
+                    with open(md_dir / "run.sh", 'w') as f:
+                        f.write(commands)
+                    task = Task(
+                        command = commands,
+                        task_work_path=f"{tag}/lambda{i}",
+                        backward_files=["em/*", "nvt/*", "npt/*", "prod/*"]
+                    )
+                    task_list.append(task)
+        
+        if use_dispatcher:
+            sub = Submission(work_base=wdir, machine=machine, resources=resources, task_list=task_list)
+            sub.run_submission()
+                            
     
     def clean(self, wdir: Path):
         """

@@ -7,12 +7,13 @@ This package contains functions to run gromacs
 import os
 import shutil
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 from logging import Logger
 
 import gromacs
 gromacs.config.setup(Path(gromacs.__file__).parent / "templates/gromacswrapper.cfg")
 from gromacs.fileformats.mdp import MDP
+from iMiner.utils import to_relpath
 from iMiner.cmd import run_command, find_executable, set_directory
 
 MAXWARN = 10
@@ -65,6 +66,7 @@ def run_md(
     restart: bool = True,
     params: Dict[str, Any] = dict(),
     enforce_gpu: bool = False,
+    return_commands_only: bool = False
 ):
     """
     Run molecular dynamics with GROMACS
@@ -91,8 +93,12 @@ def run_md(
         parameters to update template mdp file
     enforce_gpu: bool
         whether to explicitly enforce "-update gpu -nb gpu -bonded gpu"
+    return_commands_only: bool
+        if this is set, return commands only instead of running them
     """
     gmx = find_executable(["gmx_mpi", "gmx"])
+    if return_commands_only:
+        gmx = gmx.split("/")[-1]
 
     with set_directory(wdir):
         mdp_file = MDP(mdp)
@@ -102,12 +108,19 @@ def run_md(
         if os.path.isfile(mdp):
             shutil.copyfile(mdp, Path(mdp).with_name(f'{mdp.stem}.mdp.backup'))
         mdp_file.write(str(mdp))
+
+        mdp = to_relpath(mdp, wdir)
+        top = to_relpath(top, wdir)
+        gro = to_relpath(gro, wdir)
+
         # run grompp
         grompp_cmds = [gmx, "grompp", '-c', str(gro), "-f", str(mdp)]
         if restr_gro is not None:
+            restr_gro = to_relpath(restr_gro, wdir)
             grompp_cmds.append('-r')
             grompp_cmds.append(str(restr_gro))
         if cpt is not None:
+            cpt = to_relpath(cpt, wdir)
             grompp_cmds.append('-t')
             grompp_cmds.append(str(cpt))
         grompp_cmds.append('-p')
@@ -117,17 +130,31 @@ def run_md(
         grompp_cmds.append('-maxwarn')
         grompp_cmds.append(str(MAXWARN))
 
-        run_command(grompp_cmds, True)
+        if not return_commands_only:
+            run_command(grompp_cmds, True)
 
         # run md
-        mdrun_cmds = [gmx, 'mdrun']
+        mdrun_cmds = []
+        if restart and return_commands_only:
+            mdrun_cmds += [f'if [ -f {deffnm}.cpt ]; then\n  ']
+            
+        mdrun_cmds += [gmx, 'mdrun']
         if restart and os.path.isfile(f"{deffnm}.cpt"):
             mdrun_cmds += ['-s', f'{deffnm}.tpr', '-cpi', f'{deffnm}.cpt']
         if enforce_gpu:
             mdrun_cmds += ['-update', 'gpu', '-nb', 'gpu', '-bonded', 'gpu']
         mdrun_cmds += ['-deffnm', deffnm]
 
-        run_command(mdrun_cmds, True)
+        if restart and return_commands_only:
+            mdrun_cmds.append("\nfi")
+
+        if not return_commands_only:
+            run_command(mdrun_cmds, True)
+    
+    if return_commands_only:
+        return [' '.join(grompp_cmds), ' '.join(mdrun_cmds)]
+    else:
+        return [True]
 
 
 def run_md_workflow(
@@ -141,14 +168,18 @@ def run_md_workflow(
     logger: Optional[Logger] = None,
     mdp_dir: Optional[os.PathLike] = None,
     top_posre: Optional[os.PathLike] = None,
-):
+    return_commands_only: bool = False,
+) -> Union[bool, str]:
     stages = ["em", "nvt", "npt", "prod"]
     if mdp_dir is None:
         mdp_dir = Path(__file__).parent
     else:
         mdp_dir = Path(mdp_dir).resolve()
+    
+    commands = []
     with set_directory(wdir, mkdir=True) as w:
         for i, stage in enumerate(stages):
+            commands.append(f"cd {stage}")
             Path.mkdir(w / stage, parents=True, exist_ok=True)
             shutil.copyfile(mdp_dir / f"{stage}.mdp", w / stage / f"{stage}.mdp")
             if verbose and logger: logger.info(f"Running {stage}...")
@@ -156,7 +187,7 @@ def run_md_workflow(
                 top_use = Path(top_posre).resolve()
             else:
                 top_use = Path(top).resolve()
-            run_md(
+            commands += run_md(
                 top = top_use,
                 gro = Path(gro).resolve(),
                 mdp = w / stage / f"{stage}.mdp",
@@ -166,6 +197,13 @@ def run_md_workflow(
                 restr_gro = f"../{stages[i-1]}/{stages[i-1]}.gro" if (i > 0 and i < 3) else None, 
                 restart = bool(i) if restart else False, # em don't restart
                 params = params[stage],
-                enforce_gpu = bool(i) if enforce_gpu else False
+                enforce_gpu = bool(i) if enforce_gpu else False,
+                return_commands_only=return_commands_only
             )
             gro = Path(w / stage / f"{stage}.gro")
+            commands.append("cd ..")
+    
+    if return_commands_only:
+        return '\n'.join(commands)
+    else:
+        return True
