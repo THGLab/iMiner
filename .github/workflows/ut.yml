@@ -20,6 +20,8 @@ jobs:
         run: |
           source $CONDA/bin/activate
           conda create -n iminer python=${{ matrix.python-version }} numpy pandas acpype pytest pytest-xdist rdkit tqdm -c conda-forge
+          source $CONDA/bin/activate iminer
+          pip install GromacsWrapper parmed
       - name: Install iMiner
         run: |
           source $CONDA/bin/activate iminer
