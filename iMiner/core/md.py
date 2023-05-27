@@ -109,13 +109,13 @@ class MDProject(BaseProject):
             obabel = find_executable(['obabel'])
             try:
                 run_acpype("ligand.sdf", **kwargs)
-            except CommandExecuteError:
-                self.logger.error(f"Error in preparing ligand {self.get_ligand_with_name(name)}. See details in acpype log file.")
+            except CommandExecuteError as e:
+                self.logger.error(f"Error in preparing ligand {self.get_ligand_with_name(name)}: {e}")
                 sys.exit(1)
             try:
                 run_command([obabel, 'ligand.sdf', '-O', 'MOL.gro'])
-            except CommandExecuteError:
-                self.logger.error(f"Error in converting ligand {self.get_ligand_with_name(name)} with obabel.")
+            except CommandExecuteError as e:
+                self.logger.error(f"Error in converting ligand {self.get_ligand_with_name(name)} with obabel: {e}")
                 sys.exit(1)
         return True
     
@@ -139,12 +139,13 @@ class MDProject(BaseProject):
             try:
                 run_tleap("protein_processed.pdb", protein_ff=self.md_params['protein_ff'])
             except CommandExecuteError as e:
-                self.logger.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in tleap log file.")
+                tleap_log = wdir / 'protein' / name / 'leap.log'
+                self.logger.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in {tleap_log}.")
                 sys.exit(1)
             try:
                 run_acpype(args=["-p", "protein.prmtop", "-x", "protein.inpcrd"])
             except CommandExecuteError as e:
-                self.logger.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in acpype log file.")
+                self.logger.error(f"Error in preparing protein {self.get_protein_with_name(name)}: {e}")
                 sys.exit(1)
         return True
     
@@ -382,7 +383,7 @@ class MDProject(BaseProject):
                 top_posre="processed_posre.top"
             )
         except CommandExecuteError as e:
-            self.logger.error("Error in running gromacs. See complex folder.")
+            self.logger.error(f"Error in running gromacs: {e}")
             sys.exit(1)
         return True
     

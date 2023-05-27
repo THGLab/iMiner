@@ -134,9 +134,6 @@ class BaseProject:
         return self._auto_update_meta
 
     def update_meta_data(self):
-        with open(self.meta_json, 'w') as f:
-            json.dump(self.meta_data, f)
-
         # setup config dir
         self.meta_dir = self.project_path / ".iminer"
         self.meta_json = self.meta_dir / "meta.json"
