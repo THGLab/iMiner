@@ -134,23 +134,23 @@ def run_md(
             run_command(grompp_cmds, True)
 
         # run md
-        mdrun_cmds = []
-        if restart and return_commands_only:
-            mdrun_cmds += [f'if [ -f {deffnm}.cpt ]; then\n  ']
-            
-        mdrun_cmds += [gmx, 'mdrun']
-        if restart and os.path.isfile(f"{deffnm}.cpt"):
-            mdrun_cmds += ['-s', f'{deffnm}.tpr', '-cpi', f'{deffnm}.cpt']
-        if enforce_gpu:
-            mdrun_cmds += ['-update', 'gpu', '-nb', 'gpu', '-bonded', 'gpu']
-        mdrun_cmds += ['-deffnm', deffnm]
-
-        if restart and return_commands_only:
-            mdrun_cmds.append("\nfi")
-
         if not return_commands_only:
+            mdrun_cmds = [] 
+            mdrun_cmds += [gmx, 'mdrun']
+            if restart and os.path.isfile(f"{deffnm}.cpt"):
+                mdrun_cmds += ['-s', f'{deffnm}.tpr', '-cpi', f'{deffnm}.cpt']
+            if enforce_gpu:
+                mdrun_cmds += ['-update', 'gpu', '-nb', 'gpu', '-bonded', 'gpu']
+            mdrun_cmds += ['-deffnm', deffnm]
             run_command(mdrun_cmds, True)
-    
+        else:
+            mdrun = [gmx, 'mdrun', '-deffnm', deffnm]
+            mdrun_restart = [gmx, 'mdrun', '-s', f'{deffnm}.tpr', '-cpi', f"{deffnm}.cpt", '-deffnm', deffnm]
+            if restart:
+                mdrun_cmds = [f"if [ -f {deffnm}.cpt ]; then\n  "] + mdrun_restart + ['\nelse\n  '] + mdrun + ['\nfi']
+            else:
+                mdrun_cmds = mdrun
+            
     if return_commands_only:
         return [' '.join(grompp_cmds), ' '.join(mdrun_cmds)]
     else:
@@ -182,7 +182,7 @@ def run_md_workflow(
             commands.append(f"cd {stage}")
             Path.mkdir(w / stage, parents=True, exist_ok=True)
             shutil.copyfile(mdp_dir / f"{stage}.mdp", w / stage / f"{stage}.mdp")
-            if verbose and logger: logger.info(f"Running {stage}...")
+            if verbose and logger and (not return_commands_only): logger.info(f"Running {stage}...")
             if stage in ['nvt', 'npt'] and top_posre is not None:
                 top_use = Path(top_posre).resolve()
             else:

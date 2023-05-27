@@ -11,6 +11,8 @@ from typing import Optional, Dict, Any, Tuple, Union
 import json
 
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 from iMiner.cmd import run_command, set_directory, find_executable
 from iMiner.core.md import MDProject
 from iMiner.md.runner.gromacs import run_preprocess_workflow, run_md_workflow
@@ -77,7 +79,7 @@ class RbfeProject(MDProject):
             }
         }
         self.update_lambdas()
-        self.machine_dict = {"batch_type": "Slurm", "context": "LocalContext"}
+        self.machine_dict = {"batch_type": "Slurm", "context_type": "LocalContext"} if machine_dict is None else machine_dict
         self.resources_dict = resources_dict
 
     def update_lambdas(self):
@@ -211,14 +213,18 @@ class RbfeProject(MDProject):
         
         if use_dispatcher:
             from dpdispatcher import Machine, Resources, Submission, Task
-
-            machine = Machine.load_from_dict(self.machine_dict.update({"local_root": str(wdir), "remote_root": str(wdir)}))
+            
+            self.machine_dict.update({"local_root": str(wdir), "remote_root": str(wdir)})
+            machine = Machine.load_from_dict(self.machine_dict)
             resources = Resources.load_from_dict(self.resources_dict)
             task_list = []
 
         for tag in ["solvated", "complex"]:
             for i in range(self.num_lambdas):
-                self.logger.info(f"Running MD for {tag}/lambda{i}...")
+                if use_dispatcher:
+                    self.logger.info(f"Creating MD task for {tag}/lambda{i}...")
+                else:
+                    self.logger.info(f"Running MD for {tag}/lambda{i}...")
                 md_dir = wdir / tag / f"lambda{i}"
                 md_dir.mkdir(parents=True, exist_ok=True)
                 for stage in ['em', 'nvt', 'npt', 'prod']:
@@ -239,15 +245,34 @@ class RbfeProject(MDProject):
                 if use_dispatcher:
                     with open(md_dir / "run.sh", 'w') as f:
                         f.write(commands)
+                    forward_files = []
+                    backward_files = []
+                    for stage in ['em', 'nvt', 'npt', 'prod']:
+                        suffix_list = ['log', 'tpr', 'gro', 'edr']
+                        if stage != "em":
+                            suffix_list += ['xtc', 'xvg', 'cpt']
+                        for suffix in suffix_list:
+                            backward_files.append(f"{stage}/{stage}.{suffix}")
+                        forward_files.append(f"{stage}/{stage}.mdp")
+                            
                     task = Task(
                         command = commands,
                         task_work_path=f"{tag}/lambda{i}",
-                        backward_files=["em/*", "nvt/*", "npt/*", "prod/*"]
+                        forward_files=forward_files,
+                        backward_files=backward_files
                     )
                     task_list.append(task)
         
         if use_dispatcher:
-            sub = Submission(work_base=wdir, machine=machine, resources=resources, task_list=task_list)
+            forward_common_files = []
+            for tag in ['solvated', 'complex']:
+                for f in ['processed.top', 'ions.gro', 'processed_posre.top']:
+                    forward_common_files.append(f'{tag}/{f}')
+            sub = Submission(
+                work_base=str(wdir), 
+                machine=machine, resources=resources, 
+                task_list=task_list, forward_common_files=forward_common_files
+            )
             sub.run_submission()
                             
     
@@ -258,6 +283,22 @@ class RbfeProject(MDProject):
         for tmpfile in Path(wdir).glob("*/lambda*/*/#*#"):
             tmpfile.unlink()
     
+    @classmethod
+    def analyze(self, wdir: Path):
+        """
+        Analyze RBFE results
+        """
+        import alchemlyb
+        from alchemlyb.parsing.gmx import extract_u_nk
+        from alchemlyb.visualisation import plot_convergence, plot_mbar_overlap_matrix
+        from alchemlyb.convergence import forward_backward_convergence
+        from alchemlyb.estimators import MBAR
+        
+        T = 298.15
+        kBT = 8.314 * T / 1000 / 4.184 # kcal/mol
+        dG = {}
+        dG_std = {}
+
     def run(
         self, 
         lig_names: Tuple[str, str], 
