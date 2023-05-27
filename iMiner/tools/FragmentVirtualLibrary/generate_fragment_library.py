@@ -20,10 +20,11 @@ def connect_mols(mols, connector_atom_pairs, bond_order=Chem.rdchem.BondType.SIN
     :return: rdkit.Chem.rdchem.Mol molecule with all fragments connected
     '''
     assert len(mols) > 1, 'At least two fragments are required to connect'
-    mols = [deepcopy(item) for item in mols] # make a copy of the original mols to prevent any unwanted modifications on the original mols
-    for mol in mols:
-        for atom in mol.GetAtoms():
-            atom.SetNumExplicitHs(0) # make sure there is no explicit hydrogen atoms
+    # mols = [deepcopy(item) for item in mols] # make a copy of the original mols to prevent any unwanted modifications on the original mols
+    mols = [Chem.RemoveHs(mol) for mol in mols] # add hydrogens to all fragments
+    # for mol in mols:
+    #     for atom in mol.GetAtoms():
+    #         atom.SetNumExplicitHs(0) # make sure there is no explicit hydrogen atoms
     mol_natoms = [mol.GetNumAtoms() for mol in mols]
     idx_offsets = [sum(mol_natoms[:i]) for i in range(len(mol_natoms))]
     combo = Chem.CombineMols(mols[0], mols[1])

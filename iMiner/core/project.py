@@ -81,10 +81,11 @@ class BaseProject:
 
         # setup log file when verbose is True
         self.verbose = verbose
+
         if logger and (not Path(logger).is_absolute()):
             logger = self.project_path / logger
         self.logger = init_logger(logger)
-        new_project = True
+        self._new_project = True
 
         # setup config dir
         self.meta_dir = self.project_path / ".iminer"
@@ -93,20 +94,22 @@ class BaseProject:
         if os.path.exists(self.meta_json):
             with open(self.meta_json, 'r') as f:
                 self.meta_data = json.load(f)
-            new_project = False
+            self._new_project = False
         else:
-            self.meta_data = {"name": self.project_name, 'verbose': verbose}
+            self.meta_data = {"name": self.project_name, 'verbose': verbose, 'proteins': {}, 'ligands': {}, 'binding_sites': {}}
             self.update_meta_data()
 
-        if not new_project:
+        if not self._new_project:
             # load existing ligands
             ligs = [sdf for sdf in self.ligands_path.glob('*.sdf')]
             try:
                 ligs.sort(key=lambda p: int(p.stem))
             except:
                 pass
-            for lig in ligs:
-                self.ligands[lig.stem] = lig
+            for lig in self.meta_data['ligands']:
+                assert Path(self.meta_data['ligands'][lig]) in ligs, f"Cannot find ligand {lig} in the project folder."
+                self.ligands[lig] = self.meta_data['ligands'][lig]
+        
             
             # load existing proteins
             proteins = [pdb for pdb in self.proteins_path.glob("*.pdb")]
@@ -114,12 +117,15 @@ class BaseProject:
                 proteins.sort(key=lambda p: int(p.stem))
             except:
                 pass
-            for protein in proteins:
-                self.proteins[protein.stem] = protein
-            if not check_dict_identity(self.proteins, self.meta_data['proteins']):
-                self.logger.warn("Protein files in the project folder and meta.json do not match.")
+
+            for protein in self.meta_data['proteins']:
+                assert Path(self.meta_data['proteins'][protein]) in proteins, f"Cannot find protein {protein} in the project folder."
+                self.proteins[protein] = self.meta_data['proteins'][protein]
+
             self.binding_sites = self.meta_data['binding_sites']
             self.logger.info(f"Loaded project {self.project_name} from {self.project_path}")
+            self.logger.info(f"Current number of targets: {len(self.proteins.items())}")
+            self.logger.info(f"Current number of ligands: {len(self.ligands.items())}")
 
         # provide a cache for processed protein pdb files (in case multiple binding sites are defined for the same protein)
         self._protein_processed_cache = set()
@@ -217,6 +223,7 @@ class BaseProject:
         self.ligands[name] = ligand_path
         if self._auto_update_meta:
             self.update_meta_data()
+
         return name
 
     def add_multiple_ligands(self, smiles_or_paths, names=None, format='inferred') -> List[str]:
@@ -244,9 +251,11 @@ class BaseProject:
 
         if self.verbose:
             self.logger.info(f"Added {len(smiles_or_paths)} ligands to the project. Current number of ligands: {len(self.ligands.items())}")
+
         if _auto_update:
             self.update_meta_data()
         self.set_auto_update_meta(_auto_update)
+
         return new_names
 
     def clear_ligands(self):
@@ -254,6 +263,8 @@ class BaseProject:
         Clear all ligands in the project
         '''
         self.ligands = {}
+        self.meta_data['ligands'] = self.ligands
+        self.update_meta_data()
         self.logger.info("Cleared all ligands in the project")
     
     def get_ligand_with_name(self, name) -> Path:

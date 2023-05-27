@@ -38,27 +38,26 @@ class TankBindDocking(BaseDocking):
             os.environ['PATH'] = str(Path(self.tankbind_python_path).parent) + ":" + os.environ['PATH']
         
         # prepare protein
+        ignore_docking_box = kwargs.get("ignore_docking_box", False)
+        if ignore_docking_box:
+            self.docking_box = None
         self.prepare_protein(protein, docking_box)
         
         # setup TankBind model path
         self.model_path = kwargs.get("model_path", None)
         self.model_path = Path(self.model_path).resolve() if self.model_path else None
 
-    def prepare_protein(self, protein, docking_box):
-        center = [(docking_box[0] + docking_box[3]) / 2, (docking_box[1] + docking_box[4]) / 2, (docking_box[2] + docking_box[5]) / 2]
-        center = ",".join([str(x) for x in center])
-        protein = Path(protein).resolve()
-        
-        if protein.suffix == '.pkl':
-            shutil.copyfile(protein, self.working_path / "protein.pkl")
-        elif protein.suffix == '.pdb':
-            with set_directory(self.working_path):
-                cmd = [self.tankbind_python_path, f"{self.tankbind_src_path}/prepare_protein.py", f"--protein_pdb={protein}",
-                    f'--center={center}', f'--p2rank_cmd="bash {self.p2rank_path}"']
-                run_command(cmd)
-                assert os.path.exists("protein.pkl"), "Failed to prepare protein"
-        else:
-            raise RuntimeError(f"Unsupported format: {protein.suffix}")
+    def prepare_protein(self, protein_pdb, docking_box=None):
+        protein_pdb = os.path.abspath(protein_pdb)
+        cmd = [tankbind_python_path, f"{tankbind_src_path}/prepare_protein.py", f"--protein_pdb={protein_pdb}",
+             f'--p2rank_cmd=bash {p2rank_path}']
+        if docking_box is not None: # when docking box is provided, only use that center position. otherwise, consider all pockets
+            center = [(docking_box[0] + docking_box[3]) / 2, (docking_box[1] + docking_box[4]) / 2, (docking_box[2] + docking_box[5]) / 2]
+            center = ",".join([str(x) for x in center])
+            cmd.append(f"--center={center}")
+        with set_directory(self.working_path):
+            run_command(cmd)
+            assert os.path.exists("protein.pkl"), "Failed to prepare protein"
 
     def run_docking(self, ligand_content_csv, output_dir, device):
         ligand_content_csv = Path(ligand_content_csv).resolve()
@@ -109,14 +108,16 @@ class TankBindDocking(BaseDocking):
             device = f"cuda:{gpu}"
         self.run_docking(self.working_path / f"ligand_content_{unique_id}.csv", unique_id, device)
 
+        # print(ligands)
         # generate final results and copy docked conformations to output_dir
         docked_results = pd.read_csv(self.working_path / f"{unique_id}/prediction_info.csv")
-        docked_results.index = docked_results.compound_name
+        docked_results.index = docked_results.compound_name.astype(str)
         pockets = docked_results.pocket_name.to_dict()
         scores = (-docked_results.affinity).to_dict()  # keep in mind the original affinity is traned from -logK
         for name, ligand in zip(ligand_names, ligands):
             # save the ligand smiles
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
+            # print(scores)
             ligand_scores.append(scores[name])
             # copy the docked conformation to output_dir
             ligand_pocket = pockets[name]
@@ -127,3 +128,8 @@ class TankBindDocking(BaseDocking):
         df = pd.DataFrame({"original_names": ligands, "smiles": ligand_smiles, "score": ligand_scores, "path": ligand_conformation_paths})
         df["index"] = df.index
         return df
+
+    def _get_parallel_docking_args(self, ligands, output_dir, single_job_timeout, n_jobs):
+        devices = [None] * len(ligands)
+        zipped_args = zip(ligands, [output_dir] * len(ligands), devices)
+        return zipped_args

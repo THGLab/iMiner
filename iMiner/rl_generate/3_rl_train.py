@@ -4,10 +4,23 @@ Date created: Oct 29, 2020
 '''
 
 #####################
+# Parsing arguments
+#####################
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--dataset", type=str)
+parser.add_argument("--start_from", default=None)
+parser.add_argument("--start_iter", default=0, type=int)
+parser.add_argument("--output_dir", default="outputs", type=str)
+parser.add_argument("--config", default="config.yml", type=str)
+args = parser.parse_args()
+
+
+#####################
 # Parameters for training control
 #####################
 import yaml
-with open("config.yml", "r") as f:
+with open(args.config, "r") as f:
     config = yaml.load(f, Loader=yaml.FullLoader)
 
 #####################
@@ -28,7 +41,7 @@ from iMiner.rl_generate.core.trainer import Trainer
 from iMiner.rl_generate.core.model import Model
 from iMiner.rl_generate.core.reward import RewardAssigner
 import os
-import argparse
+
 
 import warnings
 warnings.filterwarnings("ignore", "reduction: 'mean' divides the total loss by both the batch size and the support size.")
@@ -37,12 +50,7 @@ from iMiner.rl_generate.rl_utils import Logger, make_optimizer
 
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--dataset", type=str)
-parser.add_argument("--start_from", default=None)
-parser.add_argument("--start_iter", default=0, type=int)
-parser.add_argument("--output_dir", default="outputs", type=str)
-args = parser.parse_args()
+
 rl_dataset_path = config["training_specs"]["dataset_path"]
 if rl_dataset_path[-1] != "/":
     rl_dataset_path += "/"
