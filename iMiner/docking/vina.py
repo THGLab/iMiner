@@ -76,7 +76,7 @@ class VinaDocking(AutoDockBaseDocking):
 
         :param ligands: list of ligands, each ligand is a path to the corresponding .sdf/.pdbqt file
 
-        :return: pd.DataFrame with columns ["original_names", "smiles", "score"]
+        :return: pd.DataFrame with columns ["ligand_name", "smiles", "score"]
         '''
         
          # prepare lists to record results
@@ -111,7 +111,7 @@ class VinaDocking(AutoDockBaseDocking):
             ligand_scores.append(energy)
         
         # generate the final pandas dataframe and return
-        df = pd.DataFrame({"original_names": ligands, "smiles": ligand_smiles,
+        df = pd.DataFrame({"ligand_name": ligands, "smiles": ligand_smiles,
              "score": ligand_scores})
         return df
 

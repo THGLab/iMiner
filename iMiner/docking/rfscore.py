@@ -125,5 +125,5 @@ class RFscoring(BaseDocking):
         RF_pred = RFmodel.predict(Xs) * -1.36 #convert pkd to kcal/mol
         
         # generate the final pandas dataframe and return
-        df = pd.DataFrame({"original_names": ligands, "smiles": ligand_smiles, "score": RF_pred})
+        df = pd.DataFrame({"ligand_name": ligands, "smiles": ligand_smiles, "score": RF_pred})
         return df
