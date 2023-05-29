@@ -9,10 +9,9 @@ from rdkit.Chem import Draw
 from rdkit.Chem.QED import qed
 import numpy as np
 from scipy.stats import gmean
-import selfies as sf
+#import selfies as sf
+from group_selfies import GroupGrammar
 import pandas as pd
-
-
 
 
 def convert_input_to_selfies(input, tokens):
@@ -31,12 +30,13 @@ def convert_input_to_selfies(input, tokens):
     return_tokens = ["[%s]" % t for t in token_list]
     return "".join(return_tokens)
 
-def safe_decode_selfies(selfies):
+def safe_decode_selfies(selfies, grammar):
     '''
     A helper function to decode SELFIES string into SMILES, return empty string if decoding fails
     '''
     try:
-        smiles = sf.decoder(selfies)
+        #sf.decoder(selfies)
+        smiles = Chem.MolToSmiles(grammar.decoder(selfies))
     except:
         smiles = ""
     return smiles
@@ -46,8 +46,11 @@ class RewardAssigner():
     reward_types: list from ["qed", "drug_likeliness", "vina_score", "fragment_similarity"]
     reward_combination_method: one of {"sum", "arithmetic mean", "geometric mean"}
     '''
-    def __init__(self, reward_combination_method="sum", tokens=None, logger=None, output_path=None) -> None:
+    def __init__(self, reward_combination_method="sum", tokens=None, logger=None, output_path=None, grammar_file=None) -> None:
+        if grammar_file is None:
+            raise RuntimeError("Need to define grammar to use group selfies")
         self.tokens = tokens
+        self.grammar = GroupGrammar.from_file(grammar_file)
         self.reward_conversion_funcs = []
         self.property_calculators = {}
         self.reward_types = []
@@ -61,15 +64,20 @@ class RewardAssigner():
         self.output_path = output_path
         self.iteration = 0
 
-    def add_reward(self, reward_type, extra_params=None):
+    def add_reward(self, reward_type, weight=1., extra_params=None):
         self.reward_types.append(reward_type)
         if reward_type == "qed":
             self.reward_conversion_funcs.append(lambda x: x)
 
         elif reward_type == "drug_likeliness":
             from iMiner.rl_generate.evaluators.drug_likeliness import DrugLikeliness
-            self.reward_conversion_funcs.append(lambda x: max(x, 0))
+            self.reward_conversion_funcs.append(lambda x: max(x, 0)*weight)
             self.property_calculators[reward_type] = DrugLikeliness()
+        
+        elif reward_type == "solubility":
+            from iMiner.rl_generate.evaluators.drug_likeliness import ESOLCalculator
+            self.reward_conversion_funcs.append(lambda x: min(6+x, 3)*weight)
+            self.property_calculators[reward_type] = ESOLCalculator()
 
         elif reward_type == "lead_likeness":
             from iMiner.rl_generate.evaluators.drug_likeness import LeadLikeliness
@@ -78,16 +86,29 @@ class RewardAssigner():
 
         elif reward_type == "vina_score":
             from iMiner.rl_generate.evaluators.vina_local import vina_score_assigner
-            self.reward_conversion_funcs.append(lambda x: max(-x, 0))
+            self.reward_conversion_funcs.append(lambda x: max(-x, 0)*weight)
             self.property_calculators[reward_type] = vina_score_assigner(path=self.output_path, **extra_params)
 
         elif reward_type == "fragment_similarity":
             from iMiner.rl_generate.evaluators.fragment_similarity import FragmentScorer
-            self.reward_conversion_funcs.append(lambda x: x)
+            self.reward_conversion_funcs.append(lambda x: x*weight)
             self.property_calculators[reward_type] = FragmentScorer(**extra_params)
-        
+            
+        elif reward_type == "interaction":
+            from iMiner.rl_generate.evaluators.interaction import InteractionScorer
+            self.reward_conversion_funcs.append(lambda x: x*weight)
+            self.property_calculators[reward_type] = InteractionScorer(**extra_params)
         else:
             raise RuntimeError("Unknown reward type: %s" % reward_type)
+            
+    def _reorder_reward_types(self):
+        if "interaction" in self.reward_types:
+            self.reward_names = [r for r in self.reward_types]
+            self.reward_names.remove("interaction")
+            vi = self.reward_names.index("vina_score")
+            self.reward_names.insert(vi, "interaction")
+        else:
+            self.reward_names = self.reward_types
 
     def calc_reward_parallel(self, inputs):
         '''
@@ -95,7 +116,7 @@ class RewardAssigner():
         '''
         self.iteration += 1
         converted_selfies = [convert_input_to_selfies(item, self.tokens) for item in inputs]
-        converted_smiles = [safe_decode_selfies(s) for s in converted_selfies]
+        converted_smiles = [safe_decode_selfies(s, self.grammar) for s in converted_selfies]
         query_indices = [] # keep record of whether each element from the converted smiles should receive reward query. If not, then these are bad smiles and should receive a very low reward
         plot_mols = []
         for i in range(len(converted_smiles)):
@@ -149,7 +170,7 @@ class RewardAssigner():
         Calculate reward from given input, and return a single comprehensive reward score and individual metric values
         '''
         converted_selfies = convert_input_to_selfies(input, self.tokens)
-        converted_smiles = sf.decoder(converted_selfies)
+        converted_smiles = Chem.MolToSmiles(self.grammar.decoder(converted_selfies)) #sf.decoder(converted_selfies)
         if converted_smiles is None or converted_smiles == "":
             return -10
 
@@ -172,7 +193,7 @@ class RewardAssigner():
         for reward_item in self.reward_types:
             if reward_item == "qed":
                 metrics.append(qed(mol))
-            if reward_item in ["drug_likeliness", "lead_likeliness", "fragment_similarity"]:
+            if reward_item in ["drug_likeliness", "lead_likeliness", "fragment_similarity", "solubility"]:
                 metrics.append(self.property_calculators[reward_item].calc_score(mol))
         return metrics
 
@@ -180,12 +201,23 @@ class RewardAssigner():
         metrics = []
         new_names = [str(self.iteration) + "_" + str(i) for i in range(len(mols))]
         for reward_item in self.reward_types:
-            if reward_item in ["drug_likeliness", "lead_likeliness", "fragment_similarity"]:
+            if reward_item in ["drug_likeliness", "lead_likeliness", "fragment_similarity", "solubility"]:
                 metrics.append([self.property_calculators[reward_item].calc_score(mol) for mol in mols])
             if reward_item == "vina_score":
                 vina_scores = self.property_calculators[reward_item].get_scores(mols, new_names, self.iteration)
-                metrics.append(vina_scores)
                 validities = ~np.isnan(vina_scores) 
+                metrics.append(vina_scores)
+                #print("iter %s finished vina calculation"%(self.iteration))
+                if "interaction" in self.reward_types:
+                    docking_df = self.property_calculators[reward_item].get_result_df(self.iteration)
+                    # interaction results ordered by df
+                    interaction_result = self.property_calculators["interaction"].calc_score_parallel(docking_df["path"])
+                    # align & reorder scores
+                    interaction_scores = self.property_calculators[reward_item].update_interaction(self.iteration, 
+                        new_names, interaction_result)
+                    metrics.append(interaction_scores)
+                    #print("iter %s finished interaction calculation"%(self.iteration))
+                    continue
             if reward_item == "fcd":
                 chemnet_dist = self.property_calculators[reward_item].get_chemnet_dist(mols)
                 metrics.append(chemnet_dist)
@@ -194,4 +226,5 @@ class RewardAssigner():
                 metrics.append(morgan_dist)
         if "vina_score" not in self.reward_types:
             validities = [True] * len(metrics[0])
+        #print("iter %s finished all reward evaluations"%(self.iteration))
         return metrics, validities, new_names

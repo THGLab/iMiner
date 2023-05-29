@@ -59,15 +59,7 @@ class AD4Docking(AutoDockBaseDocking):
         """
         super().__init__(protein_pdb, docking_box, logger=logger)
         
-        # define name and convert pdb to pdbqt
-        if name == None:
-            self.protein_name = Path(protein_pdb).resolve().stem
-        else:
-            self.protein_name = name
-        
         self.ad4dir = Path(temp_path).resolve() / "{}-ad4".format(self.protein_name)
-        if self.ad4dir.exists() and self.ad4dir.is_dir():
-            shutil.rmtree(self.ad4dir)  
         self.ad4dir.mkdir(parents = True, exist_ok = True)
         
         # create folders corresponding to the project
@@ -285,13 +277,15 @@ class AD4Docking(AutoDockBaseDocking):
 
         # convert the output file to sdf and extract the pose from the best run
         converted_sdf = self.result_path / "{}.sdf".format(ligand_name)
-        succ = self.convert_adresult_to_sdf(dlg_file, converted_sdf)
+        succ = self.convert_adresult_to_sdf(dlg_file, converted_sdf, num_run-1)
         if not (succ and os.path.exists(converted_sdf)):
             return [ligand_name, smile, best_score, None]
+
             
         with open(converted_sdf, "r") as f:
             all_sdf = f.read().split("$$$$\n")
         output_dir = Path(output_dir).resolve()
+
         
         if write_best_pose:
             ligand_best_pose = output_dir / "{}.sdf".format(ligand_name)
@@ -349,7 +343,7 @@ class AD4Docking(AutoDockBaseDocking):
             if verbose:
                 pbar.update(1)
         if self.logger is not None:
-            self.logger.info(f"Finished preparing pdbqt inputs.")
+            self.logger.info(f"Finished preparing Autodock4 pdbqt inputs.")
         
         # run autodock in batch mode
         #st = time.time()
@@ -372,7 +366,9 @@ class AD4Docking(AutoDockBaseDocking):
             if verbose:
                 pbar.update(1)
         if self.logger is not None:
-            self.logger.info(f"Outputs processed.")
+            self.logger.info(f"Autodock4 outputs processed.")
+        pool.close()
+        pool.join()
         return results
         
 

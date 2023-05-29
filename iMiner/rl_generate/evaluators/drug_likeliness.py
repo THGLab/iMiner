@@ -23,7 +23,8 @@ Distributions generated from 10000 random samples of CHEMBL molecules
 
 import numpy as np
 from rdkit import Chem
-from rdkit.Chem import QED, Lipinski
+from rdkit.Chem import QED, Lipinski, Descriptors, Crippen
+from collections import namedtuple
 
 OUT_OF_RANGE = -10
 
@@ -83,6 +84,10 @@ class DrugLikeliness():
         self.alerts_LP = np.array([-0.764428382564909, -1.2986498512678444, -1.8263509139976741, -2.647896278282463, -3.7465085669505727, -5.099466507802871]) #np.arange(6)
         self.hetero_prop_LP = np.array([-7.600902459542082, -9, -9.210340371976182, -6.907755278982137, -6.645391014514646, -5.8781358618009785, -5.472670753692815, -5.149897361429764, -5.2030071867437115, -4.853631545286591, -4.154094566627875, -4.06284589516273, -3.9738984091462335, -3.543913683863751, -3.4357888264317746, -3.2570970376883985, -3.0159349808715104, -3.0159349808715104, -2.8788385220824915, -2.8577109756566164, -2.474560357733856, -3.028255465259551, -2.7045563118479543, -2.866459937849852, -3.085656981081978, -2.91139112512024, -2.928073625080176, -3.0512449834842497, -3.8076629901039034, -3.937340813412436, -3.825845309187094, -4.312500572025272, -4.193060535161258, -4.509860006183766, -4.6356293934728, -4.9062752787720125, -5.240048458424061, -5.035953102080546, -5.7763531674910364, -5.744604469176456, -7.013115794639964, -5.496768305271875, -8.111728083308073, -6.437751649736401, -6.725433722188183, -6.907755278982137, -8.111728083308073, -7.418580902748128, -8.517193191416238, -9.210340371976182, -6.074846156047033])  #np.linspace(0,0.6,51)
         self.max_ring_size_LP = np.array([ -4.64599114, -18.42068074, -18.42068074,  -7.41856424,        -8.51714319,  -3.84904774,  -0.08675685,  -3.27809492,-6.16581317,  -7.26441594,  -7.13088633,  -7.82402101,        -6.5712759 ,  -7.26441594,  -4.87960572]) # np.arange(15)
+        
+        # AutodockVina invalid atom types:
+        self.invalid_atom_types = ["B", "Si", "Te"]
+        
         if relative_weights == "inverse_entropy":
             weight_vectors = [-1 / x.dot(np.exp(x)) for x in [self.frac_csp3_LP, self.heavy_atom_LP, self.hbond_donor_LP, self.hbond_acceptor_LP, self.n_ring_aliphatic_LP, self.n_ring_aromatic_LP, self.n_rot_bond_LP, self.mw_LP, self.alogp_LP, self.psa_LP, self.alerts_LP, self.hetero_prop_LP, self.max_ring_size_LP]]
             self.relative_weights = np.array(weight_vectors) / np.sum(weight_vectors)
@@ -92,11 +97,31 @@ class DrugLikeliness():
             self.relative_weights = np.array([1/n_total_properties] * n_total_properties)
         
     
+    def check_valid_atomtypes(self, input):
+        if type(input) is not str:
+            mol = Chem.SmilesFromMol(input)
+        else:
+            mol = input
+        for element in self.invalid_atom_types:
+            if element == "B":
+                items = mol.split("B")
+                if len(items) == 1:
+                    continue
+                for i in items[1:]:
+                    if not i.startswith("r"):
+                        return False
+            else:
+                if element in mol:
+                    return False
+        return True
+        
     def calc_score(self, input, offset=5):
         try:
             props = calc_props(input)
         except:
             return 0
+        #if not self.check_valid_atomtypes(input):
+        #    return 0
         log_prob = np.array([
             make_onehot(props[0], np.linspace(0,1,51)).dot(self.frac_csp3_LP),
             make_onehot(props[1], np.arange(10,61)).dot(self.heavy_atom_LP),
@@ -115,6 +140,7 @@ class DrugLikeliness():
         ])
         return log_prob.dot(self.relative_weights) + offset
     
+
 class LeadLikeliness():
     def __init__(self, relative_weights="inverse_entropy"):
         n_total_properties = 13
@@ -186,6 +212,62 @@ class LeadLikeliness():
         return log_prob.dot(self.relative_weights) + offset
 
 
+# ESOL:  Estimating Aqueous Solubility Directly from Molecular Structure 
+# John S. Delaney, J. Chem. Inf. Comput. Sci., 2004, 44, 1000 - 1005
+# https://pubs.acs.org/doi/abs/10.1021/ci034243x 
+# Adapted from https://github.com/PatWalters/solubility.git
+
+class ESOLCalculator():
+    def __init__(self):
+        self.aromatic_query = Chem.MolFromSmarts("a")
+        self.Descriptor = namedtuple("Descriptor", "mw logp rotors ap".split())
+
+    def calc_ap(self, mol):
+        """
+        Calculate aromatic proportion #aromatic atoms/#atoms total
+        :param mol: input molecule
+        :return: aromatic proportion
+        """
+        matches = mol.GetSubstructMatches(self.aromatic_query)
+        return len(matches) / mol.GetNumAtoms()
+
+    def calc_esol_descriptors(self, mol):
+        """
+        Calcuate mw,logp,rotors and aromatic proportion (ap)
+        :param mol: input molecule
+        :return: named tuple with descriptor values
+        """
+        mw = Descriptors.MolWt(mol)
+        logp = Crippen.MolLogP(mol)
+        rotors = Lipinski.NumRotatableBonds(mol)
+        ap = self.calc_ap(mol)
+        return self.Descriptor(mw=mw, logp=logp, rotors=rotors, ap=ap)
+
+    def calc_score(self, input):
+        """
+        Calculate ESOL based on descriptors in the Delaney paper, coefficients refit for the RDKit using the
+        routine refit_esol below
+        :param input: input molecule (smiles string)
+        :return: predicted solubility
+        """
+        # original coef from delaney
+        #intercept = 0.16
+        #coef = {"logp": -0.63, "mw": -0.0062, "rotors": 0.066, "ap": -0.74}
+        intercept = 0.26121066137801696
+        coef = {'mw': -0.0066138847738667125, 'logp': -0.7416739523408995, 'rotors': 0.003451545565957996, 'ap': -0.42624840441316975}
+        if type(input) is str:
+            mol = Chem.MolFromSmiles(input)
+        else:
+            mol = input
+        desc = self.calc_esol_descriptors(mol)
+        esol = intercept + coef["logp"] * desc.logp + coef["mw"] * desc.mw + coef["rotors"] * desc.rotors \
+               + coef["ap"] * desc.ap
+        return esol
+    
+    
 if __name__ == '__main__':
-    leadlikeliness = LeadLikeliness()
-    print(leadlikeliness.calc_score('CCOC(=O)c1[nH]c(C2CCN(c3nccs3)CC2)nc1C'))
+    drug = DrugLikeliness()
+    smiles = ["O=C(NC=CC=C(F)C=CF)C=CC=CCN[C@@H1][Si]/OI", "Br[C@@]=C", "O=CN=C(B)B=[C@][N+1][NH1]CBr"]
+    for s in smiles:
+        print(drug.check_valid_atomtypes(s))
+

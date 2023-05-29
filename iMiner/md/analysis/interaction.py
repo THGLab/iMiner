@@ -9,7 +9,7 @@ from functools import partial
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 from plip.structure.preparation import PDBComplex, logger as PLIP_LOGGER
 from plip.exchange.report import StructureReport
@@ -21,6 +21,7 @@ PLIP_LOGGER.propagate = False
 
 def analyze_single_frame(
     pdbpath: os.PathLike, 
+    mol_name: str ="MOL",
     add_hydrogen: bool = False,
     resnr_renum: Optional[Dict[int, int]] = None
 ) -> Dict[str, int]:
@@ -62,8 +63,15 @@ def analyze_single_frame(
     xmlobj = ET.fromstring(xmlstr.read())
 
     binding_sites = xmlobj.findall("./bindingsite")
-    bs = [bs for bs in binding_sites if bs.findall("identifiers/longname")[0].text == "MOL"][0]
-    itypes = bs.findall("interactions/")
+    try:
+        bs = [bs for bs in binding_sites if bs.findall("identifiers/longname")[0].text == mol_name][0]
+        itypes = bs.findall("interactions/")
+    except IndexError: 
+        itypes = []
+        bs = [bs for bs in binding_sites]
+        for site in bs:
+            itypes += list(site.findall("interactions/"))
+            
     interact_count_frame = {}
     for itype in itypes:
         for item in itype:

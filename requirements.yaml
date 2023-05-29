@@ -4,5 +4,6 @@ tqdm
 pandas
 selfies==2.1.1
 fastai==1.0.61
-
+tensorboard
+meeko
 openbabel

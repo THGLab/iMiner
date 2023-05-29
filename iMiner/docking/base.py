@@ -92,6 +92,11 @@ class BaseDocking:
                 df.to_csv(Path(output_dir) / "results.csv", index=False)
                 if self.logger is not None:
                     self.logger.info(f"Saved checkpoint results to {output_dir}/results.csv")
+
+        # clean up
+        pool.close()
+        pool.join()
+
         final_results = pd.concat(results)
         final_results.reset_index(inplace=True)
         return final_results
@@ -107,7 +112,8 @@ class BaseDocking:
         '''
         pass
 
-    def convert_sdf_to_smiles(self, sdf_path):
+    @staticmethod
+    def convert_sdf_to_smiles(sdf_path):
         '''
         Convert a ligand sdf file to a smiles string, to be used by any of the docking protocols
 
@@ -117,5 +123,8 @@ class BaseDocking:
         '''
         sdmol = Chem.SDMolSupplier(sdf_path)
         mol = sdmol[0]
-        return Chem.MolToSmiles(mol)
+        try:
+            return Chem.MolToSmiles(mol)
+        except RuntimeError:
+            return None
 
