@@ -26,6 +26,8 @@ from rdkit import Chem
 from rdkit.Chem import QED, Lipinski, Descriptors, Crippen
 from collections import namedtuple
 
+OUT_OF_RANGE = -10
+
 def log_prob(vector, bin_range):
     vector=np.array(vector)
     counts=[np.sum(vector<threshold) for threshold in bin_range]+[len(vector)]
@@ -45,6 +47,25 @@ def get_max_ring_size(mol):
     if len(ring_sizes) == 0:
         return 0
     return max(ring_sizes)
+
+def calc_props(input):
+    if type(input) is str:
+        mol = Chem.MolFromSmiles(input)
+    else:
+        mol = input
+    fraction_csp3 = Lipinski.FractionCSP3(mol)
+    heavy_atoms = Lipinski.HeavyAtomCount(mol)
+    hbond_donor = Lipinski.NumHDonors(mol)
+    hbond_acceptor = Lipinski.NumHAcceptors(mol)
+    num_ring_aliphatic = Lipinski.NumAliphaticRings(mol)
+    num_ring_aromatic = Lipinski.NumAromaticRings(mol)
+    num_rotatable_bond = Lipinski.NumRotatableBonds(mol)
+    qed_prop = QED.properties(mol)
+    qed_default = QED.default(mol)
+    hetero_prop = Lipinski.NumHeteroatoms(mol)/heavy_atoms
+    max_ring_size = get_max_ring_size(mol)
+    return [fraction_csp3, heavy_atoms, hbond_donor, hbond_acceptor, num_ring_aliphatic, num_ring_aromatic, num_rotatable_bond, \
+            qed_default, qed_prop.MW, qed_prop.ALOGP, qed_prop.PSA, qed_prop.ALERTS, hetero_prop, max_ring_size]
 
 class DrugLikeliness():
     def __init__(self, relative_weights="inverse_entropy"):
@@ -75,25 +96,6 @@ class DrugLikeliness():
         else:
             self.relative_weights = np.array([1/n_total_properties] * n_total_properties)
         
-    @staticmethod
-    def calc_props(input):
-        if type(input) is str:
-            mol = Chem.MolFromSmiles(input)
-        else:
-            mol = input
-        fraction_csp3 = Lipinski.FractionCSP3(mol)
-        heavy_atoms = Lipinski.HeavyAtomCount(mol)
-        hbond_donor = Lipinski.NumHDonors(mol)
-        hbond_acceptor = Lipinski.NumHAcceptors(mol)
-        num_ring_aliphatic = Lipinski.NumAliphaticRings(mol)
-        num_ring_aromatic = Lipinski.NumAromaticRings(mol)
-        num_rotatable_bond = Lipinski.NumRotatableBonds(mol)
-        qed_prop = QED.properties(mol)
-        qed_default = QED.default(mol)
-        hetero_prop = Lipinski.NumHeteroatoms(mol)/heavy_atoms
-        max_ring_size = get_max_ring_size(mol)
-        return [fraction_csp3, heavy_atoms, hbond_donor, hbond_acceptor, num_ring_aliphatic, num_ring_aromatic, num_rotatable_bond, \
-               qed_default, qed_prop.MW, qed_prop.ALOGP, qed_prop.PSA, qed_prop.ALERTS, hetero_prop, max_ring_size]
     
     def check_valid_atomtypes(self, input):
         if type(input) is not str:
@@ -115,7 +117,7 @@ class DrugLikeliness():
         
     def calc_score(self, input, offset=5):
         try:
-            props = self.calc_props(input)
+            props = calc_props(input)
         except:
             return 0
         #if not self.check_valid_atomtypes(input):
@@ -138,7 +140,78 @@ class DrugLikeliness():
         ])
         return log_prob.dot(self.relative_weights) + offset
     
-        
+
+class LeadLikeliness():
+    def __init__(self, relative_weights="inverse_entropy"):
+        n_total_properties = 13
+        self.frac_csp3_LP = np.array([-3.63389309, -3.23493419, -2.92147749, -2.8932536 , -2.80964939,
+       -2.76134691, -2.7436188 , -2.76951022, -2.72463089, -2.81478199,
+       -2.82686151, -2.73883792, -2.81135733, -2.89140004, -2.99060669,
+       -3.10762314, -3.59198219, -3.83111104, -4.12037414, -4.32315677,
+       -4.58784933, -4.82626035, -4.99331443, -5.23172546, -5.68646161,
+       -6.13844674]) #np.linspace(0,1,26) 
+        self.heavy_atom_LP = np.array([OUT_OF_RANGE, -3.85823066, -3.06930481, -2.56931046, -2.25707437, -2.0528191 ,
+       -1.932403  , -1.90133541, -1.96913245, -2.213346  , -2.52894312, OUT_OF_RANGE]) #np.arange(15, 26)
+        self.hbond_donor_LP = np.array([-1.44330595, -0.90783928, -1.40799594, -2.46073778, -3.86473172,
+       -4.96334401, -5.99296342]) # np.arange(7)
+        self.hbond_acceptor_LP = np.array([OUT_OF_RANGE, -5.65649119, -2.87501352, -1.75307656, -1.33330505,
+       -1.37191989, -1.88208956, -2.75037107, -3.77375994, -4.76918799,
+       -6.21610697, OUT_OF_RANGE]) # np.arange(12)
+        self.n_ring_aliphatic_LP = np.array([-0.93799232, -0.84896342, -1.98200047, -3.42801407, -4.82981261,
+       OUT_OF_RANGE]) # np.arange(6)
+        self.n_ring_aromatic_LP = np.array([-3.15975008, -1.2798361 , -0.81455635, -1.5597685 , -3.69037833,
+       OUT_OF_RANGE]) # np.arange(6)
+        self.n_rot_bond_LP = np.array([-4.23510551, -2.75821425, -1.90195776, -1.4976081 , -1.51790192,
+       -1.77640123, -2.22712293, -2.93896224, OUT_OF_RANGE]) # np.arange(9)
+        # self.qed_LP = np.array([-8.517193191416238, -6.319968614080018, -5.683979847360021, -5.521460917862246, -5.403677882205863, -4.9062752787720125, -4.866534950122499, -4.733003557497976, -4.677740878822926, -4.474141923581687, -4.350527967614511, -4.261580481598014, -4.045554398052668, -4.0398563769380305, -3.907035463917107, -3.83970234384852, -3.789805372703897, -3.789805372703897, -3.653512310276645, -3.611918412977808, -3.6082215510964817, -3.653512310276645, -3.575550768806933, -3.575550768806933, -3.499913354601313, -3.451438598098902, -3.586322865788844, -3.5899395062590327, -3.387294476493164, -3.547379891840237, -3.4673371841667002, -3.540459448995663, -3.4265151896464454, -3.4295968561838532, -3.3813947543659757, -3.6306105459899607, -3.4326880487535263, -3.4673371841667002, -3.470547459796949, -3.4295968561838532, -3.653512310276645, -3.6306105459899607, -3.6343912688298667, -3.816712825623821, -4.240527072400182, -4.186459851129906, -5.0206856299497575, -6.645391014514646]) #np.linspace(0,0.94,48)
+        self.mw_LP = np.array([OUT_OF_RANGE, -3.72427988, -3.31651856, -3.24142811, -3.25427625,
+       -3.12506452, -3.11376497, -2.98070185, -2.99723115, -2.98728082,
+       -2.99058661, -2.99390336, -2.94844099, -2.98070185, -2.93269263,
+       -2.91411624, -2.86620289, -2.82889583, -2.80661079, -2.78211977,
+       -3.19975541, OUT_OF_RANGE]) #np.arange(245,355,5)
+        self.alogp_LP = np.array([OUT_OF_RANGE, -5.81064187, -4.65796236, -3.75225373, -2.35537726,
+       -1.42031643, -0.85598921, -1.59851427, OUT_OF_RANGE]) #np.arange(-4,5)
+        self.psa_LP = np.array([-5.20300719, -2.70306266, -1.25702203, -1.08618977, -1.56542103,
+       -2.7488722 , -3.81671283, -4.82831374, -5.99146455, OUT_OF_RANGE]) #np.arange(0,200,20)
+        self.alerts_LP = np.array([-0.52321694, -1.55266788, -2.10933989, -2.9295725 , -3.86473172, OUT_OF_RANGE]) #np.arange(6)
+        self.hetero_prop_LP = np.array([OUT_OF_RANGE, -5.08742949, -4.04438705, -3.6294432 , -2.88720641, -2.56062035,
+       -2.06240084, -2.03905348, -1.91163045, -2.15443555, -2.28488844,
+       -2.72199649, -3.03538692, -3.49434071, -3.88616305, -4.49365478,
+       -4.82714639, -5.56285318, -5.60730495, -6.50112282, -6.90658793, OUT_OF_RANGE])  #np.arange(0.075,0.625,0.025)
+        self.max_ring_size_LP = np.array([-5.65349118, OUT_OF_RANGE, OUT_OF_RANGE, OUT_OF_RANGE, -7.59940133,
+       -3.01443385, -0.10775586, -3.06680184, -5.98996342, OUT_OF_RANGE]) # np.arange(10)
+        if relative_weights == "inverse_entropy":
+            weight_vectors = [-1 / x.dot(np.exp(x)) for x in [self.frac_csp3_LP, self.heavy_atom_LP, self.hbond_donor_LP, self.hbond_acceptor_LP, self.n_ring_aliphatic_LP, self.n_ring_aromatic_LP, self.n_rot_bond_LP, self.mw_LP, self.alogp_LP, self.psa_LP, self.alerts_LP, self.hetero_prop_LP, self.max_ring_size_LP]]
+            self.relative_weights = np.array(weight_vectors) / np.sum(weight_vectors)
+        elif isinstance(relative_weights, np.ndarray):
+            self.relative_weights = relative_weights
+        else:
+            self.relative_weights = np.array([1/n_total_properties] * n_total_properties)
+
+    def calc_score(self, input, offset=5):
+        try:
+            props = calc_props(input)
+        except:
+            return 0
+        log_prob = np.array([
+            make_onehot(props[0], np.linspace(0,1,26)).dot(self.frac_csp3_LP),
+            make_onehot(props[1], np.arange(15, 27)).dot(self.heavy_atom_LP),
+            make_onehot(props[2], np.arange(7)).dot(self.hbond_donor_LP),
+            make_onehot(props[3], np.arange(12)).dot(self.hbond_acceptor_LP),
+            make_onehot(props[4], np.arange(6)).dot(self.n_ring_aliphatic_LP),
+            make_onehot(props[5], np.arange(6)).dot(self.n_ring_aromatic_LP),
+            make_onehot(props[6], np.arange(9)).dot(self.n_rot_bond_LP),
+            # make_onehot(props[7], np.linspace(0,0.94,48)).dot(self.qed_LP),
+            make_onehot(props[8], np.arange(245,355,5)).dot(self.mw_LP),
+            make_onehot(props[9], np.arange(-4,5)).dot(self.alogp_LP),
+            make_onehot(props[10], np.arange(0,200,20)).dot(self.psa_LP),
+            make_onehot(props[11], np.arange(6)).dot(self.alerts_LP),
+            make_onehot(props[12], np.arange(0.075,0.625,0.025)).dot(self.hetero_prop_LP),
+            make_onehot(props[13], np.arange(10)).dot(self.max_ring_size_LP)
+        ])
+        return log_prob.dot(self.relative_weights) + offset
+
+
 # ESOL:  Estimating Aqueous Solubility Directly from Molecular Structure 
 # John S. Delaney, J. Chem. Inf. Comput. Sci., 2004, 44, 1000 - 1005
 # https://pubs.acs.org/doi/abs/10.1021/ci034243x 
@@ -197,3 +270,4 @@ if __name__ == '__main__':
     smiles = ["O=C(NC=CC=C(F)C=CF)C=CC=CCN[C@@H1][Si]/OI", "Br[C@@]=C", "O=CN=C(B)B=[C@][N+1][NH1]CBr"]
     for s in smiles:
         print(drug.check_valid_atomtypes(s))
+
