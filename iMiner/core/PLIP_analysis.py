@@ -12,6 +12,8 @@ from iMiner.log import init_logger
 import pandas as pd
 import shutil
 import os
+import sys
+sys.path.append("/global/home/groups/co_armada2/avidd/plip")
 from rdkit import Chem
 
 
@@ -97,8 +99,11 @@ class PLIPAnalyzer(BaseProject):
 
         with open(protein_pdb, "r") as f:
             protein_pdb_lines = f.readlines()
+            protein_pdb_lines = [line for line in protein_pdb_lines if not (line.startswith("TER") \
+                                 or line.startswith("END"))]
         with open(os.path.join(working_dir, f"{name}_ligand.pdb"), "r") as f:
             ligand_pdb_lines = f.readlines()
+            ligand_pdb_lines = [line for line in ligand_pdb_lines if not line.startswith("CONECT")]
 
         complex_path = os.path.join(working_dir, f"{name}.pdb")
         with open(complex_path, "w") as f:
