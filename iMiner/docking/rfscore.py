@@ -2,7 +2,10 @@ import os
 import numpy as np
 #from sklearn.ensemble import RandomForestRegressor
 import pandas as pd
-import pickle
+try:
+    import pickle5 as pickle
+except:
+    import pickle
 from scipy.spatial import distance_matrix
 
 from iMiner.docking.base import BaseDocking

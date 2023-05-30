@@ -128,7 +128,7 @@ class BaseDocking:
 
         :return: pd.DataFrame with columns ["original_name", "smiles", "score", "path"], path is the path to the original conformation
         '''
-        
+        ligands = list(ligands) 
         pool = ProcessPoolExecutor(n_jobs)
         chunk_size = math.ceil(len(ligands) / n_chunks)
         ligands = [[ligands[i * chunk_size: (i + 1) * chunk_size]] for i in range(n_chunks)]

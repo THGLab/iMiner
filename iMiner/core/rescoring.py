@@ -18,7 +18,7 @@ docking_protocol_map = {
     "ad4": AD4Docking,
     "vina": VinaDocking,
     "vina-gpu": VinaGPUDocking,
-    "rfscore": RFScoring,
+    "rfscore": RFscoring,
 }
 
 class Rescoring(BaseProject):

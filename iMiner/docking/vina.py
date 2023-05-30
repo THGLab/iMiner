@@ -12,13 +12,14 @@ from iMiner.pathlib import *
 
 from pathlib import Path
 from typing import Optional
-from openbabel import openbabel
+# from openbabel import openbabel
 import itertools
 import os
 from os import path
 import numpy as np
 import pandas as pd
 import shutil
+import re
 
 class VinaDocking(AutoDockBaseDocking):
     def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
@@ -37,7 +38,7 @@ class VinaDocking(AutoDockBaseDocking):
         self.docking_box = docking_box
         self.write_config(**kwargs)
 
-    def write_config(self, exhaustiveness=8, num_modes=1, energy_range=30, **kwargs):
+    def write_config(self, exhaustiveness=64, num_modes=1, energy_range=30, **kwargs):
         '''
         Write the config file for AutoDock Vina docking
 
