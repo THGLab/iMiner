@@ -17,8 +17,6 @@ import re
 #import time
 import subprocess
 
-
-
 gpf = """npts NPTS_X NPTS_Y NPTS_Z
 gridfld PREFIX.maps.fld
 spacing 0.375
@@ -59,12 +57,6 @@ class AD4Docking(AutoDockBaseDocking):
         """
         super().__init__(protein_pdb, docking_box, logger=logger)
         
-        # define name and convert pdb to pdbqt
-        if name == None:
-            self.protein_name = Path(protein_pdb).resolve().stem
-        else:
-            self.protein_name = name
-        
         self.ad4dir = Path(temp_path).resolve() / "{}-ad4".format(self.protein_name)
         if self.ad4dir.exists() and self.ad4dir.is_dir():
             shutil.rmtree(self.ad4dir)  
@@ -88,6 +80,7 @@ class AD4Docking(AutoDockBaseDocking):
                 shutil.copy(protein_pdb, self.protein_path)
         
         # support for flexible docking
+        self.flex_docking = False
         if is_flex:
             flex_residues = "_".join(flex_res)
             self.flex_docking = True
