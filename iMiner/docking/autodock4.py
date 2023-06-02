@@ -47,19 +47,21 @@ class AD4Docking(AutoDockBaseDocking):
     """
     Run AutoDock4 with predefined binding pocket for ligands
     """
-    def __init__(self, protein_pdb, docking_box, is_flex = False, flex_res = None, temp_path = None, name = None, logger = None, **kwargs):
+    def __init__(self, protein_pdb, docking_box, is_flex = False, flex_res = None, temp_path = None, logger = None):
         """
         Initialize autodock4 with a protein and a docking box
-        @param protein_pdb: str, path to the protein pdb file
-        @param temp_path: str, path to the autodock4 prepared protein folder
-        @param docking_box: (xmin, ymin, zmin, xmax, ymax, zmax), the docking box definition
-        @param name: str or None, name of the protein 
+
+        :param protein_pdb: str, path to the protein pdb file
+        :param docking_box: list of floats, the docking box in the form of [x1, y1, z1, x2, y2, z2]
+        :param is_flex: bool, whether the docking is flexible
+        :param flex_res: list of str, the flexible residues
+        :param temp_path: str, path to the temporary folder
+        :param name: str, name of the docking project
+        :param logger: logger object, logger to record the docking process
         """
         super().__init__(protein_pdb, docking_box, logger=logger)
         
         self.ad4dir = Path(temp_path).resolve() / "{}-ad4".format(self.protein_name)
-        if self.ad4dir.exists() and self.ad4dir.is_dir():
-            shutil.rmtree(self.ad4dir)  
         self.ad4dir.mkdir(parents = True, exist_ok = True)
         
         # create folders corresponding to the project
@@ -96,9 +98,9 @@ class AD4Docking(AutoDockBaseDocking):
         """
         write autodock4 configuration file with the given docking box infomation
 
-        @param spacing: float, spacing of the protein grid, default 0.375 angstroms
+        :param spacing: float, the spacing of the grid
 
-        @return: path of the gpf file, when the run is successful
+        :return: str, the path to the gpf file
         """
         # convert the box information into gpf-required information
         xmin, ymin, zmin, xmax, ymax, zmax = self.docking_box
@@ -144,9 +146,9 @@ class AD4Docking(AutoDockBaseDocking):
         """
         running autogrid4 to generate calculated grid based on the gpf file
 
-        @param gpf_file: path or str, path to the gpf file for grid generation
+        :param gpf_file: str, the path to the gpf file
 
-        @return: file path to the fld file, when the run is successful
+        :return: str, the path to the fld file
         """
         with set_directory(self.grid_path):
             try:
@@ -163,10 +165,10 @@ class AD4Docking(AutoDockBaseDocking):
         """
         write the batch docking file to the ad4 folder.
 
-        @param fld_file: str, file path to the prepared protein fld file
-        @param liglist: list of path of ligands to dock
+        :param fld_file: str, the path to the fld file
+        :param liglist: list, the list of ligands to be docked
 
-        @return: file path to the batch docking file
+        :return: str, the path to the batch file
         """
         batch_lst = []
         batch_lst.append(str(fld_file))
@@ -190,11 +192,11 @@ class AD4Docking(AutoDockBaseDocking):
         """
         Run autodock 4 with the protein and ligands
 
-        @param spacing: grid space for autodock4, default = 0.375
-        @param nrun: number of runs for each ligand
-        @param liglist: list of path of ligands to dock
+        :param spacing: float, the spacing of the grid
+        :param nrun: int, the number of runs
+        :param liglist: list, the list of ligands to be docked
 
-        @return: True if the run is successful
+        :return: True if the docking is successful, error message otherwise
         """
         gpf_file = self.grid_path / "{}.gpf".format(self.protein_name)
         fld_file = self.grid_path / '{}.maps.fld'.format(self.protein_name)
@@ -223,9 +225,13 @@ class AD4Docking(AutoDockBaseDocking):
         """
         Take in a dlg filepath and return necessary information for the best docked pose
 
-        @param dlg_file: str or path, path to the dlg file from running autodock4
+        :param dlg_file: str, the path to the dlg file
+        :param output_dir: str, the path to the output directory
+        :param rescore: bool, whether to only do rescoring the docked poses
+        :param write_best_pose: bool, whether to write the best pose to a pdbqt file
+        :param write_best_cluster_pose: bool, whether to write the best cluster pose to a pdbqt file
 
-        @return a row of dataframe that has information of the best pose of a ligand
+        :return: list, the list of the best docked pose information
         """
         if not os.path.isfile(dlg_file): 
             print("DLG File %s not found."%dlg_file)
@@ -282,23 +288,27 @@ class AD4Docking(AutoDockBaseDocking):
             all_sdf = f.read().split("$$$$\n")
         output_dir = Path(output_dir).resolve()
         
+        ligand_best_pose = None
+        ligand_cluster_pose = None
         if write_best_pose:
             ligand_best_pose = output_dir / "{}.sdf".format(ligand_name)
             with open(ligand_best_pose, "w") as f1:
                 f1.write(all_sdf[num_run-1])
         
         if write_best_cluster_pose:
-            ligand_cluster_pose = output_dir / "cluster-score-{}-{}.sdf".format(score_cluster, ligand_name)
+            ligand_cluster_pose = output_dir / "{}-cluster.sdf".format(ligand_name)
             with open(ligand_cluster_pose, "w") as f1:
                 f1.write(all_sdf[run_cluster-1])
             
-        return [ligand_name, smile, best_score, ligand_best_pose]
+        return [ligand_name, smile, best_score, score_cluster, ligand_best_pose, ligand_cluster_pose]
     
     def convert_ligand(self, file):
         '''
         Convert a ligand into pdbqt
+
+        :param file: str, path to the ligand file
         
-        :return: path to pdbqt
+        :return: path to pdbqt, False if failed
         '''
         ligand_input = Path(file)
         ligand_name = ligand_input.stem
@@ -308,7 +318,8 @@ class AD4Docking(AutoDockBaseDocking):
             return False
         return ligand_output
         
-    def dock_parallel(self, ligands, output_dir, n_jobs=1, single_job_timeout=120, verbose=True, save_df_freq=500):
+    def dock_parallel(self, ligands, output_dir, n_jobs=1, nrun = 10, spacing = 0.375, \
+                      single_job_timeout=120, verbose=True, save_df_freq=500):
         '''
         Dock a list of ligands to the pocket in the protein in parallel for AutoDock GPU.
         *overwrites the base function*
@@ -316,9 +327,14 @@ class AD4Docking(AutoDockBaseDocking):
         :param ligands: list of ligands, each ligand is a path to the corresponding .sdf file
         :param output_dir: str, path to the output directory
         :param n_jobs: int, number of jobs to run in parallel
-        :param verbose: bool, whether to show progress bar
+        :param nrun: int, number of runs for each ligand
+        :param spacing: float, spacing for the grid box
+        :param single_job_timeout: int, timeout for each job
+        :param verbose: bool, whether to print out progress
+        :param save_df_freq: int, frequency to save the docking results to a dataframe
 
-        :return: pd.DataFrame with columns ["original_name", "smiles", "score", "path"], path is the path to the docked conformation
+        :return: pd.DataFrame with columns ["original_name", "smiles", "best_score", "cluster_score", 
+        "best_path", "cluster_path"]
         '''
         import multiprocessing
         from tqdm import tqdm
@@ -342,7 +358,7 @@ class AD4Docking(AutoDockBaseDocking):
         
         # run autodock in batch mode
         #st = time.time()
-        self.run_autodock(spacing = 0.375, nrun = 10, liglist = lig_outs)
+        self.run_autodock(spacing = spacing, nrun = nrun, liglist = lig_outs)
         if self.logger is not None:
             self.logger.info(f"Docking finished.")
         os.makedirs(output_dir, exist_ok=True)
@@ -351,7 +367,7 @@ class AD4Docking(AutoDockBaseDocking):
         dlgs = [self.result_path / (str(file.stem) + ".dlg") for file in lig_outs]
         zipped_args = zip(dlgs, [output_dir] * len(dlgs))   
         counter = 0
-        results = pd.DataFrame(columns=['original_name', 'smiles', 'score', 'path'])
+        results = pd.DataFrame(columns=["original_name", "smiles", "best_score", "cluster_score", "best_path", "cluster_path"])
         if verbose:
             pbar = tqdm(total=len(dlgs))
         for result in pool.imap(partial(unpack_helper, self.dlg_analysis), zipped_args):
@@ -367,16 +383,17 @@ class AD4Docking(AutoDockBaseDocking):
 
     def dock(self, ligands, output_dir, single_job_timeout=120, spacing = 0.375, nrun = 10):
         """
-        All-together function that runs autodock and generate a pandas
-        dataframe with necessary information for further analysis
+        All-together function that runs autodock and generate a pandas dataframe with necessary information 
+        for further analysis. Should always use dock_parallel instead of this function.
 
-        @param ligands: list of ligands, each ligand is a path to the corresponding .sdf file
-        @param output_dir: str, path to the output directory
-        @param single_job_timeout: int, timeout for each job in seconds
-        @param spacing: grid space for autodock4, default = 0.375
-        @param nrun: number of runs for each ligand, default = 10
-        
-        @return: dataframe that has necessary information of ad4result.
+        :param ligands: list of ligands, each ligand is a path to the corresponding .sdf file
+        :param output_dir: str, path to the output directory
+        :param single_job_timeout: int, timeout for each job
+        :param spacing: float, spacing for the grid box
+        :param nrun: int, number of runs for each ligand
+
+        :return: pd.DataFrame with columns ["original_name", "smiles", "best_score", "cluster_score",
+        "best_path", "cluster_path"]
         """
         # convert ligands into their pdbqts
         lig_outs = []
@@ -389,7 +406,7 @@ class AD4Docking(AutoDockBaseDocking):
         #print("Docking finished. Time elapsed %s hrs"%((time.time()-st)/3600.))
         os.makedirs(output_dir, exist_ok=True)
             
-        analysis_df = pd.DataFrame(columns=['original_name', 'smiles', 'score', 'path'])
+        analysis_df = pd.DataFrame(columns=["original_name", "smiles", "best_score", "cluster_score", "best_path", "cluster_path"])
         for file in lig_outs:
             f = str(file.stem) + ".dlg"
             result = self.dlg_analysis(self.result_path / f, output_dir)
@@ -402,10 +419,9 @@ class AD4Docking(AutoDockBaseDocking):
         All-together function that runs autodock for scoring in place and generate a pandas
         dataframe with necessary information for further analysis
 
-        @param ligands: list of ligands, each ligand is a path to the corresponding .sdf/.pdbqt file
-                        If given .pdbqt files, assumes in the same folder
-        
-        @return: dataframe that has necessary information of ad4result.
+        :param ligands: list of ligands, each ligand is a path to the corresponding .sdf file
+
+        :return: pd.DataFrame with columns ["ligand_name", "smiles", "score"]
         """
         # convert ligands into their pdbqts
         lig_outs = []
@@ -422,7 +438,6 @@ class AD4Docking(AutoDockBaseDocking):
         analysis_df = pd.DataFrame(columns=['ligand_name', 'smiles', 'score'])
         for file in lig_outs:
             f = str(file.stem) + ".dlg"
-            analysis_df.loc[len(analysis_df.index)] = self.dlg_analysis(self.result_path / f,
-                    None, True)
+            analysis_df.loc[len(analysis_df.index)] = self.dlg_analysis(self.result_path / f, None, rescore = True)
         
         return analysis_df
