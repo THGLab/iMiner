@@ -98,6 +98,45 @@ def timestamp(hashed=False) -> str:
         value = hash_str(value)
     return value
 
+def draw_binding_box(ligand_sdf, flex = 2):
+    """
+    Draw the binding box around a ligand with 2 angstroms freedom on both sides
+    
+    Parameters
+    ----------
+    ligand_sdf: str
+        The path to the ligand sdf file
+    flex: int
+        The freedom of the ligand in angstroms
+
+    Return
+    ------
+    center: tuple
+        The center of the binding box
+    size: tuple
+        The size of the binding box
+    """
+    with open(ligand_sdf, "r") as f:
+        lines = f.readlines()
+        
+    xs, ys, zs = [], [], []
+    
+    for line in lines:
+        if len(line) == 70:
+            items = line.strip().split()
+            x, y, z = [float(i) for i in items[:3]]
+            xs.append(x)
+            ys.append(y)
+            zs.append(z)
+    
+    size_x = (int(max(xs) - min(xs) + 2 * flex) // 2) * 2 + 2
+    size_y = (int(max(ys) - min(ys) + 2 * flex)// 2) * 2 + 2
+    size_z = (int(max(zs) - min(zs) + 2 * flex)// 2) * 2 + 2
+    center_x = (max(xs) + min(xs)) / 2
+    center_y = (max(ys) + min(ys)) / 2
+    center_z = (max(zs) + min(zs)) / 2
+    
+    return (center_x, center_y, center_z), (size_x, size_y, size_z)
 
 def box_from_center_and_size(center, size):
     '''
