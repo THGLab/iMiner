@@ -98,7 +98,7 @@ def timestamp(hashed=False) -> str:
         value = hash_str(value)
     return value
 
-def draw_binding_box(ligand_sdf, flex = 2):
+def draw_binding_box_around_ligand(ligand_sdf, flex = 2):
     """
     Draw the binding box around a ligand with 2 angstroms freedom on both sides
     

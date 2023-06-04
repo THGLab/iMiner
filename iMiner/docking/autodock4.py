@@ -47,13 +47,12 @@ class AD4Docking(AutoDockBaseDocking):
     """
     Run AutoDock4 with predefined binding pocket for ligands
     """
-    def __init__(self, protein_pdb, docking_box, is_flex = False, flex_res = None, temp_path = None, logger = None):
+    def __init__(self, protein_pdb, docking_box, flex_res = None, temp_path = None, logger = None):
         """
         Initialize autodock4 with a protein and a docking box
 
         :param protein_pdb: str, path to the protein pdb file
         :param docking_box: list of floats, the docking box in the form of [x1, y1, z1, x2, y2, z2]
-        :param is_flex: bool, whether the docking is flexible
         :param flex_res: list of str, the flexible residues
         :param temp_path: str, path to the temporary folder
         :param name: str, name of the docking project
@@ -83,10 +82,10 @@ class AD4Docking(AutoDockBaseDocking):
         
         # support for flexible docking
         self.flex_docking = False
-        if is_flex:
+        if flex_res is not None:
             flex_residues = "_".join(flex_res)
             self.flex_docking = True
-            with set_directory(self.working_path):
+            with set_directory(self.grid_path):
                 self.convert_pdbqt_to_flex_rigid("{}.pdbqt".format(self.protein_name), flex_residues)
             self.protein_path = self.grid_path / "{}_rigid.pdbqt".format(self.protein_name)
             self.flex_path = self.grid_path / "{}_flex.pdbqt".format(self.protein_name)
