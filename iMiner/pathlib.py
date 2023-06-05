@@ -29,10 +29,10 @@ VINA_BINARY = Path(iMiner_path) / 'docking/bins/vina'
 VINA_GPU_SCRIPT = Path(iMiner_path) / 'docking/run_vina_gpu.sh'
 VINA_GPU_BINARY_PATH = Path(iMiner_path) / "docking/bins"
 
-tankbind_dir_path = os.path.dirname(tankbind_python_path)
-tankbind_python_path = '/home/jerry/anaconda3/envs/tankbind/bin/python'
-tankbind_src_path = '/home/jerry/data/TankBind'
-p2rank_path = '/home/jerry/src/p2rank_2.4/prank'
+# tankbind_dir_path = os.path.dirname(tankbind_python_path)
+# tankbind_python_path = '/home/jerry/anaconda3/envs/tankbind/bin/python'
+# tankbind_src_path = '/home/jerry/data/TankBind'
+# p2rank_path = '/home/jerry/src/p2rank_2.4/prank'
 
 RF_model_path = Path(iMiner_path) / 'docking/bins/RF_newsplit.pkl'
 RF_col_mask = [True,  True,  True,  True,  True,  True,  True,  True,  True,
