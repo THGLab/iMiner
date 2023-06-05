@@ -53,7 +53,7 @@ class AD4Docking(AutoDockBaseDocking):
 
         :param protein_pdb: str, path to the protein pdb file
         :param docking_box: list of floats, the docking box in the form of [x1, y1, z1, x2, y2, z2]
-        :param flex_res: list of str, the flexible residues
+        :param flex_res: list of str, the flexible residues, three letter code all cap, e.g.: ['HIS41', 'GLU166']
         :param temp_path: str, path to the temporary folder
         :param name: str, name of the docking project
         :param logger: logger object, logger to record the docking process
