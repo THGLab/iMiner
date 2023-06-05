@@ -11,13 +11,14 @@ from iMiner.log import init_logger
 import pandas as pd
 import shutil
 
-
 docking_protocol_map = {
     "ad4": AD4Docking,
     "vina": VinaDocking,
     "vina-gpu": VinaGPUDocking,
-    "icm": ICMDocking,
-    "tankbind": TankBindDocking
+    "rfscore": RFscoring,
+#    "ign": IGNscoring,
+#    "icm": ICMDocking,
+#    "tankbind": TankBindDocking
 }
 
 class ConsensusDocking(BaseProject):
@@ -28,7 +29,7 @@ class ConsensusDocking(BaseProject):
         When project_path is None, the project will be initialized in the current working directory,
         using the project_name as the project folder name
 
-        :param docking_protocols: list of docking protocols to be used for consensus docking, list of ["vina", "vina-gpu", "ad4", "icm"]
+        :param docking_protocols: list of docking protocols to be used for consensus docking, list of ["vina", "vina-gpu", "ad4", "rfscore"]
         :param verbose: bool, whether to show and log processing messages
         '''
         super().__init__(project_name, project_path, verbose)
@@ -48,9 +49,13 @@ class ConsensusDocking(BaseProject):
             assert len(self.proteins) == 1, "Please specify the protein name if there are multiple proteins in the project!"
             protein_name = list(self.proteins.keys())[0]
         consensus_docking_path = self.project_path / "consensus_docking" / protein_name
+        scoring_protocols = []
 
         results_df = []
         for protocol in self.docking_protocols:
+            if protocol in ["rfscore"]:
+                scoring_protocols.append(protocol)
+                continue
             docking_obj = self.docking_protocols[protocol](self.proteins[protein_name],
                                                            self.binding_sites[protein_name],
                                                            self.temp_path, self.logger, **kwargs)
@@ -71,7 +76,24 @@ class ConsensusDocking(BaseProject):
             results["ligand_names"] = ligand_names
             results["protocol"] = protocol
             results_df.append(results)
-
+            if self.verbose:
+                self.logger.info(f"{protocol} docking finished")
+            # clean temporary file
+            shutil.rmtree(docking_obj.working_path)
+        
+        # deal with scoring only methods separately as these require docked pose
+        for protocol in scoring_protocols:
+            docking_obj = self.docking_protocols[protocol](self.proteins[protein_name],
+                                                           self.binding_sites[protein_name],
+                                                           self.temp_path, self.logger, **kwargs)
+            ligand_paths = results_df[-1]["path"].values # docked pose taken from last docking method
+            results = docking_obj.rescore(ligand_paths)
+            results["path"] = ligand_paths
+            results["ligand_names"] = ligand_names
+            results["protocol"] = f"{protocol}-{results_df[-1]['protocol'].values[0]}"
+            results_df.append(results)
+            if self.verbose:
+                self.logger.info(f"{protocol} finished")
         final_results = pd.concat(results_df)[["ligand_names", "score", "smiles", "protocol", "path", "original_names"]]
 
         # when output_csv is not specified, auto-generate one using the protein_name

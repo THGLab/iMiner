@@ -14,101 +14,9 @@ import numpy as np
 import pandas as pd
 from rdkit import Chem
 
-from iMiner.utils import dist_mat
+from iMiner.utils import dist_mat, random_id
 from iMiner.docking.base import BaseDocking
 from iMiner.pathlib import *
-
-
-class LigandPDBQT:
-    def __init__(self, template: Optional[Union[Chem.rdchem.Mol, os.PathLike]] = None):
-        self.data = {
-            "ID": [],
-            "resname": [],
-            "element": [],
-            "resid": [],
-            "x_coord": [],
-            "y_coord": [],
-            "z_coord": [],
-            "vdw": [],
-            "elec": [],
-            "q": [],
-            "type": []
-        }
-        self._rdmol = None
-        if template is None:
-            self.template = template
-        elif isinstance(template, Chem.rdchem.Mol):
-            self.template = template
-        elif Path(template).suffix == ".mol":
-            self.template = Chem.MolFromMolFile(str(template), removeHs=False)
-        elif Path(template).suffix == ".sdf":
-            self.template = Chem.SDMolSupplier(str(template), removeHs=False)[0]
-        else:
-            raise ValueError(f"Invaild template input/type: {template}")
-            
-    @property
-    def df(self):
-        return pd.DataFrame(self.data)
-    
-    @property
-    def coords(self):
-        return np.array([self.data['x_coord'], self.data['y_coord'], self.data['z_coord']]).T
-    
-    def parse_line(self, line: str):
-        if line.startswith("ATOM"):
-            ls = line.split()
-            self.data['ID'].append(int(ls[1]))
-            self.data['resname'].append(ls[2])
-            self.data['element'].append(ls[3])
-            self.data['resid'].append(int(ls[4]))
-            self.data['x_coord'].append(float(ls[5]))
-            self.data['y_coord'].append(float(ls[6]))
-            self.data['z_coord'].append(float(ls[7]))
-            self.data['vdw'].append(float(ls[8]))
-            self.data['elec'].append(float(ls[9]))
-            self.data['q'].append(float(ls[10]))
-            self.data['type'].append(ls[11])
-
-    def read_file(self, fname: os.PathLike):
-        with open(fname, 'r') as f:
-            for line in f:
-                self.parse_line(line)
-
-    def map_template_coords(self, tcrd: np.ndarray):
-        dmat = dist_mat(self.coords, tcrd)
-        mapping = {"pdbqt_atom_id": [], "template_atom_id": []}
-        for i in range(dmat.shape[0]):
-            argmin = np.argmin(dmat[i])
-            min_dist = dmat[i][argmin]
-            if min_dist > 1e-3:
-                raise ValueError(f"No template atom mapped for atom {i}")
-            else:
-                mapping['pdbqt_atom_id'].append(i)
-                mapping['template_atom_id'].append(argmin)
-        
-        return pd.DataFrame(mapping)
-    
-    def get_mapping(self):
-        return self.map_template_coords(self.template.GetConformer(0).GetPositions())
-    
-    def get_rdmol(self, mapping: pd.DataFrame, reset_h: bool = True):
-        assert self.template is not None, "No template found"
-        # mapping = self.map_template_coords(self.template.GetConformer(0).GetPositions())
-        new_mol = deepcopy(self.template)
-        conf = new_mol.GetConformer(0)
-        for pdbqt_id, tmpl_id in zip(mapping['pdbqt_atom_id'], mapping['template_atom_id']):
-            conf.SetAtomPosition(tmpl_id, self.coords[pdbqt_id])
-        if reset_h:
-            self._rdmol = Chem.AddHs(Chem.RemoveHs(new_mol), addCoords=True)
-        return self._rdmol
-    
-    def write_sdf(self, fname: os.PathLike, mapping: pd.DataFrame, reset_h: bool = True):
-        writer = Chem.SDWriter(str(fname))
-        writer.write(self.get_rdmol(mapping, reset_h), confId=0)
-        writer.close()
-    
-    def write_mol(self, fname: os.PathLike, mapping: pd.DataFrame, reset_h: bool = True):
-        Chem.MolToMolFile(self.get_rdmol(mapping, reset_h), str(fname), confId=0)
 
 
 class AutoDockBaseDocking(BaseDocking):
@@ -163,7 +71,8 @@ class AutoDockBaseDocking(BaseDocking):
         
         return True
 
-    def convert_sdf_to_pdbqt(self, sdf_path, output_path):
+    @staticmethod
+    def convert_sdf_to_pdbqt(sdf_path, output_path):
         '''
         Convert a ligand sdf file to a pdbqt file that can be used for AutoDock docking
 
@@ -180,23 +89,61 @@ class AutoDockBaseDocking(BaseDocking):
         
         return True
 
-    def convert_adresult_to_sdf(self, adresult_path, output_path):
+    @staticmethod
+    def convert_adresult_to_sdf(adresult_path, output_path, idx=-1):
         '''
         Convert a pdbqt/dlg file to a sdf file for standard file formatting
 
         :param adresult_path: str, path to the pdbqt/dlg file
         :param output_path: str, path to the output sdf file
+        :param idx: int, the index of model to export
 
         :return: True, if the run is successful
         '''
+        comment = ""
+        if isinstance(idx, list): 
+            comment = " ".join(idx)
+            idx = -1
+        temp_path = output_path if idx==-1 else f"/tmp/{random_id()}_{os.path.basename(output_path)}" 
         try:
-            out = subprocess.run([meeko_ligconv_path, adresult_path, '-o', output_path])
+            out = subprocess.run([meeko_ligconv_path, adresult_path, '-o', temp_path])
         except subprocess.CalledProcessError as e:
             return False
+        if len(comment) > 0: 
+            with open(temp_path, "a") as f:
+                f.write("\n>  <REMARK>\nSELECTED MODELS: "+comment)
+        if idx == -1: return True
+        return AutoDockBaseDocking.extract_pose(temp_path, output_path, idx)
         
+        
+    @staticmethod
+    def extract_pose(sdf_path, output_path, idx=0):
+        '''
+        extract the pose with idx in sdf containing multiple models
+        
+        :param sdf_path: str, path to the sdf result file
+        :param output_path: str, path to the output sdf file
+        :param idx: int, index of pdbqt model to extract
+
+        :return: True, if the run is successful
+        '''
+        #assert not Path(sdf_path) == Path(output_path)
+        with open(sdf_path, "r") as f:
+            all_sdf = f.read().split("$$$$\n")
+        # single model in pdbqt
+        if len(all_sdf) == 1:
+            with open(output_path, "w+") as f1:
+                f1.write(all_sdf[0])
+            return True
+        elif len(all_sdf) - 1 <= idx:
+            idx = 0
+        # save the selected model
+        with open(output_path, "w+") as f1:
+            f1.write(all_sdf[idx])
         return True
     
-    def read_smiles_from_pdbqt(self, pdbqt_path):
+    @staticmethod
+    def read_smiles_from_pdbqt(pdbqt_path):
         '''
         Read a smiles string from pdbqt file, only for pdbqt generated by meeko
     
@@ -209,7 +156,22 @@ class AutoDockBaseDocking(BaseDocking):
                 if line.startswith('REMARK SMILES'):
                     return line.strip().split()[-1]
     
-    def read_smiles_from_dlg(self, dlg_path):
+    @staticmethod
+    def read_energy_from_pdbqt(pdbqt_path):
+        '''
+        Read vina score from pdbqt file, only for pdbqt generated by meeko
+    
+        :param pdbqt_path: str, path to the pdbqt file
+    
+        :return: float, vina score
+        '''
+        with open(pdbqt_path, 'r') as f:
+            for line in f.readlines():
+                if line.startswith('REMARK VINA RESULT:'):
+                    return np.float(line.strip().split()[3])
+    
+    @staticmethod
+    def read_smiles_from_dlg(dlg_path):
         '''
         Read a smiles string from a ligand dlg file, only for docking with pdbqt generated by meeko
     

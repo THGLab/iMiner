@@ -9,16 +9,17 @@ from iMiner.docking.autodock import AutoDockBaseDocking
 from iMiner.cmd import run_command, set_directory
 from iMiner.utils import random_id, get_free_gpu
 from iMiner.pathlib import *
+
 from pathlib import Path
 from typing import Optional
+# from openbabel import openbabel
 import itertools
-import shutil
 import os
 from os import path
 import numpy as np
-import re
 import pandas as pd
-
+import shutil
+import re
 
 class VinaDocking(AutoDockBaseDocking):
     def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, flex_res = None, logger=None, **kwargs) -> None:
@@ -43,7 +44,7 @@ class VinaDocking(AutoDockBaseDocking):
         self.docking_box = docking_box
         self.write_config(**kwargs)
 
-    def write_config(self, exhaustiveness=8, num_modes=1, energy_range=30, **kwargs):
+    def write_config(self, exhaustiveness=64, num_modes=1, energy_range=30, **kwargs):
         '''
         Write the config file for AutoDock Vina docking
 
@@ -75,7 +76,8 @@ class VinaDocking(AutoDockBaseDocking):
         if self.is_flex:
             lines[0] = "receptor = {}.pdbqt".format(self.protein_name + "_rigid")
             lines.append("flex = {}.pdbqt".format(self.protein_name + "_flex"))
-
+        self.nmodes = num_modes
+        
         with open(config_fp, "w") as f:
             f.write("\n".join(lines))
 
@@ -86,7 +88,7 @@ class VinaDocking(AutoDockBaseDocking):
 
         :param ligands: list of ligands, each ligand is a path to the corresponding .sdf/.pdbqt file
 
-        :return: pd.DataFrame with columns ["original_names", "smiles", "score"]
+        :return: pd.DataFrame with columns ["ligand_name", "smiles", "score"]
         '''
         
          # prepare lists to record results
@@ -121,7 +123,7 @@ class VinaDocking(AutoDockBaseDocking):
             ligand_scores.append(energy)
         
         # generate the final pandas dataframe and return
-        df = pd.DataFrame({"original_names": ligands, "smiles": ligand_smiles,
+        df = pd.DataFrame({"ligand_name": ligands, "smiles": ligand_smiles,
              "score": ligand_scores})
         return df
 
@@ -132,6 +134,16 @@ class VinaDocking(AutoDockBaseDocking):
             code, out, err = run_command(cmd, timeout=single_job_timeout, raise_error=False)
         return code, out, err
         
+    def check_valid_atoms(self, smiles):
+        if "B" in smiles:
+            items = smiles.split("B")
+            for i in items:
+                if not i.startswith("r"):
+                    return False
+        for element in ["Si", "Te"]:
+            if element in smiles:
+                return False
+        return True
 
     def dock(self, ligands, output_dir, single_job_timeout=None):
         '''
@@ -151,7 +163,6 @@ class VinaDocking(AutoDockBaseDocking):
 
         # convert output_dir to Path object
         output_dir = Path(output_dir)
-
         for ligand in ligands:
             ligand_name = Path(ligand).stem
             ligand_work_name = ligand_name + "_" + random_id()
@@ -163,10 +174,20 @@ class VinaDocking(AutoDockBaseDocking):
                 continue
             # save the ligand smiles
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
-
+            if ligand_smiles[-1] is None:
+                ligand_scores.append(np.nan)
+                ligand_conformation_paths.append("smiles sdf conversion error")
+                continue
+            
+            # if contains invalid vina atom types
+            #if not self.check_valid_atoms(ligand_smiles[-1]): 
+                # use 0 instead of nan, so that these molecules go into rl training
+            #    ligand_scores.append(0.)
+            #    ligand_conformation_paths.append("invalid atom types")
+            #    continue
+            
             # execute vina docking under directory (for cpu: working directory, for gpu: binary directory)
             code, out, err = self._run_docking_under_folder(ligand_work_name, single_job_timeout) 
-
             # special handling if calculation job times out
             if code == 999:
                 ligand_scores.append(np.nan)
@@ -177,13 +198,24 @@ class VinaDocking(AutoDockBaseDocking):
                 ligand_scores.append(np.nan)
                 ligand_conformation_paths.append(err)
                 continue
-
+            
             # obtain docking score from the results
             energy = np.nan
-            strings = re.split('\n', out)
-            for line in strings:
-                if line[0:4] == '   1':
-                    energy = float(re.split(' +', line)[2])
+            pose_idx = -1
+            strings = out.split("-----+------------+----------+----------\n")[-1].split("\n")
+            for (n, line) in enumerate(strings):
+                if line.startswith("WARNING"):
+                    print("Error in docking", flush=True)
+                    break
+                elif line.strip().split()[0] == "1":
+                    energy = float(line.strip().split()[1])
+                    break
+            if self.nmodes > 1 and energy != np.nan:
+                # untested; calculates averages of poses clustered with the top pose
+                rmsds = np.array([line.strip().split() for line in strings[n, n+self.nmodes]], dtype=np.float)
+                mask = rmsds[:, 2] < 2
+                energy = rmsds[:, 1][mask].mean()
+                pose_idx = rmsds[:, 0][mask]
             ligand_scores.append(energy)
 
             # save the conformation
@@ -195,8 +227,9 @@ class VinaDocking(AutoDockBaseDocking):
                     while os.path.exists(output_dir / f"{ligand_name}_{i}.sdf"):
                         i += 1
                     ligand_name = f"{ligand_name}_{i}"
+           
                 succ = self.convert_adresult_to_sdf(self.working_path / "{}_out.pdbqt".format(ligand_work_name),
-                        output_dir / "{}.sdf".format(ligand_name))
+                        output_dir / "{}.sdf".format(ligand_name), pose_idx)
                 if succ and os.path.exists(output_dir / "{}.sdf".format(ligand_name)):
                     ligand_conformation_paths.append(str(output_dir / "{}.sdf".format(ligand_name)))
                 else:
@@ -207,15 +240,29 @@ class VinaDocking(AutoDockBaseDocking):
         # generate the final pandas dataframe and return
         df = pd.DataFrame({"original_names": ligands, "smiles": ligand_smiles,
              "score": ligand_scores, "path": ligand_conformation_paths})
+
         return df
             
-
+    @staticmethod
+    def read_energy_from_sdf(sdf_path):
+        """
+        meeko converted sdf files preserve energy remarks from pdbqt
+        """
+        with open(sdf_path, "r+") as f:
+            lines = f.read()
+        models = lines.split('"free_energy":')[1:]
+        if isinstance(models, str):
+            models = [models]
+        energies = [m.split("\n")[0].strip().split()[0][:-1] for m in models]
+        return [np.nan if e=="NAN" else np.float(e) for e in energies]
+        
 
 class VinaGPUDocking(VinaDocking):
     def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, flex_res = None, logger=None, **kwargs) -> None:
         AutoDockBaseDocking.__init__(self, protein_pdb, docking_box, logger=logger)
         self.working_path = Path(temp_path) / "{}-vina-gpu".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
+        
         if not os.path.exists(self.protein_path):
             if protein_pdb.endswith('.pdb'):
                 self.convert_pdb_to_pdbqt(protein_pdb, self.protein_path)
@@ -263,3 +310,20 @@ class VinaGPUDocking(VinaDocking):
         gpus = [None] * len(ligands)
         zipped_args = zip(ligands, [output_dir] * len(ligands), [single_job_timeout] * len(ligands), gpus)
         return zipped_args
+        
+    @staticmethod
+    def read_energy_from_sdf(sdf_path):
+        """
+        obabel converted sdf files preserve energy remarks from pdbqt
+        """
+        with open(sdf_path, "r+") as f:
+            lines = f.read()
+        models = lines.split("VINA RESULT:")[1:]
+        if isinstance(models, str):
+            models = [models]
+        energies = [m.split("\n")[0].strip().split()[0] for m in models]
+        return [np.nan if e=="NAN" else np.float(e) for e in energies]
+        
+
+if __name__ == "__main__":
+    print(VINA_BINARY)

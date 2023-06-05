@@ -135,23 +135,22 @@ covid_project
 .DS_Store
 
 # examples
-# examples/*
+examples/*
 
 # local data
 local/
-zikv_pro/
+**/submit.sh
+**/slurm*.out
 
 # vscode
 .vscode/
 
-# debug
+# debug n in development
+iMiner/docking/ignscore.py
 debug/
 
 # temp docs
 .docs/
-
-# slurm outputs
-slurm*.out
 
 # output folders
 *outputs*

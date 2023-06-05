@@ -16,11 +16,6 @@ from torch.nn.utils.rnn import *
 
 class Model():
     def __init__(self, model_pkl) -> None:
-        # data_path = os.path.dirname(data_bunch_pos)
-        # data_filename = os.path.basename(data_bunch_pos)
-        # self.data = load_data(data_path, data_filename, bs=batch_size, bptt=70)
-        # self.tokens = self.data.train_ds.x.vocab.itos
-        # self.model_dim = len(self.tokens)
         model_path = os.path.dirname(model_pkl)
         model_filename = os.path.basename(model_pkl)
         self._language_model = load_learner(model_path, model_filename)
