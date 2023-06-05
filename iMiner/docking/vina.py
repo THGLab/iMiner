@@ -22,19 +22,25 @@ import shutil
 import re
 
 class VinaDocking(AutoDockBaseDocking):
-    def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
+    def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, flex_res = None, logger=None, **kwargs) -> None:
         super().__init__(protein_pdb, docking_box, logger=logger)
         self.working_path = Path(temp_path) / "{}-vina".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
+        self.protein_path = self.working_path / "{}.pdbqt".format(self.protein_name)
 
-        if not os.path.exists(self.working_path / "{}.pdbqt".format(self.protein_name)):
-            if protein_pdb.endswith(".pdbqt"):
-                # bypass the ADFRsuite install by reading in pdbqt
-                shutil.copy(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name))
-            else:
-                self.convert_pdb_to_pdbqt(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name))
-
+        if not os.path.exists(self.protein_path):
+            if protein_pdb.endswith('.pdb'):
+                self.convert_pdb_to_pdbqt(protein_pdb, self.protein_path)
+            elif protein_pdb.endswith('.pdbqt'):
+                shutil.copy(protein_pdb, self.protein_path)
         
+        self.is_flex = False
+        if flex_res is not None:
+            self.is_flex = True
+            flex_residues = "_".join(flex_res)
+            with set_directory(self.working_path):
+                self.convert_pdbqt_to_flex_rigid("{}.pdbqt".format(self.protein_name), flex_residues)
+            
         self.docking_box = docking_box
         self.write_config(**kwargs)
 
@@ -49,7 +55,7 @@ class VinaDocking(AutoDockBaseDocking):
         '''
 
         config_fp = self.working_path / "config.txt"
-        lines = ["receptor = {}/{}.pdbqt".format(self.working_path, self.protein_name),
+        lines = ["receptor = {}.pdbqt".format(self.protein_name),
                  "",
                  "center_x = {}".format((self.docking_box[0] + self.docking_box[3]) / 2),
                  "center_y = {}".format((self.docking_box[1] + self.docking_box[4]) / 2),
@@ -66,7 +72,12 @@ class VinaDocking(AutoDockBaseDocking):
         # exhaustiveness may be None to accomondate Vina-GPU config
         if exhaustiveness is not None:
             lines.append("exhaustiveness = {}".format(exhaustiveness))
+
+        if self.is_flex:
+            lines[0] = "receptor = {}.pdbqt".format(self.protein_name + "_rigid")
+            lines.append("flex = {}.pdbqt".format(self.protein_name + "_flex"))
         self.nmodes = num_modes
+        
         with open(config_fp, "w") as f:
             f.write("\n".join(lines))
 
@@ -247,21 +258,24 @@ class VinaDocking(AutoDockBaseDocking):
         
 
 class VinaGPUDocking(VinaDocking):
-    def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:
+    def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, flex_res = None, logger=None, **kwargs) -> None:
         AutoDockBaseDocking.__init__(self, protein_pdb, docking_box, logger=logger)
         self.working_path = Path(temp_path) / "{}-vina-gpu".format(self.protein_name)
         os.makedirs(self.working_path, exist_ok = True)
         
-        if not os.path.exists(self.working_path / "{}.pdbqt".format(self.protein_name)):
-            if protein_pdb.endswith(".pdbqt"):
-                # bypass the ADFRsuite install by reading in pdbqt
-                with open(protein_pdb, "r") as f1:
-                    pdbqt = f1.read()
-                with open(self.working_path / "{}.pdbqt".format(self.protein_name), "w") as f2:
-                    f2.write(pdbqt)
-            else:
-                self.convert_pdb_to_pdbqt(protein_pdb, self.working_path / "{}.pdbqt".format(self.protein_name))
-                
+        if not os.path.exists(self.protein_path):
+            if protein_pdb.endswith('.pdb'):
+                self.convert_pdb_to_pdbqt(protein_pdb, self.protein_path)
+            elif protein_pdb.endswith('.pdbqt'):
+                shutil.copy(protein_pdb, self.protein_path)
+        
+        self.is_flex = False
+        if flex_res is not None:
+            self.is_flex = True
+            flex_residues = "_".join(flex_res)
+            with set_directory(self.working_path):
+                self.convert_pdbqt_to_flex_rigid("{}.pdbqt".format(self.protein_name), flex_residues)
+            
         self.docking_box = docking_box
         self.write_config(**kwargs)
 
@@ -296,55 +310,6 @@ class VinaGPUDocking(VinaDocking):
         gpus = [None] * len(ligands)
         zipped_args = zip(ligands, [output_dir] * len(ligands), [single_job_timeout] * len(ligands), gpus)
         return zipped_args
-
-    @staticmethod
-    def convert_sdf_to_pdbqt(sdf_path, output_path):
-        '''
-        Due to required input format for Vina-GPU, we need to convert sdf to pdbqt using Autodock Tools
-
-        :param sdf_path: str, path to the sdf file
-        :param output_path: str, path to the output pdbqt file
-
-        :return: True, if the run is successful
-        '''
-        obConversion = openbabel.OBConversion()
-        obConversion.SetInAndOutFormats("sdf", "pdbqt")
-        
-        mol = openbabel.OBMol()
-        obConversion.ReadFile(mol, str(sdf_path))
-        return obConversion.WriteFile(mol, str(output_path))
-
-    @staticmethod
-    def convert_adresult_to_sdf(adresult_path, output_path, indices=-1):
-        '''
-        Because Vina-GPU generated output results are not recognized by meeko, we need to convert adresult to sdf using openbabel
-        if multiple models in adresult, all models will be saved
-        
-        :param adresult_path: str, path to the adresult file
-        :param output_path: str, path to the output sdf file
-        :param indices: int, index of pdbqt model to extract/ use -1 to save all 
-
-        :return: True, if the run is successful
-        '''
-        random_code = random_id()
-        temp_path = f"/tmp/vgpu_{os.path.basename(output_path)}"
-        cmd_pdbqt_2_sdf = "obabel -ipdbqt {} -osdf -O{}".format(adresult_path, temp_path)
-        code, out, err = run_command(cmd_pdbqt_2_sdf, raise_error=False) 
-        if code != 0:
-            print(err)
-            return False
-            
-        if isinstance(indices, int) and indices >= 0:
-            return VinaGPUDocking.extract_pose(temp_path, output_path, indices)
-        with open(temp_path, "r") as fi:
-            outfile = fi.read()
-        with open(output_path, "w") as fo:
-            #fo.write("$$$$\n".join(outfile.split("$$$$\n")[:-1]))
-            fo.write(outfile)
-            if isinstance(indices, list):
-                print(indices, output_path, flush=True)
-                fo.write("\n>  <REMARK>\nSELECTED MODELS: "+" ".join(indices))
-        return True
         
     @staticmethod
     def read_energy_from_sdf(sdf_path):

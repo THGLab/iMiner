@@ -282,6 +282,8 @@ class BaseProject:
         writer = Chem.SDWriter(save_path)
         writer.write(mh)
 
+        return
+
 
     def _process_pdb(self, pdb, save_path):
         '''
@@ -292,7 +294,21 @@ class BaseProject:
 
         :return: str, the path to the ligand file
         '''
-        raise NotImplementedError()
+        # read the pdb file
+        mol = Chem.MolFromPDBFile(pdb, removeHs=False)
+        # assert valid pdb
+        if mol is None:
+            raise RuntimeError(pdb + ' is not a valid pdb file')
+        mh = Chem.AddHs(mol)
+        embed = AllChem.EmbedMolecule(mh, useRandomCoords=False)
+
+        # make sure embedding is successful
+        if embed != 0:
+            raise RuntimeError('RDkit fails to embed molecule ' + pdb)
+        
+        # save the ligand file to the corresponding position
+        writer = Chem.SDWriter(save_path)
+        writer.write(mh)
     
     def show_ligand(self, name: str):
         m = Chem.SDMolSupplier(str(self.ligands_path / f"{name}.sdf"))[0]
