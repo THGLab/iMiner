@@ -278,30 +278,16 @@ class AD4Docking(AutoDockBaseDocking):
             return []
 
         # convert the output file to sdf and extract the pose from the best run
-        converted_sdf = self.result_path / "{}.sdf".format(ligand_name)
+        converted_sdf = output_dir / "{}.sdf".format(ligand_name)
+        converted_cluster_sdf = output_dir / "{}-cluster.sdf".format(ligand_name)
         succ = self.convert_adresult_to_sdf(dlg_file, converted_sdf, num_run-1)
-        if not (succ and os.path.exists(converted_sdf)):
-            return [ligand_name, smile, best_score, None]
+        succ_cluster = self.convert_adresult_to_sdf(dlg_file, converted_cluster_sdf, run_cluster-1)
 
+        result = [ligand_name, smile, best_score, score_cluster, None, None]
+        if succ and os.path.exists(converted_sdf): result[4] = converted_sdf
+        if succ_cluster and os.path.exists(converted_cluster_sdf): result[5] = converted_cluster_sdf
             
-        with open(converted_sdf, "r") as f:
-            all_sdf = f.read().split("$$$$\n")
-        output_dir = Path(output_dir).resolve()
-
-        
-        ligand_best_pose = None
-        ligand_cluster_pose = None
-        if write_best_pose:
-            ligand_best_pose = output_dir / "{}.sdf".format(ligand_name)
-            with open(ligand_best_pose, "w") as f1:
-                f1.write(all_sdf[num_run-1])
-        
-        if write_best_cluster_pose:
-            ligand_cluster_pose = output_dir / "{}-cluster.sdf".format(ligand_name)
-            with open(ligand_cluster_pose, "w") as f1:
-                f1.write(all_sdf[run_cluster-1])
-            
-        return [ligand_name, smile, best_score, score_cluster, ligand_best_pose, ligand_cluster_pose]
+        return result
     
     def convert_ligand(self, file):
         '''
