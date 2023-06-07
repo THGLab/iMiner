@@ -71,8 +71,7 @@ class ConsensusDocking(BaseProject):
                 n_ligands = len(ligand_names)
                 self.logger.info(f"Start docking {n_ligands} ligands with {protocol} using {n_cores} cores...")
             results = docking_obj.dock_parallel(ligand_paths, docking_path, **kwargs)
-            results["ligand_names"] = ligand_names
-            results["protocol"] = protocol
+            ligpath = results[protocol.split("-")[0] + "_path"].values
             results_df.append(results)
             if self.verbose:
                 self.logger.info(f"{protocol} docking finished")
@@ -84,15 +83,15 @@ class ConsensusDocking(BaseProject):
             docking_obj = self.docking_protocols[protocol](self.proteins[protein_name],
                                                            self.binding_sites[protein_name],
                                                            self.temp_path, self.logger, **kwargs)
-            ligand_paths = results_df[-1]["path"].values # docked pose taken from last docking method
-            results = docking_obj.rescore(ligand_paths)
-            results["path"] = ligand_paths
-            results["ligand_names"] = ligand_names
-            results["protocol"] = f"{protocol}-{results_df[-1]['protocol'].values[0]}"
+            # docked pose taken from last docking method
+            results = docking_obj.rescore(ligpath)
             results_df.append(results)
             if self.verbose:
                 self.logger.info(f"{protocol} finished")
-        final_results = pd.concat(results_df)[["ligand_names", "score", "smiles", "protocol", "path", "original_names"]]
+                
+        final_results = results_df[0]
+        for df in results_df[1:]:
+            final_results = pd.merge(final_results, df.drop("smiles", axis=1), on=["ligand_names"], how="outer")
 
         # when output_csv is not specified, auto-generate one using the protein_name
         if output_csv is None:

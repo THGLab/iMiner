@@ -43,7 +43,7 @@ def safe_decode_selfies(selfies, grammar):
 
 class RewardAssigner():
     '''
-    reward_types: list from ["qed", "drug_likeliness", "vina_score", "fragment_similarity"]
+    reward_types: list from ["qed", "drug_likeliness", "dock_score", "fragment_similarity"]
     reward_combination_method: one of {"sum", "arithmetic mean", "geometric mean"}
     '''
     def __init__(self, reward_combination_method="sum", tokens=None, logger=None, output_path=None, grammar_file=None) -> None:
@@ -79,8 +79,8 @@ class RewardAssigner():
             self.reward_conversion_funcs.append(lambda x: min(6+x, 3)*weight)
             self.property_calculators[reward_type] = ESOLCalculator()
 
-        elif reward_type == "vina_score":
-            from iMiner.rl_generate.evaluators.vina_local import vina_score_assigner
+        elif reward_type == "docking":
+            from iMiner.rl_generate.evaluators.docking_local import docking_score_assigner
             self.reward_conversion_funcs.append(lambda x: max(-x, 0)*weight)
             self.property_calculators[reward_type] = vina_score_assigner(path=self.output_path, **extra_params)
 
@@ -198,15 +198,15 @@ class RewardAssigner():
         for reward_item in self.reward_types:
             if reward_item in ["drug_likeliness", "fragment_similarity", "solubility"]:
                 metrics.append([self.property_calculators[reward_item].calc_score(mol) for mol in mols])
-            if reward_item == "vina_score":
-                vina_scores = self.property_calculators[reward_item].get_scores(mols, new_names, self.iteration)
-                validities = ~np.isnan(vina_scores) 
-                metrics.append(vina_scores)
-                #print("iter %s finished vina calculation"%(self.iteration))
+            if reward_item == "docking":
+                dock_scores = self.property_calculators[reward_item].get_scores(mols, new_names, self.iteration)
+                validities = ~np.isnan(dock_scores) 
+                metrics.append(dock_scores)
+                #print("iter %s finished docking calculation"%(self.iteration))
                 if "interaction" in self.reward_types:
                     docking_df = self.property_calculators[reward_item].get_result_df(self.iteration)
-                    # interaction results ordered by df
-                    interaction_result = self.property_calculators["interaction"].calc_score_parallel(docking_df["path"])
+                    # TODO: interaction results ordered by df; uses vina docking pose
+                    interaction_result = self.property_calculators["interaction"].calc_score_parallel(docking_df["vina_path"])
                     # align & reorder scores
                     interaction_scores = self.property_calculators[reward_item].update_interaction(self.iteration, 
                         new_names, interaction_result)
@@ -219,7 +219,7 @@ class RewardAssigner():
             if reward_item == "mfd":
                 morgan_dist = self.property_calculators[reward_item].get_mfd(mols)
                 metrics.append(morgan_dist)
-        if "vina_score" not in self.reward_types:
+        if "docking" not in self.reward_types:
             validities = [True] * len(metrics[0])
         #print("iter %s finished all reward evaluations"%(self.iteration))
         return metrics, validities, new_names

@@ -28,7 +28,7 @@ def calc_cm(atoms, coords):
     return (atom_weights*coords_).sum(axis=-1)/np.sum(atom_weights)
     
     
-def calc_fragment_position(pose_path, fragment, frag_cm, threshold=2):
+def calc_fragment_position(pose_path, fragment, frag_cm, threshold=1.8):
     """
     extract the coordinates of the most similar part of a molecule to a given fragment for each poses, 
     and return the pose whose identified fragment-like coordinates are in proximity to 
@@ -45,7 +45,7 @@ def calc_fragment_position(pose_path, fragment, frag_cm, threshold=2):
         #print("error fragmenting molecule")
         return None
     scores = [DataStructs.DiceSimilarity(fragment_fp, fb) for fb in pose_fbit]
-    if np.max(scores) < 0.3:
+    if np.max(scores) < 0.35:
         #print("low similarity score")
         return None
     # choose highest scored fragment
@@ -69,7 +69,7 @@ def calc_fragment_position(pose_path, fragment, frag_cm, threshold=2):
             #print("error finding substructure")
             continue
         docked_cm = calc_cm(atom_types, fbit_coords)
-        if np.sqrt(((docked_cm - np.array(frag_cm))**2).sum()) <= threshold:
+        if np.sqrt(((docked_cm - np.array(frag_cm))**2).sum()) < threshold:
             return mol_idx
         mol_idx += 1
     return None

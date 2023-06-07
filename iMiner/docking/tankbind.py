@@ -95,6 +95,7 @@ class TankBindDocking(BaseDocking):
             shutil.copy(docked_sdf, output_dir / f"{name}.sdf")
             ligand_conformation_paths.append(str(output_dir / f"{name}.sdf"))
 
-        df = pd.DataFrame({"original_names": ligands, "smiles": ligand_smiles, "score": ligand_scores, "path": ligand_conformation_paths})
+        df = pd.DataFrame({"original_names": ligands, "smiles": ligand_smiles, 
+                           "tkbind_score": ligand_scores, "tkbind_path": ligand_conformation_paths})
         df["index"] = df.index
         return df

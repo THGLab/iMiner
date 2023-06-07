@@ -63,7 +63,7 @@ class BaseDocking:
         :param verbose: bool, whether to show progress bar
         :param save_df_freq: int, frequency to save the results to the disk (to prevent losing results)
 
-        :return: pd.DataFrame with columns ["original_name", "smiles", "score", "path"], path is the path to the docked conformation
+        :return: pd.DataFrame with columns ["ligand_names", "smiles", "score", "path"], path is the path to the docked conformation
         '''
         pool = multiprocessing.Pool(n_jobs)
         ligands = [[ligand] for ligand in ligands]
@@ -86,8 +86,7 @@ class BaseDocking:
         pool.close()
         pool.join()
         final_results = pd.concat(results)
-        final_results.reset_index(inplace=True)
-        return final_results
+        return final_results.reset_index(drop=True)
         
 
     def rescore(self, ligands):

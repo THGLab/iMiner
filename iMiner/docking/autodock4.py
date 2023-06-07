@@ -331,7 +331,7 @@ class AD4Docking(AutoDockBaseDocking):
         dlgs = [self.result_path / (str(file.stem) + ".dlg") for file in lig_outs]
         zipped_args = zip(dlgs, [output_dir] * len(dlgs))   
         counter = 0
-        results = pd.DataFrame(columns=['original_name', 'smiles', 'score', 'path'])
+        results = pd.DataFrame(columns=['original_name', 'smiles', 'ad4_score', 'ad4_path'])
         if verbose:
             pbar = tqdm(total=len(dlgs))
         for result in pool.imap(partial(unpack_helper, self.dlg_analysis), zipped_args):
@@ -371,7 +371,7 @@ class AD4Docking(AutoDockBaseDocking):
         #print("Docking finished. Time elapsed %s hrs"%((time.time()-st)/3600.))
         os.makedirs(output_dir, exist_ok=True)
             
-        analysis_df = pd.DataFrame(columns=['original_name', 'smiles', 'score', 'path'])
+        analysis_df = pd.DataFrame(columns=['ligand_names', 'smiles', 'ad4_score', 'ad4_path'])
         for file in lig_outs:
             f = str(file.stem) + ".dlg"
             result = self.dlg_analysis(self.result_path / f, output_dir)
@@ -401,7 +401,7 @@ class AD4Docking(AutoDockBaseDocking):
         
         self.run_autodock(spacing = 0.375, nrun = 1, liglist=lig_outs)
 
-        analysis_df = pd.DataFrame(columns=['ligand_name', 'smiles', 'score'])
+        analysis_df = pd.DataFrame(columns=['ligand_names', 'smiles', 'score'])
         for file in lig_outs:
             f = str(file.stem) + ".dlg"
             analysis_df.loc[len(analysis_df.index)] = self.dlg_analysis(self.result_path / f,

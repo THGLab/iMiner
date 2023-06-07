@@ -21,12 +21,12 @@ training_specs:
 #  model_weights: /global/scratch/users/ozhang/covid/ZikvPro/open_update/models/model_20
 
 rewards:
-#  - type: vina_score
+#  - type: docking
 #    weight: 2
 #    params:
 #      protein_file: /global/scratch/users/ozhang/covid/rdkit_vina/ns3_protease.pdbqt
 #      box:  [-21, 5.5, -24, -3, 22.5, 0] # [47, 64, 12, 65, 82, 35]
-#      use_gpu: True
+#      protocols: ["vina_gpu", "rfscore"]
 #      timeout: 60
 #      fragment: ["Cc2cc(N)c1cccc(Cl)c1n2", [-13.79580109,  15.63052044, -17.64702725]]
 #  - type: interaction # need to be listed right after vina
@@ -50,3 +50,5 @@ rewards:
 run:
   random_seed: 42
   output_dir: /global/scratch/users/ozhang/covid/ZikvPro/test_frag
+
+#mpro macrocycle CCCC(NC(=O)c3cccc4nc(c1cncc2ccccc12)n(CCCCC(=O)NC)c34)c5ccc(C(F)(F)F)cc5

@@ -76,12 +76,13 @@ class VinaDocking(AutoDockBaseDocking):
 
         :param ligands: list of ligands, each ligand is a path to the corresponding .sdf/.pdbqt file
 
-        :return: pd.DataFrame with columns ["original_names", "smiles", "score"]
+        :return: pd.DataFrame with columns ["ligand_names", "smiles", "score"]
         '''
         
          # prepare lists to record results
         ligand_smiles = []
         ligand_scores = []
+        ligand_names = []
         ligand_conformation_paths = []
 
         for ligand in ligands:
@@ -92,6 +93,8 @@ class VinaDocking(AutoDockBaseDocking):
                 continue
             # save the ligand smiles
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
+            ligand_names.append(ligand_name)
+            ligand_conformation_paths.append(ligand)
 
             # execute vina docking under the working directory
             with set_directory(self.working_path):
@@ -101,7 +104,6 @@ class VinaDocking(AutoDockBaseDocking):
             # special handling if calculation job times out
             if code == 999:
                 ligand_scores.append(np.nan)
-                ligand_conformation_paths.append("calculation timed out!")
                 continue
 
             # obtain docking score from the results
@@ -111,8 +113,8 @@ class VinaDocking(AutoDockBaseDocking):
             ligand_scores.append(energy)
         
         # generate the final pandas dataframe and return
-        df = pd.DataFrame({"original_names": ligands, "smiles": ligand_smiles,
-             "score": ligand_scores})
+        df = pd.DataFrame({"ligand_names": ligand_names, "smiles": ligand_smiles, "vina_score": ligand_scores,
+                           "vina_path": ligand_conformation_paths})
         return df
 
     def _run_docking_under_folder(self, ligand_work_name, single_job_timeout):
@@ -145,6 +147,7 @@ class VinaDocking(AutoDockBaseDocking):
         ligand_smiles = []
         ligand_scores = []
         ligand_conformation_paths = []
+        ligand_names = []
 
         # First make sure output_dir exists
         os.makedirs(output_dir, exist_ok = True)
@@ -154,6 +157,7 @@ class VinaDocking(AutoDockBaseDocking):
         for ligand in ligands:
             ligand_name = Path(ligand).stem
             ligand_work_name = ligand_name + "_" + random_id()
+            ligand_names.append(ligand_name)
             succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
             if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
                 ligand_smiles.append("")
@@ -166,13 +170,6 @@ class VinaDocking(AutoDockBaseDocking):
                 ligand_scores.append(np.nan)
                 ligand_conformation_paths.append("smiles sdf conversion error")
                 continue
-            
-            # if contains invalid vina atom types
-            #if not self.check_valid_atoms(ligand_smiles[-1]): 
-                # use 0 instead of nan, so that these molecules go into rl training
-            #    ligand_scores.append(0.)
-            #    ligand_conformation_paths.append("invalid atom types")
-            #    continue
             
             # execute vina docking under directory (for cpu: working directory, for gpu: binary directory)
             code, out, err = self._run_docking_under_folder(ligand_work_name, single_job_timeout) 
@@ -226,8 +223,8 @@ class VinaDocking(AutoDockBaseDocking):
                 ligand_conformation_paths.append(None)
         
         # generate the final pandas dataframe and return
-        df = pd.DataFrame({"original_names": ligands, "smiles": ligand_smiles,
-             "score": ligand_scores, "path": ligand_conformation_paths})
+        df = pd.DataFrame({"ligand_names": ligand_names, "smiles": ligand_smiles,
+             "vina_score": ligand_scores, "vina_path": ligand_conformation_paths})
 
         return df
             

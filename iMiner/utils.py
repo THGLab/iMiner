@@ -19,6 +19,24 @@ import subprocess
 
 from logging import Logger
 
+atomic_number_to_name = {
+    6 : ["C" , "CA" , "CB" , "CD" , "CD1" , "CD2" , "CE" , "CE1" , 
+         "CE2", "CE3", "CG", "CG1", "CG2", "CH2", "CZ", "CZ2", "CZ3"],
+    8 : ["O" , "OD1" , "OD2" , "OE1" , "OE1A" , "OE1B" , "OE2" , "OG" , "OG1", "OH", "OXT"],
+    7 : ["N" , "NE" , "NE1" , "NE2" , "NE2A" , "NE2B" , "ND1" , "ND2" , "NH1" , "NH2" , "NZ"],
+    9 : ["F"],
+    15 : ["P"],
+    16 : ["S" , "SD" , "SG"],
+    17 : ["Cl", "CL"],
+    35 : ["Br", "BR"],
+    53 : ["I"],
+}
+
+name_to_atomic_number = { }
+for k, v in atomic_number_to_name.items():
+    for i in v:
+        name_to_atomic_number[i] = k
+
 
 @contextlib.contextmanager
 def timer(name: Optional[str] = None, logger: Logger = None):
@@ -74,6 +92,39 @@ def dist_mat(crd1: np.ndarray, crd2: np.ndarray) -> np.ndarray:
     dist_mat = np.linalg.norm(expand_crd1 - expand_crd2, ord=2, axis=-1)
     return dist_mat
 
+def read_pdb_file(filename):
+    coords = []
+    atomnumbers = []
+    with open(filename, "r") as f:
+        for line in f.readlines():
+            if line.startswith("ATOM"):
+                indices = [0, 6, 12, 17, 20, 22, 26, 30, 38, 46, 54, 60, 66, 78]
+                items = [line.strip()[i:j] for i, j in zip(indices, indices[1:]+[None])]
+                if items[-2].strip() == "H":
+                    continue
+                if name_to_atomic_number.get(items[2].strip()) is None:
+                    continue
+                atomnumbers.append(name_to_atomic_number.get(items[2].strip()))
+                coords += items[7:10]
+
+    assert len(coords)//3 == len(atomnumbers)
+    return np.array(atomnumbers), np.reshape(coords, (-1, 3)).astype(float)
+
+def read_ligand_sdf(filename):
+    coords = []
+    atomnumbers = []
+    with open(filename, "r") as f:
+        lines = f.readlines()
+        natoms = int(lines[3][:3].strip())
+        for i in range(natoms):
+            line = lines[i+4].split()
+            atomnumber = name_to_atomic_number.get(line[3])
+            if atomnumber is None:
+                continue
+            atomnumbers.append(atomnumber)
+            coords += line[:3]
+        assert len(coords)//3 == len(atomnumbers)
+        return np.array(atomnumbers), np.reshape(coords, (-1, 3)).astype(float)  
 
 def hash_str(string) -> str:
     '''
