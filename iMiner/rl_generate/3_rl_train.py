@@ -8,10 +8,6 @@ Date created: Oct 29, 2020
 #####################
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset", type=str)
-parser.add_argument("--start_from", default=None)
-parser.add_argument("--start_iter", default=0, type=int)
-parser.add_argument("--output_dir", default="outputs", type=str)
 parser.add_argument("--config", default="config.yml", type=str)
 args = parser.parse_args()
 
@@ -46,13 +42,6 @@ import warnings
 warnings.filterwarnings("ignore", "reduction: 'mean' divides the total loss by both the batch size and the support size.")
 
 from iMiner.rl_generate.rl_utils import Logger, make_optimizer
-
-
-
-rl_dataset_path = config["training_specs"]["dataset_path"]
-if rl_dataset_path[-1] != "/":
-    rl_dataset_path += "/"
-
 
 
 #####################
@@ -95,7 +84,6 @@ if "model_weights" in config["training_specs"]:
 # Prepare rewards
 #####################
 rewards = RewardAssigner(reward_combination_method="sum", tokens=prior_model.tokens,
-     grammar_file=config["training_specs"]["grammar"],
      logger=logger, output_path=output_directory + "/docking")
 for item in config["rewards"]:
     if type(item) is str:

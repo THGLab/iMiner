@@ -10,14 +10,13 @@ optimizer_specs:
   learning_rate: 1.0e-4
 
 training_specs:
-  batch_size: 512
-  n_seq_per_iter: 500 # for debug
-  n_iters: 50 # for debug
+  batch_size: 32
+  n_seq_per_iter: 10 # for debug
+  n_iters: 10 # for debug
 #  start_iter : 38
   prior_diff_coef: 0 
-  prior_model: /global/scratch/users/ozhang/covid/rl_dataset/dahai_frag_pretrained.pkl  
-  starting_policy_model: /global/scratch/users/ozhang/covid/rl_dataset/dahai_frag_pretrained.pkl  
-  grammar: /global/scratch/users/ozhang/covid/rl_dataset/frag_grammar.txt
+  prior_model: /global/scratch/users/ozhang/covid/rl_dataset/final_model.pkl  
+  starting_policy_model: /global/scratch/users/ozhang/covid/rl_dataset/final_model.pkl  
 #  model_weights: /global/scratch/users/ozhang/covid/ZikvPro/open_update/models/model_20
 
 rewards:
@@ -26,16 +25,17 @@ rewards:
     params:
       protein_file: /global/scratch/users/ozhang/covid/rdkit_vina/ns3_protease.pdbqt
       box:  [-21, 5.5, -24, -3, 22.5, 0] # [47, 64, 12, 65, 82, 35]
-      protocols: ["vina_gpu", "rfscore"]
-      timeout: 60
-#      fragment: ["Cc2cc(N)c1cccc(Cl)c1n2", [-13.79580109,  15.63052044, -17.64702725]]
-#  - type: interaction # need to be listed right after vina
-#    weight: 1
-#    params:
-#      protein_path: /global/scratch/users/ozhang/covid/ZikvPro/ns3_protease.pdb
+      protocols: ["vina-gpu", "rfscore"]
+      num_modes: 5
+      timeout: 300
+      fragment: ["Cc2cc(N)c1cccc(Cl)c1n2", [-13.79580109,  15.63052044, -17.64702725]]
+  - type: interaction # need to be listed right after vina
+    weight: 1
+    params:
+      protein_path: /global/scratch/users/ozhang/covid/ZikvPro/ns3_protease.pdb
 #        interaction types supported: hydrogen_bond, hydrophobic_interaction, pi_stack, salt_bridge, halogen_bond
-#      key_residues: ["SER/81/A", "ASP/83/A", "ASP/75/B", "HIS/51/B", "GLY/151/B", "GLY/153/B",
-#                   "SER/135/B", "TYR/161/B", "TYR/130/B", "ASP/129/B", "VAL/154/B"]
+      key_residues: ["SER/81/A", "ASP/83/A", "ASP/75/B", "HIS/51/B", "GLY/151/B", "GLY/153/B",
+                   "SER/135/B", "TYR/161/B", "TYR/130/B", "ASP/129/B", "VAL/154/B"]
 #  - type: fragment_similarity
 #    weight: 8
 #    params:
@@ -44,8 +44,8 @@ rewards:
 #      global_substructure_match: True
   - type: drug_likeliness
     weight: 1
-#  - type: solubility
-#    weight: 1
+  - type: solubility
+    weight: 1
 
 run:
   random_seed: 42

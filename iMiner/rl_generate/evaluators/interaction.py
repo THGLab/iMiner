@@ -38,12 +38,6 @@ def sdf_to_pdb(sdf_path, pdb_path):
         return False
     return True
 
-def unpack_helper(func, args):
-    '''
-    Helper function to unpack arguments for multiprocessing
-    '''
-    return func(*args)    
-
 class InteractionScorer():
     """
     protein_path: str or os.PathLike, path to protein pdb
@@ -100,7 +94,7 @@ class InteractionScorer():
         return max_score 
     
     def calc_score_parallel(self, ligands):
-        ligands = [[ligand] for ligand in ligands]
+        #ligands = [[ligand] for ligand in ligands]
         results = []
         #print("parallel interaction calculation")
         with multiprocessing.Pool(self.n_jobs) as pool:

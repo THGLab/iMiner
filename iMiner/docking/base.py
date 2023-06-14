@@ -81,7 +81,7 @@ class BaseDocking:
             try:
                 result = future.result(timeout=single_job_timeout)
             except TimeoutError:
-                result = pd.DataFrame({"original_names": ligand, "smiles": ["timeout"],
+                result = pd.DataFrame({"ligand_names": Path(ligand).stem, "smiles": ["timeout"],
                                "score": [np.nan], "path": [""]})
             counter += 1
             results.append(result)
@@ -92,10 +92,6 @@ class BaseDocking:
                 df.to_csv(Path(output_dir) / "results.csv", index=False)
                 if self.logger is not None:
                     self.logger.info(f"Saved checkpoint results to {output_dir}/results.csv")
-
-        # clean up
-        pool.close()
-        pool.join()
 
         final_results = pd.concat(results)
         return final_results.reset_index(drop=True)
@@ -122,6 +118,10 @@ class BaseDocking:
         '''
         sdmol = Chem.SDMolSupplier(sdf_path)
         mol = sdmol[0]
+        if mol is None:
+            # this is likely due to obabel conversion of pdbqt (only polar H)
+            print("cannot read smiles from", sdf_path)
+            return None
         try:
             return Chem.MolToSmiles(mol)
         except RuntimeError:

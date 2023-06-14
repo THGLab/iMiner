@@ -61,50 +61,52 @@ def calc_average_df(df, column_name, key="smiles"):
         
     
 class docking_score_assigner():
-    def __init__(self, protein_file, box, path, protocols, timeout=45, fragment=None) -> None:
+    def __init__(self, protein_file, box, path, protocols, timeout=45, fragment=None, **kwargs) -> None:
         '''
         protocols: list of docking programs
         timeout: the timeout for each docking job
         fragment: dock with fragmebt restraints
         '''
         protein_name = os.path.basename(protein_file).split('.')[0]
-        self.protein_name = protein_name
-        self.protocol_name = protocols
-        self.docking_project = ConsensusDocking(protein_name, path, [self.protocol_name])
+        self.protein = protein_file
+        self.protocol_name = [protocols] if isinstance(protocols, str) else protocols
+        self.docking_project = ConsensusDocking(protein_name, path, self.protocol_name)
         self.docking_project.add_protein(protein_file_path=protein_file, name=protein_name, binding_site=box)
         self.output_dir = self.docking_project.project_path / Path("results")
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.use_gpu = use_gpu
         self.frag_restrain = fragment
         if "vina-gpu" in protocols:
             self.n_jobs = get_gpu_count()
         else:
             self.n_jobs = int(multiprocessing.cpu_count() * 0.9)
         self.timeout = timeout
+        self.docking_args = kwargs
 
 
     def get_scores(self, smiles, new_names, iteration=0):
         added_new_names = self.docking_project.add_multiple_ligands(smiles, names=new_names)
         self.docking_project.run_consensus_docking(ligand_names=added_new_names, n_jobs=self.n_jobs, 
-            output_csv=self.output_dir / Path(f"{iteration}.csv"), single_job_timeout=self.timeout)
+            output_csv=self.output_dir / Path(f"{iteration}.csv"), 
+            single_job_timeout=self.timeout, **self.docking_args)
         result_df = self.get_result_df(iteration)
         
         if self.frag_restrain is not None:
             # untested
             for protocol in self.protocol_name:
-                if protocol in ["ign", "rfscore"]:
-                    continue
                 if protocol == "vina-gpu":
                     protocol = "vina"
-                new_score = self.dock_restrain_parallel(result_df[protocol+"_path"].values, 
-                    result_df[protocol+"_score"].values)
-                result_df[protocol+"_score"] = new_score
+                new_scores = self.dock_restrain_parallel(result_df[protocol+"_path"].values, 
+                    result_df[protocol+"_score"].values, protocol)
+                # enforce 0 score for fragment poses not in the specified position
+                if protocol == "rfscore":
+                    new_scores[result_df["vina_score"].values == 0] = 0
+                result_df[protocol+"_score"] = new_scores
         
-        # sum all docking scores (TODO: arithmetic mean, geometric mean)
+        # sum all docking scores (TODO: arithmetic mean, geometric mean, weights)
         colname = ["vina_score" if p=="vina-gpu" else p+"_score" for p in self.protocol_name]
         result_df["score"] = result_df[colname].sum(axis=1)
                 
-        # average vina scores for the same smiles 
+        # average docking scores for the same smiles 
         avg_result = calc_average_df(result_df, "score")
         self.update_result_df(avg_result, iteration)
         avg_result.index = avg_result.ligand_names
@@ -121,23 +123,26 @@ class docking_score_assigner():
         return [result_dict.get(name, np.nan) for name in new_names]
         
     
-    def fragment_position_restrain(self, sdf_path):
-        if sdf_path is None or not sdf_path.endswith(".sdf"):
+    def fragment_position_restrain(self, sdf_path, protocol):
+        if sdf_path is None or not sdf_path.endswith(".sdf") or not os.path.exists(sdf_path):
             return np.nan
-        scores = docking_protocol_map[self.protocol_name].read_energy_from_sdf(sdf_path)
-        i = calc_fragment_position(sdf_path, self.frag_restrain[0], self.frag_restrain[1])
-        if i is None:
-            return 0.
-        else:
-            s = scores[i]
-            docking_protocol_map[self.protocol_name].extract_pose(sdf_path, sdf_path, i)
-            return s
+        if "vina" in protocol:
+            scores = docking_protocol_map[protocol].read_energy_from_sdf(sdf_path)
+            i = calc_fragment_position(sdf_path, self.frag_restrain[0], self.frag_restrain[1])
+            if i is None:
+                return 0.
+            else:
+                docking_protocol_map[protocol].extract_pose(sdf_path, sdf_path, i)
+                return scores[i]
+        elif protocol == "rfscore":
+            RFscore = docking_protocol_map[protocol](self.protein, [])
+            return RFscore.rescore([sdf_path])["rfscore_score"][0]
         
-    def dock_restrain_parallel(self, result_paths, old_scores):
+    def dock_restrain_parallel(self, result_paths, old_scores, protocol):
         pool = multiprocessing.Pool(int(multiprocessing.cpu_count() * 0.9))
         new_score = old_scores.copy()
         mask = old_scores < 0.
-        sdf_paths = [[p] for p in result_paths[mask]]
+        sdf_paths = [[p, protocol] for p in result_paths[mask]]
         valid_scores = []
         for score in pool.imap(partial(unpack_helper, self.fragment_position_restrain), sdf_paths):
             valid_scores.append(score)
@@ -149,6 +154,7 @@ class docking_score_assigner():
     def update_interaction(self, iteration, new_names, interaction_score):
         result_df = self.get_result_df(iteration)
         result_df["interaction"] = interaction_score
+        # update interaction scores for the same smiles
         avg_result = calc_average_df(result_df, "interaction")
         self.update_result_df(avg_result, iteration)
         avg_result.index = avg_result.ligand_names

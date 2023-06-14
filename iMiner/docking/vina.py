@@ -188,19 +188,18 @@ class VinaDocking(AutoDockBaseDocking):
             energy = np.nan
             pose_idx = -1
             strings = out.split("-----+------------+----------+----------\n")[-1].split("\n")
-            for (n, line) in enumerate(strings):
+            for line in strings:
                 if line.startswith("WARNING"):
-                    print("Error in docking", flush=True)
+                    print("Error in docking")
                     break
                 elif line.strip().split()[0] == "1":
                     energy = float(line.strip().split()[1])
                     break
             if self.nmodes > 1 and energy != np.nan:
                 # untested; calculates averages of poses clustered with the top pose
-                rmsds = np.array([line.strip().split() for line in strings[n, n+self.nmodes]], dtype=np.float)
+                rmsds = np.array([line.strip().split() for line in strings[:self.nmodes]], dtype=np.float)
                 mask = rmsds[:, 2] < 2
                 energy = rmsds[:, 1][mask].mean()
-                pose_idx = rmsds[:, 0][mask]
             ligand_scores.append(energy)
 
             # save the conformation
@@ -214,7 +213,7 @@ class VinaDocking(AutoDockBaseDocking):
                     ligand_name = f"{ligand_name}_{i}"
            
                 succ = self.convert_adresult_to_sdf(self.working_path / "{}_out.pdbqt".format(ligand_work_name),
-                        output_dir / "{}.sdf".format(ligand_name), pose_idx)
+                        output_dir / "{}.sdf".format(ligand_name))
                 if succ and os.path.exists(output_dir / "{}.sdf".format(ligand_name)):
                     ligand_conformation_paths.append(str(output_dir / "{}.sdf".format(ligand_name)))
                 else:
@@ -296,7 +295,7 @@ class VinaGPUDocking(VinaDocking):
     @staticmethod
     def convert_sdf_to_pdbqt(sdf_path, output_path):
         '''
-        Due to required input format for Vina-GPU, we need to convert sdf to pdbqt using Autodock Tools
+        Due to required input format for Vina-GPU, we need to convert sdf to pdbqt using openbabel
 
         :param sdf_path: str, path to the sdf file
         :param output_path: str, path to the output pdbqt file
@@ -337,9 +336,6 @@ class VinaGPUDocking(VinaDocking):
         with open(output_path, "w") as fo:
             #fo.write("$$$$\n".join(outfile.split("$$$$\n")[:-1]))
             fo.write(outfile)
-            if isinstance(indices, list):
-                print(indices, output_path, flush=True)
-                fo.write("\n>  <REMARK>\nSELECTED MODELS: "+" ".join(indices))
         return True
         
     @staticmethod

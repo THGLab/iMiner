@@ -60,9 +60,6 @@ class RFscoring(BaseDocking):
     
         for ligand_file in ligands: 
             if not os.path.exists(ligand_file):
-                #ligand_smiles.append("")
-                #descriptors.append(np.zeros((9, 9)))
-                #score_mask = 1
                 continue
             ligand_names.append(ligand_file.split("/")[-1].split(".")[0])
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand_file))

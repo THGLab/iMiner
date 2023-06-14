@@ -1,4 +1,4 @@
-        #from fastai import *
+#from fastai import *
 from fastai.text import (
   BaseTokenizer, 
   BOS, PAD,
@@ -9,15 +9,11 @@ import torch.nn.functional as F
 import torch
 from torch.distributions import Categorical
 import numpy as np
+import subprocess
 #from multiprocessing import Pool
 
-#import selfies as sf
+import selfies as sf
 from rdkit import Chem
-from group_selfies import (
-    fragment_mols, 
-    Group, 
-    GroupGrammar, 
-)
 
 defaults.text_spec_tok = [BOS, PAD]
 
@@ -64,48 +60,13 @@ class SELFIESTokenizer(BaseTokenizer):
             "\\C", "\\C@@H1", "\\C@H1", "\\Cl", "\\N", "\\N+1", "\\NH1", "pop"}
         self.grammar = GroupGrammar.essential_set()
     
-    def g_encoder(self, smi):
+    def encoder(self, smi):
         try:
-            mol = Chem.MolFromSmiles(smi)
-            encoded = self.grammar.full_encoder(mol)
+            encoded = sf.encoder(smi)
         except ValueError:
             print(smi)
             return ""
         return encoded
-    
-    def add_frag_to_tokens(self, frags, frag_names=[]):
-        if len(frag_names) == 0:
-            frag_names = [f'{f}{i}' for i in range(len(frag_names))]
-        assert len(frags) == len(frag_names)
-        g = GroupGrammar([Group(f, n) for f, n in zip(frags, frag_names)])
-        self.grammar = self.grammar | g
-    
-    def set_grammar_from_file(self, file):
-        self.grammar = GroupGrammar.from_file(file) #| self.grammar
-        
-    def set_grammar_from_mol(self, smis, method="mmpa", name="mfrag"):
-        f = fragment_mols(smis, convert=True, method=method, target=500)
-        vocab = dict([(f'{name}{idx}', Group(f'{name}{idx}', frag)) for idx, frag in enumerate(f)])
-        self.grammar = self.grammar | GroupGrammar(vocab=vocab)
-        
-    def smi_to_gselfies(self, smiles, extract_grammar=False):
-        if extract_grammar:
-            self.define_grammar_from_mol(smiles)
-            
-        #print('Encoding... ', end='')
-        #parallel not working properly on cluster 
-        #with Pool() as pool:
-        #    gselfies = pool.map(self.g_encoder, smiles)
-        #print('Done encoding')
-
-        # update token 
-        #self.set_token_from_gsf(gselfies)
-        #return gselfies
-        return [self.g_encoder(s) for s in smiles]
-    
-    def set_token_from_gsf(self, gselfies):
-        for sf in gselfies:
-            self.tokens.update(sf[1:-1].split("]["))
     
     def tokenizer(self, selfies: str) -> List[str]:
         selfies_tokens = selfies[1:-1].split("][")

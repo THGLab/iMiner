@@ -9,8 +9,8 @@ from rdkit.Chem import Draw
 from rdkit.Chem.QED import qed
 import numpy as np
 from scipy.stats import gmean
-#import selfies as sf
-from group_selfies import GroupGrammar
+import selfies as sf
+#from group_selfies import GroupGrammar
 import pandas as pd
 
 
@@ -30,27 +30,23 @@ def convert_input_to_selfies(input, tokens):
     return_tokens = ["[%s]" % t for t in token_list]
     return "".join(return_tokens)
 
-def safe_decode_selfies(selfies, grammar):
+def safe_decode_selfies(selfies):
     '''
     A helper function to decode SELFIES string into SMILES, return empty string if decoding fails
     '''
     try:
-        #sf.decoder(selfies)
-        smiles = Chem.MolToSmiles(grammar.decoder(selfies))
+        smiles = sf.decoder(selfies)
     except:
         smiles = ""
     return smiles
 
 class RewardAssigner():
     '''
-    reward_types: list from ["qed", "drug_likeliness", "dock_score", "fragment_similarity"]
+    reward_types: list from ["qed", "drug_likeliness", "docking", "fragment_similarity"]
     reward_combination_method: one of {"sum", "arithmetic mean", "geometric mean"}
     '''
-    def __init__(self, reward_combination_method="sum", tokens=None, logger=None, output_path=None, grammar_file=None) -> None:
-        if grammar_file is None:
-            raise RuntimeError("Need to define grammar to use group selfies")
+    def __init__(self, reward_combination_method="sum", tokens=None, logger=None, output_path=None) -> None:
         self.tokens = tokens
-        self.grammar = GroupGrammar.from_file(grammar_file)
         self.reward_conversion_funcs = []
         self.property_calculators = {}
         self.reward_types = []
@@ -87,7 +83,7 @@ class RewardAssigner():
         elif reward_type == "docking":
             from iMiner.rl_generate.evaluators.docking_local import docking_score_assigner
             self.reward_conversion_funcs.append(lambda x: max(-x, 0)*weight)
-            self.property_calculators[reward_type] = vina_score_assigner(path=self.output_path, **extra_params)
+            self.property_calculators[reward_type] = docking_score_assigner(path=self.output_path, **extra_params)
 
         elif reward_type == "fragment_similarity":
             from iMiner.rl_generate.evaluators.fragment_similarity import FragmentScorer
@@ -101,22 +97,14 @@ class RewardAssigner():
         else:
             raise RuntimeError("Unknown reward type: %s" % reward_type)
             
-    def _reorder_reward_types(self):
-        if "interaction" in self.reward_types:
-            self.reward_names = [r for r in self.reward_types]
-            self.reward_names.remove("interaction")
-            vi = self.reward_names.index("vina_score")
-            self.reward_names.insert(vi, "interaction")
-        else:
-            self.reward_names = self.reward_types
-
+    
     def calc_reward_parallel(self, inputs):
         '''
         Calculate reward from the given list of inputs, do parallel assignment of scores, and return rewards together with whether each generated smiles string should contribute to training
         '''
         self.iteration += 1
         converted_selfies = [convert_input_to_selfies(item, self.tokens) for item in inputs]
-        converted_smiles = [safe_decode_selfies(s, self.grammar) for s in converted_selfies]
+        converted_smiles = [safe_decode_selfies(s) for s in converted_selfies]
         query_indices = [] # keep record of whether each element from the converted smiles should receive reward query. If not, then these are bad smiles and should receive a very low reward
         plot_mols = []
         for i in range(len(converted_smiles)):
@@ -170,7 +158,7 @@ class RewardAssigner():
         Calculate reward from given input, and return a single comprehensive reward score and individual metric values
         '''
         converted_selfies = convert_input_to_selfies(input, self.tokens)
-        converted_smiles = Chem.MolToSmiles(self.grammar.decoder(converted_selfies)) #sf.decoder(converted_selfies)
+        converted_smiles = Chem.MolToSmiles(sf.decoder(converted_selfies))
         if converted_smiles is None or converted_smiles == "":
             return -10
 

@@ -114,7 +114,8 @@ def read_ligand_sdf(filename):
     coords = []
     atomnumbers = []
     with open(filename, "r") as f:
-        lines = f.readlines()
+        # takes the first structure if multiple inside the file
+        lines = f.read().split("$$$$\n")[0].split("\n")
         natoms = int(lines[3][:3].strip())
         for i in range(natoms):
             line = lines[i+4].split()
