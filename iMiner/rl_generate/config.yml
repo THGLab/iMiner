@@ -21,27 +21,27 @@ training_specs:
 #  model_weights: /global/scratch/users/ozhang/covid/ZikvPro/open_update/models/model_20
 
 rewards:
-#  - type: docking
-#    weight: 2
-#    params:
-#      protein_file: /global/scratch/users/ozhang/covid/rdkit_vina/ns3_protease.pdbqt
-#      box:  [-21, 5.5, -24, -3, 22.5, 0] # [47, 64, 12, 65, 82, 35]
-#      protocols: ["vina_gpu", "rfscore"]
-#      timeout: 60
+  - type: docking
+    weight: 4
+    params:
+      protein_file: /global/scratch/users/ozhang/covid/rdkit_vina/ns3_protease.pdbqt
+      box:  [-21, 5.5, -24, -3, 22.5, 0] # [47, 64, 12, 65, 82, 35]
+      protocols: ["vina_gpu", "rfscore"]
+      timeout: 60
 #      fragment: ["Cc2cc(N)c1cccc(Cl)c1n2", [-13.79580109,  15.63052044, -17.64702725]]
 #  - type: interaction # need to be listed right after vina
 #    weight: 1
 #    params:
 #      protein_path: /global/scratch/users/ozhang/covid/ZikvPro/ns3_protease.pdb
-      # interaction types supported: hydrogen_bond, hydrophobic_interaction, pi_stack, salt_bridge, halogen_bond
+#        interaction types supported: hydrogen_bond, hydrophobic_interaction, pi_stack, salt_bridge, halogen_bond
 #      key_residues: ["SER/81/A", "ASP/83/A", "ASP/75/B", "HIS/51/B", "GLY/151/B", "GLY/153/B",
 #                   "SER/135/B", "TYR/161/B", "TYR/130/B", "ASP/129/B", "VAL/154/B"]
-  - type: fragment_similarity
-    weight: 8
-    params:
-      fragments: ['CNc1cc(C)nc2c(Cl)cccc12']
-      weights: [1]
-      global_substructure_match: True
+#  - type: fragment_similarity
+#    weight: 8
+#    params:
+#      fragments: ['CNc1cc(C)nc2c(Cl)cccc12']
+#      weights: [1]
+#      global_substructure_match: True
   - type: drug_likeliness
     weight: 1
 #  - type: solubility
