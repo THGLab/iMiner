@@ -44,7 +44,7 @@ class VinaDocking(AutoDockBaseDocking):
         self.docking_box = docking_box
         self.write_config(**kwargs)
 
-    def write_config(self, exhaustiveness=64, num_modes=1, energy_range=30, **kwargs):
+    def write_config(self, exhaustiveness=16, num_modes=1, energy_range=30, **kwargs):
         '''
         Write the config file for AutoDock Vina docking
 
