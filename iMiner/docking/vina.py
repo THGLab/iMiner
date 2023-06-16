@@ -4,6 +4,8 @@ Date Created: Nov 3, 2022
 
 Defines the docking class for AutoDock Vina and Autodock Vina GPU
 '''
+import sys
+sys.path.append('C:\\Users\\17135\\Desktop\\iMiner-flexible-docking\\')
 
 from iMiner.docking.autodock import AutoDockBaseDocking
 from iMiner.cmd import run_command, set_directory
@@ -145,7 +147,7 @@ class VinaDocking(AutoDockBaseDocking):
                 return False
         return True
 
-    def dock(self, ligands, output_dir, single_job_timeout=None):
+    def dock(self, ligands, output_dir, single_job_timeout=None, pose_cutoff = None):
         '''
         Run actual Autodock Vina docking
 
@@ -210,10 +212,11 @@ class VinaDocking(AutoDockBaseDocking):
                 elif line.strip().split()[0] == "1":
                     energy = float(line.strip().split()[1])
                     break
-            if self.nmodes > 1 and energy != np.nan:
+            # need a cutoff value
+            if self.nmodes > 1 and energy != np.nan and pose_cutoff:
                 # untested; calculates averages of poses clustered with the top pose
-                rmsds = np.array([line.strip().split() for line in strings[n, n+self.nmodes]], dtype=np.float)
-                mask = rmsds[:, 2] < 2
+                rmsds = np.array([line.strip().split() for line in strings[n:n+self.nmodes]], dtype=np.float)
+                mask = rmsds[:, 2] < pose_cutoff
                 energy = rmsds[:, 1][mask].mean()
                 pose_idx = rmsds[:, 0][mask]
             ligand_scores.append(energy)
@@ -326,4 +329,4 @@ class VinaGPUDocking(VinaDocking):
         
 
 if __name__ == "__main__":
-    print(VINA_BINARY)
+    print(VINA_GPU_BINARY_PATH)
