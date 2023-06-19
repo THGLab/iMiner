@@ -356,18 +356,14 @@ class MDProject(BaseProject):
         from iMiner.md.runner.gromacs import run_preprocess_workflow
 
         complex_dir = wdir.resolve() / "complex"
-        try:
-            box_type = self.md_params.get("box_type", "dodecahedron")
-            buffer = self.md_params.get("buffer", 1.0)
-            run_preprocess_workflow(
-                "topol.top", "complex.gro", 
-                complex_dir, verbose=True, 
-                box_type=box_type, buffer=buffer, 
-                logger=self.logger
-            )
-        except CommandExecuteError:
-            self.logger.info("Error in gromacs prep steps. See complex folder.")
-            sys.exit(1)
+        box_type = self.md_params.get("box_type", "dodecahedron")
+        buffer = self.md_params.get("buffer", 1.0)
+        run_preprocess_workflow(
+            "topol.top", "complex.gro", 
+            complex_dir, verbose=True, 
+            box_type=box_type, buffer=buffer, 
+            logger=self.logger
+        )
         shutil.copyfile(complex_dir / "ions.gro", wdir / "ions.gro")
         shutil.copyfile(complex_dir / "processed.top", wdir / 'processed.top')
         shutil.copyfile(complex_dir / "processed_posre.top", wdir / 'processed_posre.top')
