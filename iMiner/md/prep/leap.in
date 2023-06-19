@@ -1,4 +1,5 @@
 source {protein_ff}
+source leaprc.RNA.OL3
 source leaprc.water.{water_ff}
 protein = loadpdb {pdb}
 check protein
