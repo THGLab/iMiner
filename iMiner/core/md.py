@@ -141,7 +141,7 @@ class MDProject(BaseProject):
             try:
                 run_tleap("protein_processed.pdb", protein_ff=self.md_params['protein_ff'])
             except CommandExecuteError as e:
-                tleap_log = wdir / 'protein' / name / 'leap.log'
+                tleap_log = wdir / 'protein/leap.log'
                 self.logger.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in {tleap_log}.")
                 sys.exit(1)
             try:
@@ -168,6 +168,11 @@ class MDProject(BaseProject):
                 prep_path, "topol.top", "complex.gro"
             )
         elif protein_only:
+            with set_directory(wdir / "protein" / "protein.amb2gmx"):
+                run_command(
+                    [find_executable(['gmx_mpi', 'gmx']), 'genrestr', '-f', "protein_GMX.gro", '-o', 'posre_protein.itp'], 
+                    input="Protein-H"
+                )
             make_solvated(
                 wdir.resolve() / "protein" / "protein.amb2gmx" / "protein_GMX.top",
                 wdir.resolve() / "protein" / "protein.amb2gmx" / "protein_GMX.gro",
