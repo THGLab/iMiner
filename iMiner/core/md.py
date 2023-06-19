@@ -54,6 +54,8 @@ class MDProject(BaseProject):
         assert engine in ['gromacs'], f"Not supported MD engine: {engine}"
         self.params = {
             "md": {
+                "box_type": "dodecahedron",
+                "buffer": 1.0,
                 "protein_ff": "ff14SB",
                 "enforce_gpu": True,
                 "em": {},
@@ -355,7 +357,14 @@ class MDProject(BaseProject):
 
         complex_dir = wdir.resolve() / "complex"
         try:
-            run_preprocess_workflow("topol.top", "complex.gro", complex_dir, verbose=True, logger=self.logger)
+            box_type = self.md_params.get("box_type", "dodecahedron")
+            buffer = self.md_params.get("buffer", 1.0)
+            run_preprocess_workflow(
+                "topol.top", "complex.gro", 
+                complex_dir, verbose=True, 
+                box_type=box_type, buffer=buffer, 
+                logger=self.logger
+            )
         except CommandExecuteError:
             self.logger.info("Error in gromacs prep steps. See complex folder.")
             sys.exit(1)
@@ -398,7 +407,7 @@ class MDProject(BaseProject):
         self.step_cnt += 1
         self.logger.info(f"===== Step {self.step_cnt}: {msg.capitalize()} =====")
     
-    def run(self, lig_name: str, prot_name: Optional[str] = None, task_name: Optional[str] = None, 
+    def run(self, lig_name: Optional[str] = None, prot_name: Optional[str] = None, task_name: Optional[str] = None, 
             lig_charge = "auto", analysis: bool = True, use_cache: bool = False):
         """
         Run iMiner Molecular Dynamics Workflow

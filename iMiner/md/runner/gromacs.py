@@ -23,11 +23,13 @@ def run_preprocess_workflow(
     top: os.PathLike,
     gro: os.PathLike,
     wdir: os.PathLike = Path.cwd(),
+    box_type: str = "dodecahedron",
+    buffer: float = 1.0,
     verbose: bool = False,
     logger: Optional[Logger] = None,
 ):
     """
-    Run preprocess workflow: add box with 1 nm buffer region, add water, add ions
+    Run preprocess workflow: add box with buffer region, add water, add ions
 
     Parameters
     ----------
@@ -37,15 +39,21 @@ def run_preprocess_workflow(
         coordinate file (-c)
     wdir: os.PathLike
         working directory where `gmx` is executed
+    box_type: str
+        box type: triclinic, cubic, dodecahedron, octahedron. Default: dodecahedron
+    buffer: float
+        distance between the solute and the box. Default: 1.0
     verbose: bool
-        Whether print detailed information
+        whether print detailed information
+    logger: logging.Logger
+        logging.Logger object for logging output.
     """
     gmx = find_executable(['gmx_mpi', 'gmx'])
     mdp = Path(__file__).with_name("em.mdp").resolve()
     posre_mdp = Path(__file__).with_name("nvt.mdp").resolve()
     with set_directory(wdir):
         if logger and verbose: logger.info("Adding box...")
-        run_command([gmx, "editconf", "-f", gro, "-o", "newbox.gro", "-c", "-d", str(1.0), "-bt", "dodecahedron"])
+        run_command([gmx, "editconf", "-f", gro, "-o", "newbox.gro", "-c", "-d", str(buffer), "-bt", box_type])
         if logger and verbose: logger.info("Adding water...")
         run_command([gmx, "solvate", "-cp", "newbox.gro", "-cs", "spc216.gro", "-o", "solv.gro", "-p", top])
         if logger and verbose: logger.info("Add ions...")
