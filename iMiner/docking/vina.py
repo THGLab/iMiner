@@ -44,7 +44,7 @@ class VinaDocking(AutoDockBaseDocking):
         self.docking_box = docking_box
         self.write_config(**kwargs)
 
-    def write_config(self, exhaustiveness=64, num_modes=1, energy_range=30, **kwargs):
+    def write_config(self, exhaustiveness=16, num_modes=1, energy_range=30, **kwargs):
         '''
         Write the config file for AutoDock Vina docking
 
@@ -145,7 +145,7 @@ class VinaDocking(AutoDockBaseDocking):
                 return False
         return True
 
-    def dock(self, ligands, output_dir, single_job_timeout=None):
+    def dock(self, ligands, output_dir, single_job_timeout=None, pose_cutoff = None):
         '''
         Run actual Autodock Vina docking
 
@@ -157,6 +157,7 @@ class VinaDocking(AutoDockBaseDocking):
         ligand_smiles = []
         ligand_scores = []
         ligand_conformation_paths = []
+        ligand_names = []
 
         # First make sure output_dir exists
         os.makedirs(output_dir, exist_ok = True)
@@ -168,11 +169,13 @@ class VinaDocking(AutoDockBaseDocking):
             ligand_work_name = ligand_name + "_" + random_id()
             succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
             if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
+                ligand_names.append(ligand_name)
                 ligand_smiles.append("")
                 ligand_scores.append(np.nan)
                 ligand_conformation_paths.append("")
                 continue
             # save the ligand smiles
+            ligand_names.append(ligand_name)
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
             if ligand_smiles[-1] is None:
                 ligand_scores.append(np.nan)
@@ -210,10 +213,11 @@ class VinaDocking(AutoDockBaseDocking):
                 elif line.strip().split()[0] == "1":
                     energy = float(line.strip().split()[1])
                     break
-            if self.nmodes > 1 and energy != np.nan:
+            # need a cutoff value
+            if self.nmodes > 1 and energy != np.nan and pose_cutoff:
                 # untested; calculates averages of poses clustered with the top pose
-                rmsds = np.array([line.strip().split() for line in strings[n, n+self.nmodes]], dtype=np.float)
-                mask = rmsds[:, 2] < 2
+                rmsds = np.array([line.strip().split() for line in strings[n:n+self.nmodes]], dtype=np.float)
+                mask = rmsds[:, 2] < pose_cutoff
                 energy = rmsds[:, 1][mask].mean()
                 pose_idx = rmsds[:, 0][mask]
             ligand_scores.append(energy)
@@ -238,7 +242,7 @@ class VinaDocking(AutoDockBaseDocking):
                 ligand_conformation_paths.append(None)
         
         # generate the final pandas dataframe and return
-        df = pd.DataFrame({"original_names": ligands, "smiles": ligand_smiles,
+        df = pd.DataFrame({"original_names": ligand_names, "smiles": ligand_smiles,
              "score": ligand_scores, "path": ligand_conformation_paths})
 
         return df
@@ -326,4 +330,4 @@ class VinaGPUDocking(VinaDocking):
         
 
 if __name__ == "__main__":
-    print(VINA_BINARY)
+    print(VINA_GPU_BINARY_PATH)

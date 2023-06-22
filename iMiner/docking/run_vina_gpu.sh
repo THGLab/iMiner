@@ -3,5 +3,5 @@
 module load gcc/7.4.0
 module load boost
 ulimit -s 8192
-VINA_GPU=/global/scratch/users/ozhang/covid/iMiner/iMiner/docking/bins/Vina-GPU
+VINA_GPU=/global/home/users/kysun/iMiner-github/iMiner/docking/bins/Vina-GPU
 $VINA_GPU --config ${1} --ligand ${2}.pdbqt --out ${2}_out.pdbqt
