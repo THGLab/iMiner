@@ -13,7 +13,7 @@ import os
 # savio
 ADFR_install_path = '/global/home/groups/co_armada2/local/ADFRsuite/bin'
 meeko_install_path = '/global/home/groups/co_armada2/conda_envs/vina/bin'
-iMiner_path = '/global/home/users/kysun/iMiner-github/'
+iMiner_path = '/global/home/groups/co_armada2/avidd/iMiner/iMiner'
 ad4gpu_path = '/global/home/groups/co_armada2/local/AutoDock-GPU/bin/autodock_gpu_128wi'
 ad4gpu_analysis_path = '/global/home/groups/co_armada2/local/AutoDock-GPU/bin/adgpu_analysis'
 flexrec_prep_path = f'{ADFR_install_path}/prepare_flexreceptor.py'
