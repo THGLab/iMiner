@@ -4,8 +4,6 @@ Date Created: Nov 3, 2022
 
 Defines the docking class for AutoDock Vina and Autodock Vina GPU
 '''
-import sys
-sys.path.append('C:\\Users\\17135\\Desktop\\iMiner-flexible-docking\\')
 
 from iMiner.docking.autodock import AutoDockBaseDocking
 from iMiner.cmd import run_command, set_directory
@@ -94,6 +92,7 @@ class VinaDocking(AutoDockBaseDocking):
         '''
         
          # prepare lists to record results
+        ligand_names = []
         ligand_smiles = []
         ligand_scores = []
         ligand_conformation_paths = []
@@ -105,6 +104,7 @@ class VinaDocking(AutoDockBaseDocking):
             if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
                 continue
             # save the ligand smiles
+            ligand_names.append(ligand_name)
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
 
             # execute vina docking under the working directory
@@ -125,7 +125,7 @@ class VinaDocking(AutoDockBaseDocking):
             ligand_scores.append(energy)
         
         # generate the final pandas dataframe and return
-        df = pd.DataFrame({"ligand_name": ligands, "smiles": ligand_smiles,
+        df = pd.DataFrame({"ligand_name": ligand_names, "smiles": ligand_smiles,
              "score": ligand_scores})
         return df
 
@@ -159,6 +159,7 @@ class VinaDocking(AutoDockBaseDocking):
         ligand_smiles = []
         ligand_scores = []
         ligand_conformation_paths = []
+        ligand_names = []
 
         # First make sure output_dir exists
         os.makedirs(output_dir, exist_ok = True)
@@ -170,11 +171,13 @@ class VinaDocking(AutoDockBaseDocking):
             ligand_work_name = ligand_name + "_" + random_id()
             succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
             if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
+                ligand_names.append(ligand_name)
                 ligand_smiles.append("")
                 ligand_scores.append(np.nan)
                 ligand_conformation_paths.append("")
                 continue
             # save the ligand smiles
+            ligand_names.append(ligand_name)
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
             if ligand_smiles[-1] is None:
                 ligand_scores.append(np.nan)
@@ -241,7 +244,7 @@ class VinaDocking(AutoDockBaseDocking):
                 ligand_conformation_paths.append(None)
         
         # generate the final pandas dataframe and return
-        df = pd.DataFrame({"original_names": ligands, "smiles": ligand_smiles,
+        df = pd.DataFrame({"original_names": ligand_names, "smiles": ligand_smiles,
              "score": ligand_scores, "path": ligand_conformation_paths})
 
         return df
