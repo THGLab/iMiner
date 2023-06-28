@@ -24,6 +24,7 @@ meeko_ligprep_path = f"{meeko_install_path}/mk_prepare_ligand.py"
 meeko_ligconv_path = f"{meeko_install_path}/mk_export.py"
 
 autogrid_path = f'{ADFR_install_path}/autogrid4'
+autodock_param_path = Path(iMiner_path) / 'AD4_parameters.dat'
 
 VINA_BINARY = Path(iMiner_path) / 'iMiner/docking/bins/vina'
 VINA_GPU_SCRIPT = Path(iMiner_path) / 'iMiner/docking/run_vina_gpu.sh'

@@ -1,3 +1,15 @@
+"""
+The majority of the code is from the Modeller tutorial:
+https://salilab.org/modeller/wiki/Mutate_model
+with some modifications to make it work with iMiner.
+
+The original code is licensed under the following license:
+https://salilab.org/modeller/registration.html
+
+The code is modified by iMiner developers and is licensed under the MIT license.
+Date of modification: 06/26/2023
+"""
+
 import sys
 import os
 
