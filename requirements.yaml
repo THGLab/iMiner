@@ -1,9 +1,18 @@
-python==3.7.9
-rdkit==2020.09.1
-tqdm
-pandas
-selfies==2.1.1
-fastai==1.0.61
-tensorboard
-meeko
-openbabel
+name: iMiner
+channels:
+  - defaults
+  - conda-forge
+  - salilab
+dependencies:
+  - python==3.7.9
+  - rdkit==2020.09.1
+  - tqdm
+  - pandas
+  - selfies==2.1.1
+  - fastai==1.0.61
+  - tensorboard
+  - meeko
+  - openbabel
+  - salilab::modeller
+
+

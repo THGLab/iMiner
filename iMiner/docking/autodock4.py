@@ -113,6 +113,7 @@ class AD4Docking(AutoDockBaseDocking):
         # allowed recptor types
         supported_atypes = set(['HD', 'C', 'A', 'N', 'NA', 'OA', 'F', 'P', 'SA', 'S',
                     'Cl', 'Br', 'I', 'Mg', 'Ca', 'Mn', 'Fe', 'Zn'])
+        metals = ['Mg', 'Ca', 'Mn', 'Fe', 'Zn']
         # extract the receptor types from the pdbqt file
         command = 'cut -c 77-79 %s | sort -u' % self.protein_path
         try:
@@ -133,6 +134,13 @@ class AD4Docking(AutoDockBaseDocking):
         gpf_final = gpf_final.replace('CENTER_X',   '%.3f' % center_x)
         gpf_final = gpf_final.replace('CENTER_Y',   '%.3f' % center_y)
         gpf_final = gpf_final.replace('CENTER_Z',   '%.3f' % center_z)
+
+        if list(set(pdbqt_types) & set(metals)):
+            gpf_final = gpf_final.split("\n")
+            gpf_final.insert(1, "parameter_file AD4_parameter.dat")
+            gpf_final = "\n".join(gpf_final)
+        
+        shutil.copy(autodock_param_path, self.grid_path / "AD4_parameter.dat")
     
         # write everything to a config gpf file for autogrid
         gpf_file = "{}.gpf".format(self.protein_name)

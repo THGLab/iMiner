@@ -92,6 +92,7 @@ class VinaDocking(AutoDockBaseDocking):
         '''
         
          # prepare lists to record results
+        ligand_names = []
         ligand_smiles = []
         ligand_scores = []
         ligand_conformation_paths = []
@@ -103,6 +104,7 @@ class VinaDocking(AutoDockBaseDocking):
             if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
                 continue
             # save the ligand smiles
+            ligand_names.append(ligand_name)
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
 
             # execute vina docking under the working directory
@@ -123,7 +125,7 @@ class VinaDocking(AutoDockBaseDocking):
             ligand_scores.append(energy)
         
         # generate the final pandas dataframe and return
-        df = pd.DataFrame({"ligand_name": ligands, "smiles": ligand_smiles,
+        df = pd.DataFrame({"ligand_name": ligand_names, "smiles": ligand_smiles,
              "score": ligand_scores})
         return df
 
