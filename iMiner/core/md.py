@@ -132,13 +132,15 @@ class MDProject(BaseProject):
         prep_path.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(self.get_protein_with_name(name), prep_path / "protein.pdb")
         with set_directory(prep_path):
+            if self.md_params.get("fix_hydrogen", True):
+                self.logger.info("Fix hydrogen in protein using pdb4amber")
+                try:
+                    fix_hydrogen("protein.pdb", "protein_processed.pdb")
+                except CommandExecuteError as e:
+                    self.logger.error(f"Error in fixing hydrogen atoms: {e}")
+                    sys.exit(1)
             try:
-                fix_hydrogen("protein.pdb", "protein_processed.pdb")
-            except CommandExecuteError as e:
-                self.logger.error(f"Error in fixing hydrogen atoms: {e}")
-                sys.exit(1)
-
-            try:
+                self.logger.info("Assigning force field parameters...")
                 run_tleap("protein_processed.pdb", protein_ff=self.md_params['protein_ff'])
             except CommandExecuteError as e:
                 tleap_log = wdir / 'protein/leap.log'
