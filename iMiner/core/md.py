@@ -139,6 +139,8 @@ class MDProject(BaseProject):
                 except CommandExecuteError as e:
                     self.logger.error(f"Error in fixing hydrogen atoms: {e}")
                     sys.exit(1)
+            else:
+                shutil.copyfile("protein.pdb", "protein_processed.pdb")
             
             try:
                 self.logger.info("Assigning force field parameters...")
