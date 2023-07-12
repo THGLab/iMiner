@@ -139,6 +139,7 @@ class MDProject(BaseProject):
                 except CommandExecuteError as e:
                     self.logger.error(f"Error in fixing hydrogen atoms: {e}")
                     sys.exit(1)
+            
             try:
                 self.logger.info("Assigning force field parameters...")
                 run_tleap("protein_processed.pdb", protein_ff=self.md_params['protein_ff'])
@@ -146,6 +147,7 @@ class MDProject(BaseProject):
                 tleap_log = wdir / 'protein/leap.log'
                 self.logger.error(f"Error in preparing protein {self.get_protein_with_name(name)}. See details in {tleap_log}.")
                 sys.exit(1)
+            
             try:
                 run_acpype(args=["-p", "protein.prmtop", "-x", "protein.inpcrd"])
             except CommandExecuteError as e:
