@@ -77,7 +77,23 @@ def fix_hydrogen(in_pdb: os.PathLike, out_pdb: Optional[os.PathLike] = None):
     run_command([pdb4amber, "-i", in_pdb, '-o', tmp_pdb, "-y"])
     # use reduce to add hydrogen
     run_command([pdb4amber, "-i", tmp_pdb, "-o", out_pdb, '--reduce'])
+    # fix wrong hydrongen name in CYM
+    fix_cym(out_pdb, out_pdb)
     return out_pdb
+
+
+def fix_cym(in_pdb: os.PathLike, out_pdb: os.PathLike):
+    """
+    Fix wrong hydrogen name in CYM
+    """
+    in_pdb = Path(in_pdb).resolve()
+    with open(in_pdb, 'r') as f:
+        content = f.read()
+    if "CYM" in content:
+        content = content.replace("HN1", "H  ")
+        content = content.replace("HB1", "HB3")
+        with open(out_pdb, 'w') as f:
+            f.write(content)
 
 
 def run_tleap(
