@@ -90,7 +90,7 @@ class MDProject(BaseProject):
                         jdata['md'][stage][key] = jdata['md'][stage]['nstxout']
         
         for key in jdata['md']:
-            if isinstance(self.md_params[key], dict):
+            if isinstance(jdata[key], dict):
                 self.md_params[key].update(jdata['md'][key])
             else:
                 self.md_params[key] = jdata['md'][key]
