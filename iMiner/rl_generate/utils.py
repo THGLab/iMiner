@@ -58,7 +58,6 @@ class SELFIESTokenizer(BaseTokenizer):
             "C@H1", "Cl", "F", "I", "N", "N+1",	"N-1", "NH1", "O", "O-1", "OH0", "\\O", "\\O-1",
             "P", "P+1",	"P@", "P@@", "PH1", "Ring1", "Ring2", "S", "S+1", 
             "\\C", "\\C@@H1", "\\C@H1", "\\Cl", "\\N", "\\N+1", "\\NH1", "pop"}
-        self.grammar = GroupGrammar.essential_set()
     
     def encoder(self, smi):
         try:

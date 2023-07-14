@@ -1,7 +1,8 @@
 import numpy as np
 import os.path 
 import multiprocessing
-from functools import partial
+from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures._base import TimeoutError
 #from pathlib import Path
 
 from iMiner.utils import random_id
@@ -45,9 +46,12 @@ class InteractionScorer():
     
     ToDo: interaction types
     """
-    def __init__(self, protein_path, key_residues) -> None:
+    def __init__(self, protein_path, key_residues, coef=None) -> None:
         self.protein = protein_path
         self.residue = key_residues
+        self.weights = coef
+        if coef is None:
+            self.weights = [1] * len(self.residue)
         self.n_jobs = int(multiprocessing.cpu_count() * 0.9)
     
     def calc_score(self, ligand):
@@ -72,8 +76,8 @@ class InteractionScorer():
         if npdbs > 1: 
             npdbs -= 1
         ridx = range(npdbs)
-        if "SELECTED MODELS: " in pdbfile:
-            ridx = [int(i) for i in pdbfile.split("SELECTED MODELS: ")[1].split("\n")[0].split()]
+        #if "SELECTED MODELS: " in pdbfile:
+        #    ridx = [int(i) for i in pdbfile.split("SELECTED MODELS: ")[1].split("\n")[0].split()]
         
         scorelist = []
         for n in ridx:
@@ -83,8 +87,11 @@ class InteractionScorer():
                 return 0
             interact = analyze_single_frame(complx, "UNL")
             for key in interact:
-                if "/".join(key.split("/")[1:]) in self.residue:
-                    score += 1
+                if key in self.residue:
+                    score += self.weights[self.residue.index(key)]
+                elif "/".join(key.split("/")[1:]) in self.residue:
+                    ri = self.residue.index("/".join(key.split("/")[1:]))
+                    score += self.weights[ri]
             scorelist.append(score)
             # clean temporary files
             os.remove(complx)
@@ -94,12 +101,15 @@ class InteractionScorer():
         return max_score 
     
     def calc_score_parallel(self, ligands):
-        #ligands = [[ligand] for ligand in ligands]
         results = []
         #print("parallel interaction calculation")
-        with multiprocessing.Pool(self.n_jobs) as pool:
-            for result in pool.map(self.calc_score, ligands):
-                results.append(result)
+        with ProcessPoolExecutor(self.n_jobs) as pool:
+            futures = [pool.submit(self.calc_score, l) for l in ligands]
+            for f in futures:
+                try: 
+                    results.append(f.result(timeout=60))
+                except TimeoutError:
+                    results.append(0.)
         
         return np.array(results)
     

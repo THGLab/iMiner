@@ -90,6 +90,11 @@ class RewardAssigner():
             self.reward_conversion_funcs.append(lambda x: x*weight)
             self.property_calculators[reward_type] = FragmentScorer(**extra_params)
             
+        elif reward_type == "pharmacophore":
+            from iMiner.rl_generate.evaluators.fragment_similarity import PharmacophoreScorer
+            self.reward_conversion_funcs.append(lambda x: x*weight)
+            self.property_calculators[reward_type] = PharmacophoreScorer(**extra_params)
+            
         elif reward_type == "interaction":
             from iMiner.rl_generate.evaluators.interaction import InteractionScorer
             self.reward_conversion_funcs.append(lambda x: x*weight)
@@ -189,7 +194,8 @@ class RewardAssigner():
         metrics = []
         new_names = [str(self.iteration) + "_" + str(i) for i in range(len(mols))]
         for reward_item in self.reward_types:
-            if reward_item in ["drug_likeliness", "lead_likeliness", "fragment_similarity", "solubility"]:
+            if reward_item in ["drug_likeliness", "lead_likeliness", 
+                                "fragment_similarity", "solubility", "pharmacophore"]:
                 metrics.append([self.property_calculators[reward_item].calc_score(mol) for mol in mols])
             if reward_item == "docking":
                 dock_scores = self.property_calculators[reward_item].get_scores(mols, new_names, self.iteration)

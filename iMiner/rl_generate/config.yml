@@ -1,54 +1,59 @@
 rl_params:
   algorithm: ppo
-  epsilon: 0.1
-  entropy_coef: 0.08
+  epsilon: 0.12
+  entropy_coef: 0.01
   n_epochs_before_resample: 10
   kl_threshold: 0.03
 
 optimizer_specs:
   optimizer: adam
-  learning_rate: 1.0e-4
+  learning_rate: 5.0e-4
 
 training_specs:
-  batch_size: 32
-  n_seq_per_iter: 10 # for debug
-  n_iters: 10 # for debug
-#  start_iter : 38
-  prior_diff_coef: 0 
+  batch_size: 1024
+  n_seq_per_iter: 1000 # for debug
+  n_iters: 100 # for debug
+  start_iter : 0
+  prior_diff_coef: 0
   prior_model: /global/scratch/users/ozhang/covid/rl_dataset/final_model.pkl  
   starting_policy_model: /global/scratch/users/ozhang/covid/rl_dataset/final_model.pkl  
-#  model_weights: /global/scratch/users/ozhang/covid/ZikvPro/open_update/models/model_20
+#  model_weights: /global/scratch/users/ozhang/covid/covid/MPro/WJ_pretrain/checkpoint_13.pth
 
 rewards:
   - type: docking
-    weight: 4
+    weight: 1.5
     params:
-      protein_file: /global/scratch/users/ozhang/covid/rdkit_vina/ns3_protease.pdbqt
-      box:  [-21, 5.5, -24, -3, 22.5, 0] # [47, 64, 12, 65, 82, 35]
-      protocols: ["vina-gpu", "rfscore"]
-      num_modes: 5
-      timeout: 300
-      fragment: ["Cc2cc(N)c1cccc(Cl)c1n2", [-13.79580109,  15.63052044, -17.64702725]]
+      protein_file: /global/scratch/users/ozhang/covid/MPro/c3ai_protease.pdbqt
+      box: [42.5, 34, 63, 66.5, 58, 87] # [-21, 5.5, -24, -3, 22.5, 0] # [47, 64, 12, 65, 82, 35]
+      protocols: ["vina-gpu"]
+#      num_modes: 5
+#      timeout: 300
+#      fragment: /global/scratch/users/ozhang/covid/MPro/WJ_lig_align.sdf
   - type: interaction # need to be listed right after vina
     weight: 1
     params:
-      protein_path: /global/scratch/users/ozhang/covid/ZikvPro/ns3_protease.pdb
+      protein_path: /global/scratch/users/ozhang/covid/MPro/mprotease.pdb
 #        interaction types supported: hydrogen_bond, hydrophobic_interaction, pi_stack, salt_bridge, halogen_bond
-      key_residues: ["SER/81/A", "ASP/83/A", "ASP/75/B", "HIS/51/B", "GLY/151/B", "GLY/153/B",
-                   "SER/135/B", "TYR/161/B", "TYR/130/B", "ASP/129/B", "VAL/154/B"]
+      key_residues: ["HIS/41/A", "PHE/140/A", "hydrogen_bond/GLY/143/A", "hydrogen_bond/SER/144/A", "CYS/145/A", "hydrogen_bond/HIS/163/A", "hydrogen_bond/GLU/166/A"]
+      coef: [2, 1, 1, 1, 1, 3, 2]
 #  - type: fragment_similarity
-#    weight: 8
+#    weight: 5
 #    params:
-#      fragments: ['CNc1cc(C)nc2c(Cl)cccc12']
-#      weights: [1]
+#      fragments: ['O=c4[nH]cc(c3cc(c1ccccc1)c(=O)n(c2cccnc2)c3)c(=O)[nH]4', 'O=c3c(c1ccccc1)cc(c2ccccc2)cn3c4cccnc4'] 
+#      weights: [1, 1]
 #      global_substructure_match: True
+  - type: pharmacophore
+    weight: 20
+    params:
+#      query: /global/scratch/users/ozhang/covid/MPro/WJ_moles.csv
+      query: ['CCC[C@H](NC(=O)c1cccc2nc(-c3cncc4ccccc34)n([C@H]3C[C@H](C(=O)NC)C3)c12)c1ccc(C(F)(F)F)cc1', 'CNC(=O)[C@H]1C[C@H](n2c(-c3cncc4ccccc34)nc3cccc(C(=O)N[C@@H](C)c4ccc5ccccc5c4)c32)C1', 'Cn1cnc(Cn2c(=O)nc(Nc3cc4cn(C)nc4cc3Cl)n(Cc3cc(F)c(F)cc3F)c2=O)n1', 'CNC(=O)CCCn1c(-c2cncc3ccccc23)nc2cccc(C(=O)N[C@@H](C)c3ccc4ccccc4c3)c21']
   - type: drug_likeliness
-    weight: 1
-  - type: solubility
-    weight: 1
+    weight: 1.5
+#  - type: solubility
+#    weight: 0.1
 
 run:
   random_seed: 42
-  output_dir: /global/scratch/users/ozhang/covid/ZikvPro/test_frag
+  output_dir: /global/scratch/users/ozhang/covid/MPro/phmcore_debug
 
 #mpro macrocycle CCCC(NC(=O)c3cccc4nc(c1cncc2ccccc12)n(CCCCC(=O)NC)c34)c5ccc(C(F)(F)F)cc5

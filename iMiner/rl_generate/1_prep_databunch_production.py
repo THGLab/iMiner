@@ -4,7 +4,7 @@ from sklearn.model_selection import train_test_split
 from functools import partial
 import numpy as np
 
-def create_data(data, train_size, test_size, datafile=None, batch_size=64, format="SMILES"):
+def create_data(data, train_size, test_size, datafile=None, vocab=None, batch_size=64, format="SMILES"):
     assert format in ["SMILES", "SELFIES"]
     train, test = train_test_split(np.arange(len(data)), train_size=train_size, test_size=test_size, random_state=42)
     if format == "SMILES":
@@ -13,7 +13,8 @@ def create_data(data, train_size, test_size, datafile=None, batch_size=64, forma
         tok = Tokenizer(partial(SELFIESTokenizer), pre_rules=[], post_rules=[])
 
     data = TextLMDataBunch.from_df("/".join(datafile.split("/")[:-1]), data.loc[train], data.loc[test], 
-        bs=batch_size, tokenizer=tok, text_cols=format.lower(), min_freq=5, include_bos=False, include_eos=False)
+            vocab=vocab, bs=batch_size, tokenizer=tok, 
+            text_cols=format.lower(), min_freq=1, include_bos=False, include_eos=False)
     if datafile is not None:
         data.save(f'{datafile}.pkl')
     return data
@@ -24,19 +25,15 @@ if __name__ == "__main__":
     import pickle
     
     # create data from txt file
-    datapath = "/global/scratch/users/ozhang/covid/rl_dataset/"
-    #df1 = pd.read_csv(datapath + "chembl_cleaned.txt")
-    #df2 = pd.read_csv(datapath + "frag_smi.csv")
-    #df = pd.concat([df1, df2], ignore_index=True)
+    datapath = "/global/scratch/users/ozhang/covid/MPro/"
+    df = pd.read_csv(datapath + "WJ_moles.csv")
     
     # add fragment token
-    #tok.add_frag_to_tokens(['Cc1cc(N*1)c2cccc(Cl)c2n1'])
-    data = load_data(datapath, 'chembl_frag_gselfies.pkl', bs=1024, bptt=70)
-    #data = create_data(df2, train_size=0.85, test_size=0.15, batch_size=128, datafile=datapath + "frag_gselfies", format="SELFIES")
-    
-    vocab = data.train_ds.x.vocab
-    with open(datapath + 'chembl_vocab.pkl', 'wb') as f:
-        pickle.dump(vocab.stoi, f)
+    #data = load_data(datapath, 'chembl_frag_gselfies.pkl', bs=1024, bptt=70)
+    with open("/global/scratch/users/ozhang/covid/rl_dataset/chembl_vocab.pkl", "rb") as f:
+        vocab = pickle.load(f)
+    data = create_data(df, train_size=0.8, test_size=0.2, batch_size=128, vocab=vocab, datafile=datapath + "WJ_moles", format="SELFIES")
+    print(data.train_ds.x.vocab.itos)    
     print('number of training items:', len(data.train_ds.items), len(data.train_dl))
     print('number of valid items:', len(data.valid_ds.items), len(data.valid_dl))
     xx, yy = data.one_batch()

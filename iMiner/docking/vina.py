@@ -195,11 +195,11 @@ class VinaDocking(AutoDockBaseDocking):
                 elif line.strip().split()[0] == "1":
                     energy = float(line.strip().split()[1])
                     break
-            if self.nmodes > 1 and energy != np.nan:
+            #if self.nmodes > 1 and energy != np.nan:
                 # untested; calculates averages of poses clustered with the top pose
-                rmsds = np.array([line.strip().split() for line in strings[:self.nmodes]], dtype=np.float)
-                mask = rmsds[:, 2] < 2
-                energy = rmsds[:, 1][mask].mean()
+            #    rmsds = np.array([line.strip().split().strip() for line in strings[:self.nmodes]], dtype=np.float)
+            #    mask = rmsds[:, 2] < 2
+            #    energy = rmsds[:, 1][mask].mean()
             ligand_scores.append(energy)
 
             # save the conformation

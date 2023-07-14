@@ -1,5 +1,5 @@
 '''
-Author: Jie Li
+Author: Jie Li, Oufan Zhang
 Date created: Aug 22, 2022
 
 Doing local Autodock Vina docking to obtain the scores
@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 import multiprocessing
 from functools import partial
+from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures._base import TimeoutError
 
 from iMiner.core.consensus_docking import ConsensusDocking, docking_protocol_map
 from iMiner.rl_generate.utils import get_gpu_count
@@ -19,24 +21,20 @@ from rdkit import Chem
 import os
 from pathlib import Path
 
-def unpack_helper(func, args):
-    '''
-    Helper function to unpack arguments for multiprocessing
-    '''
-    return func(*args)
-
 def nan_average(x):
     """
     return the average of an array excluding the nan/zero entries; 
     return nan if x is nan
     """
-    if x is np.nan or x is 0:
-        return x
+    if len(x) == 1:
+        return x[0]
     cx = np.nan_to_num(x)
     nnan = (cx == 0).sum()
     if nnan == 0:
         return np.mean(x)
-    return cx.sum()/(x.shape[0] - nnan)
+    if nnan == len(x):
+        return np.nan
+    return cx.sum()/(len(x) - nnan)
 
 def calc_average_df(df, column_name, key="smiles"):
     """
@@ -61,11 +59,11 @@ def calc_average_df(df, column_name, key="smiles"):
         
     
 class docking_score_assigner():
-    def __init__(self, protein_file, box, path, protocols, timeout=45, fragment=None, **kwargs) -> None:
+    def __init__(self, protein_file, box, path, protocols, timeout=60, fragment=None, **kwargs) -> None:
         '''
         protocols: list of docking programs
         timeout: the timeout for each docking job
-        fragment: dock with fragmebt restraints
+        fragment: path to fragment restraints .sdf
         '''
         protein_name = os.path.basename(protein_file).split('.')[0]
         self.protein = protein_file
@@ -93,10 +91,11 @@ class docking_score_assigner():
         if self.frag_restrain is not None:
             # untested
             for protocol in self.protocol_name:
+                protocol_name = protocol
                 if protocol == "vina-gpu":
-                    protocol = "vina"
-                new_scores = self.dock_restrain_parallel(result_df[protocol+"_path"].values, 
-                    result_df[protocol+"_score"].values, protocol)
+                    protocol_name = "vina"
+                new_scores = self.dock_restrain_parallel(result_df[protocol_name+"_path"].values, 
+                    result_df[protocol_name+"_score"].values, protocol)
                 # enforce 0 score for fragment poses not in the specified position
                 if protocol == "rfscore":
                     new_scores[result_df["vina_score"].values == 0] = 0
@@ -126,30 +125,39 @@ class docking_score_assigner():
     def fragment_position_restrain(self, sdf_path, protocol):
         if sdf_path is None or not sdf_path.endswith(".sdf") or not os.path.exists(sdf_path):
             return np.nan
-        if "vina" in protocol:
+    
+        if "vina" == protocol:
             scores = docking_protocol_map[protocol].read_energy_from_sdf(sdf_path)
-            i = calc_fragment_position(sdf_path, self.frag_restrain[0], self.frag_restrain[1])
+            assert len(scores) == self.docking_args["num_modes"]
+            i = calc_fragment_position(sdf_path, self.frag_restrain)
             if i is None:
                 return 0.
             else:
                 docking_protocol_map[protocol].extract_pose(sdf_path, sdf_path, i)
                 return scores[i]
+                
         elif protocol == "rfscore":
             RFscore = docking_protocol_map[protocol](self.protein, [])
             return RFscore.rescore([sdf_path])["rfscore_score"][0]
         
     def dock_restrain_parallel(self, result_paths, old_scores, protocol):
-        pool = multiprocessing.Pool(int(multiprocessing.cpu_count() * 0.9))
+        pool = ProcessPoolExecutor(self.n_jobs)
         new_score = old_scores.copy()
         mask = old_scores < 0.
-        sdf_paths = [[p, protocol] for p in result_paths[mask]]
+        zipped_args = zip(result_paths[mask], [protocol] * np.sum(mask))
+
         valid_scores = []
-        for score in pool.imap(partial(unpack_helper, self.fragment_position_restrain), sdf_paths):
+        futures = [pool.submit(self.fragment_position_restrain, *args) for args in zipped_args]
+        for future in futures:
+            try:
+                score = future.result(timeout=self.timeout)
+            except TimeoutError:
+                score = 0.
             valid_scores.append(score)
         new_score[mask] = np.array(valid_scores)
-        pool.close()
-        pool.join()
+        del pool
         return new_score
+        
         
     def update_interaction(self, iteration, new_names, interaction_score):
         result_df = self.get_result_df(iteration)
@@ -169,10 +177,10 @@ class docking_score_assigner():
 
 if __name__ == '__main__':
     import time
-    assigner = vina_score_assigner("/global/scratch/users/ozhang/covid/rdkit_vina/ns3_protease.pdbqt", 
+    assigner = docking_score_assigner("/global/scratch/users/ozhang/covid/rdkit_vina/ns3_protease.pdbqt", 
             [-22., 4.5, -25., -4., 22.5, -1.], 
             "/global/scratch/users/ozhang/covid/ZikvPro/vina_test", timeout=300, 
-            fragment=["Cc2cc(N)c1cccc(Cl)c1n2", [-13.79580109,  15.63052044, -17.64702725]])
+            fragment="/global/scratch/users/ozhang/covid/test.sdf")
     start_time = time.time()
     returns = assigner.get_scores(["C1NC1(C(C#N)COC5=CC(F)=CC3(CC=2C=CC(Cl)=CC=C))[NH]C=2CN3C=C4C=C(Cl)C=CC4=N5",
         "Cc1cc(NCc2cccc3cc(-c4ccccc4C(=O)O)ccc23)c2cccc(Cl)c2n1",

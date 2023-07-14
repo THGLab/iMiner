@@ -1,8 +1,13 @@
 import numpy as np
+import pandas as pd
+import os.path
+
 from rdkit import Chem
-from rdkit.Chem import AllChem
+from rdkit.Chem import AllChem, rdShapeHelpers
 from rdkit import DataStructs
 from rdkit.Chem.BRICS import BRICSDecompose
+from rdkit.Chem.Scaffolds import MurckoScaffold
+from rdkit.Chem.Pharm2D import Gobbi_Pharm2D, Generate
 
 def remove_connect_from_smiles(smi):
     """
@@ -19,59 +24,88 @@ def remove_connect_from_smiles(smi):
     nc = new.split("()")
     return "".join(nc)
 
-def calc_cm(atoms, coords):
-    coords_ = np.array(coords).T
-    lib = {"H": 1, "C": 12, "N": 14, "O": 16, "Cl": 35.5, "F": 19, "S": 32,
-           "Se": 79, "P": 31, "Br": 80, "I": 126, "B": 10.8
-    }
-    atom_weights = np.array([lib[a] for a in atoms])
-    return (atom_weights*coords_).sum(axis=-1)/np.sum(atom_weights)
+
+def extract_substructure(mol, match):
+    # Create an editable molecule.
+    emol = Chem.rdchem.EditableMol(Chem.Mol())
+
+    # Add atoms to emol.
+    for idx in match:
+        emol.AddAtom(mol.GetAtomWithIdx(idx))
+
+    # Add bonds to emol if they exist in the original molecule.
+    for idx1 in range(len(match)):
+        for idx2 in range(idx1+1, len(match)):
+            bond = mol.GetBondBetweenAtoms(match[idx1], match[idx2])
+            if bond is not None:
+                emol.AddBond(idx1, idx2, bond.GetBondType())
+
+    submol = emol.GetMol()
+
+    conf = mol.GetConformer()
+    subconf = Chem.Conformer(submol.GetNumAtoms())
+
+    # Copy the atom coordinates.
+    for idx in range(len(match)):
+        subconf.SetAtomPosition(idx, conf.GetAtomPosition(match[idx]))
+
+    # Add the conformer to the substructure molecule.
+    submol.AddConformer(subconf)
+    return submol
     
     
-def calc_fragment_position(pose_path, fragment, frag_cm, threshold=1.8):
+def calc_fragment_position(pose_path, fragment, 
+            use_scaffold=True, similarity_threshold=0.2, distance_threshold=0.8):
     """
     extract the coordinates of the most similar part of a molecule to a given fragment for each poses, 
     and return the pose whose identified fragment-like coordinates are in proximity to 
     the center of mass of the fragment within threshold
     """
-    fragment_fp = AllChem.GetMorganFingerprintAsBitVect(Chem.MolFromSmiles(fragment), 2, nBits=1024)
+    query_frag = Chem.SDMolSupplier(fragment)[0]
+    fragment_fp = AllChem.GetMorganFingerprintAsBitVect(query_frag, 2, nBits=1024)
     suppl = Chem.SDMolSupplier(pose_path)
-    mol_idx = 0
-    try:
-        # rdkit fragments molecule
-        pose_frags = list(BRICSDecompose(suppl[0], keepNonLeafNodes=True, returnMols=True))
-        pose_fbit = [AllChem.GetMorganFingerprintAsBitVect(f, 2, nBits=1024) for f in pose_frags]
-    except Exception:
-        #print("error fragmenting molecule")
-        return None
-    scores = [DataStructs.DiceSimilarity(fragment_fp, fb) for fb in pose_fbit]
-    if np.max(scores) < 0.35:
-        #print("low similarity score")
-        return None
-    # choose highest scored fragment
-    fbit_idx = scores.index(np.max(scores))
-    fp_smi = remove_connect_from_smiles(Chem.MolToSmiles(pose_frags[fbit_idx]))
-        
-    for mol in suppl:
-        try:
-            sub = mol.GetSubstructMatch(Chem.MolFromSmiles(fp_smi))
-        except Exception:
-            #print(f"kekulization error {fp_smi}")
+    
+    if use_scaffold:
+        core = MurckoScaffold.GetScaffoldForMol(suppl[0])
+        pose_fbit = AllChem.GetMorganFingerprintAsBitVect(core, 2, nBits=1024)
+        score = DataStructs.DiceSimilarity(fragment_fp, pose_fbit)
+        if score < similarity_threshold:
             return None
-        atom_types = []
-        fbit_coords = []
-        conf = mol.GetConformer()
-        #print(np.max(scores), fp_smi, sub)
-        for s in sub:
-           atom_types.append(mol.GetAtoms()[s].GetSymbol())
-           fbit_coords.append(list(conf.GetAtomPosition(s)))
-        if len(atom_types) == 0:
-            #print("error finding substructure")
-            continue
-        docked_cm = calc_cm(atom_types, fbit_coords)
-        if np.sqrt(((docked_cm - np.array(frag_cm))**2).sum()) < threshold:
+    else:
+        try:
+            pose_frags = list(BRICSDecompose(suppl[0], keepNonLeafNodes=True, returnMols=True))
+            pose_fbit = [AllChem.GetMorganFingerprintAsBitVect(f, 2, nBits=1024) for f in pose_frags]
+        except Exception:
+            return None
+        scores = [DataStructs.DiceSimilarity(fragment_fp, fb) for fb in pose_fbit]
+     
+        if np.max(scores) < similarity_threshold:
+            return None
+        # choose highest scored fragment
+        fbit_idx = scores.index(np.max(scores))
+        fp_smi = remove_connect_from_smiles(Chem.MolToSmiles(pose_frags[fbit_idx]))
+
+    for mol_idx, mol in enumerate(suppl):
+        if use_scaffold:
+            # align shape of the most similarity/core fragment
+            sub_mol = MurckoScaffold.GetScaffoldForMol(mol)
+        else:
+            try:
+                match = mol.GetSubstructMatch(Chem.MolFromSmiles(fp_smi))
+                if len(match) == 0:
+                    return None
+                sub_mol = extract_substructure(mol, match)
+            except Exception:
+                #print(f"kekulization error {fp_smi}")
+                return None
+            #conf = mol.GetConformer()
+            # Calculate the center of mass of the substructure.
+            #coords = np.array([conf.GetAtomPosition(i) for i in match])
+            #masses = np.array([mol.GetAtomWithIdx(i).GetMass() for i in match])
+            #center_of_mass = np.sum(coords * masses[:, None], axis=0) / np.sum(masses)
+        shape_dist = rdShapeHelpers.ShapeProtrudeDist(query_frag, sub_mol)
+        if shape_dist < distance_threshold:
             return mol_idx
-        mol_idx += 1
     return None
     
 
@@ -87,7 +121,6 @@ class FragmentScorer():
         self.similarity = similarity_metric
         self.global_substructure_match = global_substructure_match
 
-
     def calc_score(self, smiles):
         mol = Chem.MolFromSmiles(smiles)
         fragments = [Chem.MolFromSmiles(fs) for fs in BRICSDecompose(mol, keepNonLeafNodes=self.global_substructure_match)]
@@ -98,6 +131,26 @@ class FragmentScorer():
         final_score = np.dot(fragment_scores, self.weights)
         return final_score
         
+class PharmacophoreScorer():
+    def __init__(self, query, factory=None) -> None:
+        if isinstance(query, str):
+            assert os.path.exists(query), "Reads a path to file storing the molecules under column smiles, or a list of smiles"
+            # assumes a path to molecules with header smiles
+            df = pd.read_csv(query)
+            query = df.smiles.values
+        elif not isinstance(query, list):
+            raise TypeError("query molecules should be a path to file storing the molecules, or a list of smiles")
+        self.factory = factory
+        if factory is None:
+            self.factory = Gobbi_Pharm2D.factory
+        self.query_pharm = [Generate.Gen2DFingerprint(Chem.MolFromSmiles(
+                                    MurckoScaffold.MurckoScaffoldSmilesFromSmiles(q)
+                                    ), self.factory) for q in query]
+    
+    def calc_score(self, smiles):
+        p = Generate.Gen2DFingerprint(Chem.MolFromSmiles(smiles), self.factory)
+        return max([DataStructs.TanimotoSimilarity(q, p) for q in self.query_pharm])
+
 if __name__ == '__main__':
     import time
     start_time = time.time()
