@@ -2,6 +2,7 @@ import pytest
 import shutil
 from pathlib import Path
 from iMiner.core.project import BaseProject
+from iMiner.core.md import MDProject
 
 
 def test_base_project():
@@ -29,3 +30,20 @@ def test_base_project():
     shutil.rmtree(proj_path)
 
 
+def test_md_project():
+    proj_name = "project_md_test"
+    proj_path = Path(__file__).parent / proj_name
+    proj = MDProject(project_name=proj_name, project_path=proj_path, verbose=False)
+    proj.add_protein(
+        name='ala',
+        protein_file_path=Path(__file__).parent / "data/ala-dipeptide.pdb"
+    )
+    proj.add_ligand(smiles_or_path="C", name='methane')
+
+    proj_loaded = MDProject(project_path=proj_path, verbose=False)
+    proj_loaded.add_protein(
+        name="ala-2", 
+        protein_file_path=Path(__file__).parent / "data/ala-dipeptide.pdb"
+    )
+    proj.add_ligand(smiles_or_path="CC", name='ethane')
+    shutil.rmtree(proj_path)
