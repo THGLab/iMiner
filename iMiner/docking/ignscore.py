@@ -32,14 +32,15 @@ class IGNscoring(BaseDocking):
         elif protein_pdb.endswith(".pdb"):
             shutil.copy(protein_pdb, self.protein_path)
     
-    def run_prediction(self, ligand_txt, out_csv, dic_id, device, n_jobs):
-        ign_dic_path = self.working_path / f"ign_dic_{dic_id}"
+    def run_prediction(self, ligand_txt, out_csv, device, n_jobs):
+        ign_dic_path = self.working_path / f"ign_dic"
         os.makedirs(ign_dic_path, exist_ok = True)
         
         with set_directory(self.working_path):
             # path_modifier = f"PATH={tankbind_dir_path}:$PATH"
-            cmd = "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{ign_lib_path}\n"
-            cmd += f"{ign_python_path} {ign_src_path}/rescore.py" + \
+            cmd = "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{ign_lib_path}"
+            run_command(cmd, shell=True)
+            cmd = f"{ign_python_path} {ign_src_path}/rescore.py" + \
                 f" --protein {self.protein_path} --ligands {ligand_txt}" + \
                 f" --graph_dic_path {ign_dic_path}" + \
                 f" --device {device} --output_dir {out_csv} --num_process {n_jobs}"
@@ -66,7 +67,7 @@ class IGNscoring(BaseDocking):
         else:
             device = gpu
         self.run_prediction(self.working_path / f"ligand_content_{unique_id}.txt", 
-            self.working_path / f"ign_rescore_{unique_id}.csv", unique_id, device, n_jobs)
+            self.working_path / f"ign_rescore_{unique_id}.csv", device, n_jobs)
         
         df = pd.read_csv(self.working_path / f"ign_rescore_{unique_id}.csv")
         df["ign_score"] *= -1.36 #convert pkd to kcal/mol
