@@ -54,14 +54,14 @@ def extract_substructure(mol, match):
     return submol
     
     
-def calc_fragment_position(pose_path, fragment, 
-            use_scaffold=True, similarity_threshold=0.2, distance_threshold=0.8):
+def calc_fragment_position(pose_path, fragment_path, 
+            use_scaffold=False, similarity_threshold=0.2, distance_threshold=0.8):
     """
     extract the coordinates of the most similar part of a molecule to a given fragment for each poses, 
     and return the pose whose identified fragment-like coordinates are in proximity to 
     the center of mass of the fragment within threshold
     """
-    query_frag = Chem.SDMolSupplier(fragment)[0]
+    query_frag = Chem.SDMolSupplier(fragment_path)[0]
     fragment_fp = AllChem.GetMorganFingerprintAsBitVect(query_frag, 2, nBits=1024)
     suppl = Chem.SDMolSupplier(pose_path)
     
@@ -123,9 +123,12 @@ class FragmentScorer():
 
     def calc_score(self, smiles):
         mol = Chem.MolFromSmiles(smiles)
-        fragments = [Chem.MolFromSmiles(fs) for fs in BRICSDecompose(mol, keepNonLeafNodes=self.global_substructure_match)]
-        mol_fragment_fps = [AllChem.GetMorganFingerprintAsBitVect(frag, 2, nBits=1024, 
-            useFeatures=self.use_features) for frag in fragments]
+        try:
+            fragments = [Chem.MolFromSmiles(fs) for fs in BRICSDecompose(mol, keepNonLeafNodes=self.global_substructure_match)]
+            mol_fragment_fps = [AllChem.GetMorganFingerprintAsBitVect(frag, 2, nBits=1024, 
+                useFeatures=self.use_features) for frag in fragments]
+        except RuntimeError:
+            return 0
         fragment_scores = [max([self.similarity(frag_fp, mol_frag_fp) for mol_frag_fp in mol_fragment_fps])
                                      for frag_fp in self.fragment_fps]
         final_score = np.dot(fragment_scores, self.weights)

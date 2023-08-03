@@ -23,12 +23,14 @@ def create_data(data, train_size, test_size, datafile=None, vocab=None, batch_si
 if __name__ == "__main__":
     import pandas as pd
     import pickle
+    import selfies as sf
     
     # create data from txt file
     datapath = "/global/scratch/users/ozhang/covid/MPro/"
     df = pd.read_csv(datapath + "WJ_moles.csv")
+    df["selfies"] = df.smiles.apply(sf.encoder)
     
-    # add fragment token
+    
     #data = load_data(datapath, 'chembl_frag_gselfies.pkl', bs=1024, bptt=70)
     with open("/global/scratch/users/ozhang/covid/rl_dataset/chembl_vocab.pkl", "rb") as f:
         vocab = pickle.load(f)

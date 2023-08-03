@@ -135,7 +135,8 @@ covid_project
 .DS_Store
 
 # examples
-examples/*
+examples/test
+examples/*.csv
 
 # local data
 local/
@@ -146,7 +147,7 @@ local/
 .vscode/
 
 # debug n in development
-iMiner/docking/ignscore.py
+iMiner/rl_generate/validate_pretrain.py
 debug/
 
 # temp docs

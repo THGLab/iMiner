@@ -129,7 +129,7 @@ class docking_score_assigner():
         if "vina" == protocol:
             scores = docking_protocol_map[protocol].read_energy_from_sdf(sdf_path)
             assert len(scores) == self.docking_args["num_modes"]
-            i = calc_fragment_position(sdf_path, self.frag_restrain)
+            i = calc_fragment_position(sdf_path, **self.frag_restrain)
             if i is None:
                 return 0.
             else:

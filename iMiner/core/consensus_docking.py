@@ -16,7 +16,7 @@ docking_protocol_map = {
     "vina": VinaDocking,
     "vina-gpu": VinaGPUDocking,
     "rfscore": RFscoring,
-#    "ign": IGNscoring,
+    "ign": IGNscoring,
 #    "icm": ICMDocking,
 #    "tankbind": TankBindDocking
 }
@@ -53,7 +53,7 @@ class ConsensusDocking(BaseProject):
 
         results_df = []
         for protocol in self.docking_protocols:
-            if protocol in ["rfscore"]:
+            if protocol in ["rfscore", "ign"]:
                 scoring_protocols.append(protocol)
                 continue
             docking_obj = self.docking_protocols[protocol](self.proteins[protein_name],
@@ -86,7 +86,7 @@ class ConsensusDocking(BaseProject):
                                                            self.binding_sites[protein_name],
                                                            self.temp_path, self.logger, **kwargs)
             # docked pose taken from last docking method
-            results = docking_obj.rescore(ligpath)
+            results = docking_obj.rescore(ligpath, kwargs.get("n_jobs", 1))
             results_df.append(results)
             if self.verbose:
                 self.logger.info(f"{protocol} finished")

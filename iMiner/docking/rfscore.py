@@ -39,7 +39,7 @@ class RFscoring(BaseDocking):
         '''
         super().__init__(protein_pdb, docking_box, temp_path, **kwargs)   
     
-    def rescore(self, ligands):
+    def rescore(self, ligands, n_jobs=1):
         '''
         Rescore given ligand conformations using the current docking protocol
 

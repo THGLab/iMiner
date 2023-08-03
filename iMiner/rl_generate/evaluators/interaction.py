@@ -9,7 +9,18 @@ from iMiner.utils import random_id
 from iMiner.cmd import run_command
 from iMiner.md.analysis.interaction import analyze_single_frame
 
-    
+#Distribution of hydrogen bond angles in molecular crystals
+#March 1975 Nature 254(5497):212-212. DOI:10.1038/254212a0
+def hbond_angular_strain(ang, length, clamp_min=0.5):
+    # convert to O-H -- O line difference in rad
+    # scale the angles to spread distribution for scoring
+    ang = np.pi * (180 - ang + 30) / 180. / 3
+    lscale = 1.
+    if length > 3:
+        lscale = 0.6
+    # normalizing factor
+    return lscale * np.maximum(6.5*np.sin(ang) * np.exp(-0.2*ang**2/(8.617e-5 * 300)), clamp_min)
+
 def make_complex(ligand_path, protein_path, idx):
     # with multiple models, idx defines the index of model
     with open(protein_path, "r+") as p:
@@ -42,16 +53,20 @@ def sdf_to_pdb(sdf_path, pdb_path):
 class InteractionScorer():
     """
     protein_path: str or os.PathLike, path to protein pdb
-    key_res: list of str, residue format amino acid 3 letter code/resID/chainID
+    key_res: list of str, interaction type(optional)/resn/resID/chainID
+    coef: list of float, weights for interactions to sum up
+    backbone: list of bool, if restricted to backbone interaction only (hydrogen bonding specific)
     
-    ToDo: interaction types
     """
-    def __init__(self, protein_path, key_residues, coef=None) -> None:
+    def __init__(self, protein_path, key_residues, coef=None, backbone=None) -> None:
         self.protein = protein_path
         self.residue = key_residues
         self.weights = coef
         if coef is None:
             self.weights = [1] * len(self.residue)
+        if backbone is None:
+            self.backbone = [False] * len(self.residue)
+        assert len(self.residue) == len(self.weights) == len(self.backbone), "coef/backbone flag length mismatch with number of residues"
         self.n_jobs = int(multiprocessing.cpu_count() * 0.9)
     
     def calc_score(self, ligand):
@@ -61,8 +76,7 @@ class InteractionScorer():
         ligand: str or os.PathLike, path to sdf file
         
         return:
-        an interaction score np.float or None if calculation errors,
-        index of the model/pose with the highest interaction score
+        an interaction score, np.float or None if calculation errors
         """
         if ligand is None or not ligand.endswith(".sdf"): 
             return 0
@@ -76,8 +90,6 @@ class InteractionScorer():
         if npdbs > 1: 
             npdbs -= 1
         ridx = range(npdbs)
-        #if "SELECTED MODELS: " in pdbfile:
-        #    ridx = [int(i) for i in pdbfile.split("SELECTED MODELS: ")[1].split("\n")[0].split()]
         
         scorelist = []
         for n in ridx:
@@ -87,11 +99,23 @@ class InteractionScorer():
                 return 0
             interact = analyze_single_frame(complx, "UNL")
             for key in interact:
-                if key in self.residue:
-                    score += self.weights[self.residue.index(key)]
-                elif "/".join(key.split("/")[1:]) in self.residue:
-                    ri = self.residue.index("/".join(key.split("/")[1:]))
-                    score += self.weights[ri]
+                if key.startswith("hbond_info"):
+                    continue
+                # check for interaction specific & non-specific
+                for tag in [key, "/".join(key.split("/")[1:])]:
+                    if tag in self.residue:
+                        rid = self.residue.index(tag)
+                        if key.startswith("hydrogen_bond"):
+                            # backbone restriction on, skip sidechain only hbond
+                            if self.backbone[rid] and interact[key.replace("hydrogen_bond", "hbond_info")]["sidechain"]:
+                                continue
+                            info = interact[key.replace("hydrogen_bond", "hbond_info")]
+                            # score hydrogen bonding strength by angles
+                            scaling = hbond_angular_strain(float(info["don_angle"]), float(info["dist_h-a"]))
+                            score += self.weights[rid] * scaling 
+                        else:
+                            score += self.weights[rid]
+                        break
             scorelist.append(score)
             # clean temporary files
             os.remove(complx)

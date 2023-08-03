@@ -85,6 +85,12 @@ def analyze_single_frame(
             cnt = interact_count_frame.get(sig, 0)
             if cnt == 0:
                 interact_count_frame.update({sig: cnt+1})
+                # WARN (TODO): if one residue has multiple hbond this only records the first
+                if name == "hydrogen_bond":
+                    interact_count_frame.update({
+                            f"hbond_info/{restype}/{resnr}/{chain}": {prop: item.find(prop).text for \
+                        prop in ["sidechain", "dist_h-a", "dist_d-a", "don_angle"]}
+                    })
 
     return interact_count_frame
 
