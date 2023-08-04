@@ -6,7 +6,6 @@ import os
 # (LAWRENCIUM)
 ign_python_path = '/global/scratch/users/ozhang/.conda/envs/ign/bin/python3.7'
 ign_src_path = '/global/scratch/users/ozhang/InteractionGraphNet/codes'
-ign_lib_path = '/global/scratch/users/ozhang/.conda/envs/ign/lib'
 ign_dir_path = os.path.dirname(ign_python_path)
 
 ADFR_install_path = '/global/scratch/users/jerry-li1996/src/ADFRsuite_x86_64Linux_1.0/bin'
@@ -30,6 +29,7 @@ autogrid_path = f'{ADFR_install_path}/autogrid4'
 VINA_BINARY = Path(iMiner_path) / 'docking/bins/vina'
 VINA_GPU_SCRIPT = Path(iMiner_path) / 'docking/run_vina_gpu.sh'
 VINA_GPU_BINARY_PATH = Path(iMiner_path) / "docking/bins"
+IGN_SCRIPT = Path(iMiner_path) / 'docking/run_ign.sh'
 
 RF_model_path = Path(iMiner_path) / 'docking/bins/RF_newsplit.pkl'
 RF_col_mask = [True,  True,  True,  True,  True,  True,  True,  True,  True,

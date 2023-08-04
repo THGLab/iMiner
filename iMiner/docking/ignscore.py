@@ -1,13 +1,11 @@
 from iMiner.docking.base import BaseDocking
 from iMiner.cmd import run_command, set_directory
 from iMiner.utils import random_id
-from iMiner.pathlib import (
-    ign_dir_path, ign_python_path, 
-    ign_src_path, ign_lib_path
-)
+from iMiner.pathlib import ign_dir_path, IGN_SCRIPT
 import os
 import shutil
 from pathlib import Path
+import pandas as pd
  
 my_env = os.environ.copy()
 my_env["PATH"] = f"{ign_dir_path}:" + my_env["PATH"]
@@ -32,21 +30,15 @@ class IGNscoring(BaseDocking):
         elif protein_pdb.endswith(".pdb"):
             shutil.copy(protein_pdb, self.protein_path)
     
-    def run_prediction(self, ligand_txt, out_csv, device, n_jobs):
+    def run_prediction(self, ligand_txt, out_csv, n_jobs):
         ign_dic_path = self.working_path / f"ign_dic"
         os.makedirs(ign_dic_path, exist_ok = True)
         
         with set_directory(self.working_path):
-            # path_modifier = f"PATH={tankbind_dir_path}:$PATH"
-            cmd = "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:{ign_lib_path}"
-            run_command(cmd, shell=True)
-            cmd = f"{ign_python_path} {ign_src_path}/rescore.py" + \
-                f" --protein {self.protein_path} --ligands {ligand_txt}" + \
-                f" --graph_dic_path {ign_dic_path}" + \
-                f" --device {device} --output_dir {out_csv} --num_process {n_jobs}"
-            run_command(cmd)
+            cmd = "sh {} {} {} {} {} {}".format(IGN_SCRIPT, self.protein_path, ligand_txt, ign_dic_path, out_csv, n_jobs)
+            code, out, err = run_command(cmd)
     
-    def rescore(self, ligands, n_jobs=8, gpu=None):
+    def rescore(self, ligands, n_jobs=8):
         '''
         Rescore given ligand conformations using the current docking protocol
 
@@ -59,19 +51,16 @@ class IGNscoring(BaseDocking):
         if not os.path.exists(self.protein_path):
             print(self.protein_path, "does not exist")
             return
-        ligand_dir = ligands[0].split("/")[-1]
+        ligand_dir = os.path.dirname(ligands[0])
         with open(self.working_path / f"ligand_content_{unique_id}.txt", "w") as f:
             f.write("\n".join(ligands))
-        if gpu is None:
-            device = "cpu"
-        else:
-            device = gpu
+
         self.run_prediction(self.working_path / f"ligand_content_{unique_id}.txt", 
-            self.working_path / f"ign_rescore_{unique_id}.csv", device, n_jobs)
+            self.working_path / f"ign_rescore_{unique_id}.csv", n_jobs)
         
         df = pd.read_csv(self.working_path / f"ign_rescore_{unique_id}.csv")
         df["ign_score"] *= -1.36 #convert pkd to kcal/mol
-        df["ign_path"] = df["ligand_names"].apply(lambda x : ligand_dir + "/" + x)
+        df["ign_path"] = df["ligand_names"].apply(lambda x : ligand_dir + "/" + x + ".sdf")
         df["smiles"] = df["ign_path"].apply(self.convert_sdf_to_smiles)
         
         return df
