@@ -81,8 +81,8 @@ class BaseDocking:
             try:
                 result = future.result(timeout=single_job_timeout)
             except TimeoutError:
-                result = pd.DataFrame({"ligand_names": Path(ligand).stem, "smiles": ["timeout"],
-                               "score": [np.nan], "path": [""]})
+                result = pd.DataFrame({"ligand_names": [Path(ligand[0]).stem], "smiles": ["timeout"],
+                               "vina_score": [np.nan], "vina_path": [""]})
             counter += 1
             results.append(result)
             if verbose:

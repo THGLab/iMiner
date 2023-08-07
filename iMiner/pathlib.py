@@ -5,7 +5,6 @@ import os
 
 # (LAWRENCIUM)
 ign_python_path = '/global/scratch/users/ozhang/.conda/envs/ign/bin/python3.7'
-ign_src_path = '/global/scratch/users/ozhang/InteractionGraphNet/codes'
 ign_dir_path = os.path.dirname(ign_python_path)
 
 ADFR_install_path = '/global/scratch/users/jerry-li1996/src/ADFRsuite_x86_64Linux_1.0/bin'
