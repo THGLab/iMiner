@@ -90,10 +90,10 @@ class ConsensusDocking(BaseProject):
             results_df.append(results)
             if self.verbose:
                 self.logger.info(f"{protocol} finished")
-                
+
         final_results = results_df[0]
         for df in results_df[1:]:
-            final_results = pd.merge(final_results, df.drop("smiles", axis=1), on=["ligand_names"], how="outer")
+            final_results = pd.merge(final_results, df.drop("smiles", axis=1), on="ligand_names", how="outer")
 
         # when output_csv is not specified, auto-generate one using the protein_name
         if output_csv is None:
