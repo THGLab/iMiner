@@ -4,9 +4,6 @@ import os
 # CHANGE THESE UNDER DIFFERENT SYSTEMS
 
 # (LAWRENCIUM)
-ign_python_path = '/global/scratch/users/ozhang/.conda/envs/ign/bin/python3.7'
-ign_dir_path = os.path.dirname(ign_python_path)
-
 ADFR_install_path = '/global/scratch/users/jerry-li1996/src/ADFRsuite_x86_64Linux_1.0/bin'
 meeko_install_path = '/global/scratch/users/ozhang/env/iminer-rl/bin'
 iMiner_path = '/global/scratch/users/ozhang/covid/iMiner/iMiner'

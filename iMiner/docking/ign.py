@@ -51,7 +51,7 @@ class IGNscoring(BaseDocking):
         if not os.path.exists(self.protein_path):
             print(self.protein_path, "does not exist")
             return
-        ligands = [l for l in ligands if isinstance(l, str) and l.endswith(".sdf") and os.path.exists(l)]
+        ligands = [os.path.abspath(l) for l in ligands if isinstance(l, str) and l.endswith(".sdf") and os.path.exists(l)]
         ligand_dir = os.path.dirname(ligands[0])
         with open(self.working_path / f"ligand_content_{unique_id}.txt", "w") as f:
             f.write("\n".join(ligands))
