@@ -1,7 +1,7 @@
 rl_params:
   algorithm: ppo
   epsilon: 0.12
-  entropy_coef: 0.015
+  entropy_coef: 0.016
   n_epochs_before_resample: 10
   kl_threshold: 0.03
 
@@ -17,11 +17,11 @@ training_specs:
   prior_diff_coef: 0
   prior_model: /global/scratch/users/ozhang/covid/rl_dataset/final_model.pkl  
   starting_policy_model: /global/scratch/users/ozhang/covid/rl_dataset/final_model.pkl 
-  model_weights: /global/scratch/users/ozhang/covid/MPro/WJ_pretrain/checkpoint_8.pth
+  model_weights: /global/scratch/users/ozhang/covid/MPro/WJ_pretrain/checkpoint_10.pth
 
 rewards:
   - type: docking
-    weight: 2
+    weight: 1
     params:
       protein_file: /global/scratch/users/ozhang/covid/MPro/WJ_mpro.pdbqt
       box: [42.5, 34, 63, 66.5, 58, 87] # [-21, 5.5, -24, -3, 22.5, 0] # [47, 64, 12, 65, 82, 35]
@@ -31,13 +31,14 @@ rewards:
 #      fragment: 
 #        fragment_path: /global/scratch/users/ozhang/covid/MPro/WJ_lig_align.sdf
 #        use_scaffold similarity_threshold distance_threshold (optional args)
-#  - type: interaction # need to be listed right after vina
-#    weight: 1
-#    params:
-#      protein_path: /global/scratch/users/ozhang/covid/MPro/WJ_mpro.pdb
+  - type: interaction # need to be listed right after vina
+    weight: 2
+    params:
+      protein_path: /global/scratch/users/ozhang/covid/MPro/WJ_mpro.pdb
 #        interaction types supported: hydrogen_bond, hydrophobic_interaction, pi_stack, pi_cation_interaction, salt_bridge, halogen_bond
-#      key_residues: ["pi_cation_interaction/HIS/41/A", "pi_stack/HIS/41/A", "hydrogen_bond/GLY/143/A", "hydrogen_bond/SER/144/A", "hydrogen_bond/CYS/145/A", "hydrogen_bond/HIS/163/A", "hydrogen_bond/GLU/166/A"] 
-#      coef: [1, 2, 1, 1, 1, 4, 3]
+      key_residues: ["pi_cation_interaction/HIS/41/A", "pi_stack/HIS/41/A"]
+      #, "hydrogen_bond/GLY/143/A", "hydrogen_bond/SER/144/A", "hydrogen_bond/CYS/145/A", "hydrogen_bond/HIS/163/A", "hydrogen_bond/GLU/166/A"] 
+      coef: [1, 2]
 #      backbone: (optional)
   - type: fragment_similarity
     weight: 2
@@ -45,10 +46,10 @@ rewards:
       fragments: ['COc4cc(Cl)cc(c3cc(c1ccccc1C#N)cn(c2cccnc2)c3=O)c4', 'COc4cc(Cl)cc(c3cc(c1c[nH]c(=O)[nH]c1=O)cn(c2cccnc2)c3=O)c4'] 
       weights: [0.5, 0.5]
       global_substructure_match: True
-  - type: pharmacophore
-    weight: 4
-    params:
-      query: /global/scratch/users/ozhang/covid/MPro/WJ_moles.csv
+#  - type: pharmacophore
+#    weight: 4
+#    params:
+#      query: /global/scratch/users/ozhang/covid/MPro/WJ_moles.csv
   - type: drug_likeliness
     weight: 1.5
 #  - type: solubility
@@ -56,4 +57,4 @@ rewards:
 
 run:
   random_seed: 42
-  output_dir: /global/scratch/users/ozhang/covid/MPro/WJ_2D_derive
+  output_dir: /global/scratch/users/ozhang/covid/MPro/WJ_interaction

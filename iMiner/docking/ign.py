@@ -1,15 +1,15 @@
 from iMiner.docking.base import BaseDocking
 from iMiner.cmd import run_command, set_directory
 from iMiner.utils import random_id
-from iMiner.pathlib import ign_dir_path, IGN_SCRIPT
+from iMiner.pathlib import IGN_SCRIPT
 import os
 import shutil
 from pathlib import Path
 import pandas as pd
  
-my_env = os.environ.copy()
-my_env["PATH"] = f"{ign_dir_path}:" + my_env["PATH"]
-os.environ.update(my_env)
+#my_env = os.environ.copy()
+#my_env["PATH"] = f"{ign_dir_path}:" + my_env["PATH"]
+#os.environ.update(my_env)
 
 class IGNscoring(BaseDocking):
     def __init__(self, protein_pdb, docking_box, temp_path=None, logger=None, **kwargs) -> None:
