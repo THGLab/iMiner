@@ -1,7 +1,8 @@
 rl_params:
   algorithm: ppo
   epsilon: 0.12
-  entropy_coef: 0.016
+  entropy:
+    init_coeff: 0.1
   n_epochs_before_resample: 10
   kl_threshold: 0.03
 
@@ -16,7 +17,7 @@ training_specs:
   start_iter : 0
   prior_diff_coef: 0
   prior_model: /global/scratch/users/ozhang/covid/rl_dataset/final_model.pkl  
-  starting_policy_model: /global/scratch/users/ozhang/covid/rl_dataset/final_model.pkl 
+  starting_policy_model: /global/scratch/users/ozhang/covid/MPro/WJ_pretrain/pretrained.pkl 
   model_weights: /global/scratch/users/ozhang/covid/MPro/WJ_pretrain/checkpoint_10.pth
 
 rewards:
@@ -26,35 +27,31 @@ rewards:
       protein_file: /global/scratch/users/ozhang/covid/MPro/WJ_mpro.pdbqt
       box: [42.5, 34, 63, 66.5, 58, 87] # [-21, 5.5, -24, -3, 22.5, 0] # [47, 64, 12, 65, 82, 35]
       protocols: ["vina-gpu"]
-#      num_modes: 5
-#      timeout: 120
-#      fragment: 
-#        fragment_path: /global/scratch/users/ozhang/covid/MPro/WJ_lig_align.sdf
+      timeout: 60
+      fragment: 
+        fragment_path: /global/scratch/users/ozhang/covid/MPro/WJ_lig_align.sdf
 #        use_scaffold similarity_threshold distance_threshold (optional args)
-  - type: interaction # need to be listed right after vina
-    weight: 2
-    params:
-      protein_path: /global/scratch/users/ozhang/covid/MPro/WJ_mpro.pdb
+#  - type: interaction # need to be listed right after vina
+#    weight: 5
+#    params:
+#      protein_path: /global/scratch/users/ozhang/covid/MPro/WJ_mpro.pdb
 #        interaction types supported: hydrogen_bond, hydrophobic_interaction, pi_stack, pi_cation_interaction, salt_bridge, halogen_bond
-      key_residues: ["pi_cation_interaction/HIS/41/A", "pi_stack/HIS/41/A"]
-      #, "hydrogen_bond/GLY/143/A", "hydrogen_bond/SER/144/A", "hydrogen_bond/CYS/145/A", "hydrogen_bond/HIS/163/A", "hydrogen_bond/GLU/166/A"] 
-      coef: [1, 2]
+#      key_residues: ["hydrogen_bond/HIS/163/A"]
+      #, "hydrogen_bond/GLY/143/A", "hydrogen_bond/SER/144/A", "hydrogen_bond/CYS/145/A", "pi-stack/HIS/41/A", "hydrogen_bond/GLU/166/A"] 
+#      coef: 
 #      backbone: (optional)
   - type: fragment_similarity
-    weight: 2
+    weight: 5
     params:
-      fragments: ['COc4cc(Cl)cc(c3cc(c1ccccc1C#N)cn(c2cccnc2)c3=O)c4', 'COc4cc(Cl)cc(c3cc(c1c[nH]c(=O)[nH]c1=O)cn(c2cccnc2)c3=O)c4'] 
-      weights: [0.5, 0.5]
-      global_substructure_match: True
+      fragments: ["O=c1ccccn1-c1cccnc1"] #, "COc4cc(Cl)cc(c3cc(c1ccccc1C#N)cn(c2cccnc2)c3=O)c4", "COc4cc(Cl)cc(c3cc(c1c[nH]c(=O)[nH]c1=O)cn(c2cccnc2)c3=O)c4"] 
+#      weights: [0.2, 0.4, 0.4]
 #  - type: pharmacophore
-#    weight: 4
+#    weight: 2
 #    params:
 #      query: /global/scratch/users/ozhang/covid/MPro/WJ_moles.csv
   - type: drug_likeliness
-    weight: 1.5
-#  - type: solubility
-#    weight: 0.1
+    weight: 1
 
 run:
   random_seed: 42
-  output_dir: /global/scratch/users/ozhang/covid/MPro/WJ_interaction
+  output_dir: /global/scratch/users/ozhang/covid/MPro/frag_3D

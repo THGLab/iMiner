@@ -27,14 +27,14 @@ if __name__ == "__main__":
     
     # create data from txt file
     datapath = "/global/scratch/users/ozhang/covid/MPro/"
-    df = pd.read_csv(datapath + "WJ_moles.csv")
+    df = pd.read_csv(datapath + "WJ_frags.csv")
     df["selfies"] = df.smiles.apply(sf.encoder)
     
     
     #data = load_data(datapath, 'chembl_frag_gselfies.pkl', bs=1024, bptt=70)
     with open("/global/scratch/users/ozhang/covid/rl_dataset/chembl_vocab.pkl", "rb") as f:
         vocab = pickle.load(f)
-    data = create_data(df, train_size=0.8, test_size=0.2, batch_size=128, vocab=vocab, datafile=datapath + "WJ_moles", format="SELFIES")
+    data = create_data(df, train_size=0.8, test_size=0.2, batch_size=128, vocab=vocab, datafile=datapath + "WJ_frags", format="SELFIES")
     print(data.train_ds.x.vocab.itos)    
     print('number of training items:', len(data.train_ds.items), len(data.train_dl))
     print('number of valid items:', len(data.valid_ds.items), len(data.valid_dl))

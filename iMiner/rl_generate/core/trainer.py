@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from torch.nn.utils.rnn import *
 from iMiner.rl_generate.rl_utils import create_chunks, to_numpy
-from iMiner.rl_generate.core.losses import compute_losses
+from iMiner.rl_generate.core.losses import compute_losses, EntropyScheduler
 import time
 
 
@@ -43,6 +43,7 @@ class Trainer():
         self.random_state = RandomState(config["run"]["random_seed"])
         self.show_progress = show_progress
         self.output_freq = output_freq
+        self.entropy_scheduler = EntropyScheduler(**config["rl_params"]["entropy"])
 
         # Initialize logger title
         self.logger.initialize(["iteration", "loss", "ppo_target", "entropy"] + self.reward_names + ["time_elapsed"])
@@ -104,7 +105,8 @@ class Trainer():
                 advantage = torch.tensor(standardized_advantage[chunk], device=batch_prediction.device)
                 old_probs = torch.tensor(trajs["probabilities"][chunk], device=batch_prediction.device)
                 all_loss_terms = compute_losses(batch_prediction, batch_action, advantage, old_probs, self.rl_params["epsilon"])
-                loss = -(all_loss_terms["ppo_target"] + self.rl_params["entropy_coef"] * all_loss_terms["entropy"])
+                entropy_coeff = self.entropy_scheduler.step(all_loss_terms["entropy"].item())
+                loss = -(all_loss_terms["ppo_target"] * 10 + entropy_coeff * all_loss_terms["entropy"])
                 # For debug: record old parameters
                 state_dict = self.policy_model.model.state_dict().copy()
                 # Do gradient update

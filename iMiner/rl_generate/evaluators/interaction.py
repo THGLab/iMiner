@@ -11,15 +11,16 @@ from iMiner.md.analysis.interaction import analyze_single_frame
 
 #Distribution of hydrogen bond angles in molecular crystals
 #March 1975 Nature 254(5497):212-212. DOI:10.1038/254212a0
-def hbond_angular_strain(ang, length, clamp_min=0.5):
+def hbond_strain(ang, length, clamp_min=0.5):
     # convert to O-H -- O line difference in rad
     # scale the angles to spread distribution for scoring
-    ang = np.pi * (180 - ang + 30) / 180. / 3
     lscale = 1.
-    if length > 3:
-        lscale = 0.6
-    # normalizing factor
-    return lscale * np.maximum(6.5*np.sin(ang) * np.exp(-0.2*ang**2/(8.617e-5 * 300)), clamp_min)
+    if ang < 130:
+        lscale *= 0.5
+    if length > 2.8:
+        lscale *= 0.5
+
+    return lscale
 
 def make_complex(ligand_path, protein_path, idx):
     # with multiple models, idx defines the index of model
@@ -110,8 +111,8 @@ class InteractionScorer():
                             if self.backbone[rid] and interact[key.replace("hydrogen_bond", "hbond_info")]["sidechain"]:
                                 continue
                             info = interact[key.replace("hydrogen_bond", "hbond_info")]
-                            # score hydrogen bonding strength by angles
-                            scaling = hbond_angular_strain(float(info["don_angle"]), float(info["dist_h-a"]))
+                            # score hydrogen bonding strength by angles & length
+                            scaling = hbond_strain(float(info["don_angle"]), float(info["dist_h-a"]))
                             score += self.weights[rid] * scaling 
                         else:
                             score += self.weights[rid]

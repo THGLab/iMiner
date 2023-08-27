@@ -72,6 +72,7 @@ class docking_score_assigner():
         self.docking_project.add_protein(protein_file_path=protein_file, name=protein_name, binding_site=box)
         self.output_dir = self.docking_project.project_path / Path("results")
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
         self.frag_restrain = fragment
         if "vina-gpu" in protocols:
             self.n_jobs = get_gpu_count()
@@ -87,19 +88,22 @@ class docking_score_assigner():
             output_csv=self.output_dir / Path(f"{iteration}.csv"), 
             single_job_timeout=self.timeout, **self.docking_args)
         result_df = self.get_result_df(iteration)
+        print(result_df.head())
         
         if self.frag_restrain is not None:
-            # untested
             for protocol in self.protocol_name:
                 protocol_name = protocol
                 if protocol == "vina-gpu":
                     protocol_name = "vina"
-                new_scores = self.dock_restrain_parallel(result_df[protocol_name+"_path"].values, 
+                new_scores = self.dock_restrain_parallel(
+                    result_df.smiles.values,
+                    result_df[protocol_name+"_path"].values, 
                     result_df[protocol_name+"_score"].values, protocol)
+   
                 # enforce 0 score for fragment poses not in the specified position
-                if protocol == "rfscore":
+                if protocol in ["rfscore", "ign"]:
                     new_scores[result_df["vina_score"].values == 0] = 0
-                result_df[protocol+"_score"] = new_scores
+                result_df[protocol_name+"_score"] = new_scores
         
         # sum all docking scores (TODO: arithmetic mean, geometric mean, weights)
         colname = ["vina_score" if p=="vina-gpu" else p+"_score" for p in self.protocol_name]
@@ -122,29 +126,29 @@ class docking_score_assigner():
         return [result_dict.get(name, np.nan) for name in new_names]
         
     
-    def fragment_position_restrain(self, sdf_path, protocol):
+    def fragment_position_restrain(self, smile, sdf_path, protocol):
         if sdf_path is None or not sdf_path.endswith(".sdf") or not os.path.exists(sdf_path):
             return np.nan
     
-        if "vina" == protocol:
+        if protocol in ["vina", "vina-gpu"]:
             scores = docking_protocol_map[protocol].read_energy_from_sdf(sdf_path)
-            assert len(scores) == self.docking_args["num_modes"]
-            i = calc_fragment_position(sdf_path, **self.frag_restrain)
+            assert len(scores) == self.docking_args.get("num_modes", 1)
+            i = calc_fragment_position(smile, sdf_path, **self.frag_restrain)
             if i is None:
                 return 0.
             else:
                 docking_protocol_map[protocol].extract_pose(sdf_path, sdf_path, i)
                 return scores[i]
                 
-        elif protocol == "rfscore":
+        elif protocol in ["rfscore", "ign"]:
             RFscore = docking_protocol_map[protocol](self.protein, [])
-            return RFscore.rescore([sdf_path])["rfscore_score"][0]
+            return RFscore.rescore([sdf_path])[f"{protocol}_score"][0]
         
-    def dock_restrain_parallel(self, result_paths, old_scores, protocol):
+    def dock_restrain_parallel(self, result_smiles, result_paths, old_score, protocol):
         pool = ProcessPoolExecutor(self.n_jobs)
-        new_score = old_scores.copy()
-        mask = old_scores < 0.
-        zipped_args = zip(result_paths[mask], [protocol] * np.sum(mask))
+        new_score = old_score.copy()
+        mask = old_score < 0.
+        zipped_args = zip(result_smiles[mask], result_paths[mask], [protocol] * np.sum(mask))
 
         valid_scores = []
         futures = [pool.submit(self.fragment_position_restrain, *args) for args in zipped_args]
