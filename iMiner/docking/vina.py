@@ -238,7 +238,7 @@ class VinaDocking(AutoDockBaseDocking):
         if isinstance(models, str):
             models = [models]
         energies = [m.split("\n")[0].strip().split()[0][:-1] for m in models]
-        return [np.nan if e=="NAN" else np.float(e) for e in energies]
+        return [np.nan if e=="NAN" else float(e) for e in energies]
         
 
 class VinaGPUDocking(VinaDocking):

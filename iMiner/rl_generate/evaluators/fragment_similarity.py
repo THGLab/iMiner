@@ -55,7 +55,7 @@ def extract_substructure(mol, match):
     
     
 def calc_fragment_position(pose_smi, pose_path, fragment_path, 
-            use_scaffold=False, similarity_threshold=0.3, distance_threshold=0.75):
+            use_scaffold=False, similarity_threshold=0.25, distance_threshold=0.8):
     """
     extract the coordinates of the most similar part of a molecule to a given fragment for each poses, 
     and return the pose whose identified fragment-like coordinates are close in shape to the fragment within threshold
@@ -66,7 +66,7 @@ def calc_fragment_position(pose_smi, pose_path, fragment_path,
     obabel generated vina-gpu poses that only populates the polar hydrogens.
     
     Fragment and distance similarity threshold should be examined by your use case.
-    TODO: consider implement a thresold scheduler 
+    TODO: consider implement a threshold scheduler 
     """
     query_frag = Chem.SDMolSupplier(fragment_path)[0]
     fragment_fp = AllChem.GetMorganFingerprintAsBitVect(query_frag, 2, nBits=1024)
@@ -144,7 +144,7 @@ class FragmentScorer():
             return 0
         fragment_scores = [max([self.similarity(frag_fp, mol_frag_fp) for mol_frag_fp in mol_fragment_fps])
                                      for frag_fp in self.fragment_fps]
-        print(fragment_scores)
+
         final_score = np.dot(fragment_scores, self.weights)
         return final_score
         

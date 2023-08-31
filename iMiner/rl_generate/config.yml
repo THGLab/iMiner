@@ -3,6 +3,7 @@ rl_params:
   epsilon: 0.12
   entropy:
     init_coeff: 0.1
+    schedule: constant
   n_epochs_before_resample: 10
   kl_threshold: 0.03
 
@@ -12,17 +13,17 @@ optimizer_specs:
 
 training_specs:
   batch_size: 1024
-  n_seq_per_iter: 800 # for debug
-  n_iters: 100 # for debug
+  n_seq_per_iter: 50
+  n_iters: 10
   start_iter : 0
   prior_diff_coef: 0
   prior_model: /global/scratch/users/ozhang/covid/rl_dataset/final_model.pkl  
-  starting_policy_model: /global/scratch/users/ozhang/covid/MPro/WJ_pretrain/pretrained.pkl 
-  model_weights: /global/scratch/users/ozhang/covid/MPro/WJ_pretrain/checkpoint_10.pth
+  starting_policy_model: /global/scratch/users/ozhang/covid/MPro/WJ_frag_pretrain/pretrained.pkl 
+#  model_weights: /global/scratch/users/ozhang/covid/MPro/frag_test/models/model_3.pth
 
 rewards:
   - type: docking
-    weight: 1
+    weight: 2
     params:
       protein_file: /global/scratch/users/ozhang/covid/MPro/WJ_mpro.pdbqt
       box: [42.5, 34, 63, 66.5, 58, 87] # [-21, 5.5, -24, -3, 22.5, 0] # [47, 64, 12, 65, 82, 35]
@@ -30,7 +31,7 @@ rewards:
       timeout: 60
       fragment: 
         fragment_path: /global/scratch/users/ozhang/covid/MPro/WJ_lig_align.sdf
-#        use_scaffold similarity_threshold distance_threshold (optional args)
+#        use_scaffold: False # similarity_threshold distance_threshold (optional args)
 #  - type: interaction # need to be listed right after vina
 #    weight: 5
 #    params:
@@ -41,7 +42,7 @@ rewards:
 #      coef: 
 #      backbone: (optional)
   - type: fragment_similarity
-    weight: 5
+    weight: 4
     params:
       fragments: ["O=c1ccccn1-c1cccnc1"] #, "COc4cc(Cl)cc(c3cc(c1ccccc1C#N)cn(c2cccnc2)c3=O)c4", "COc4cc(Cl)cc(c3cc(c1c[nH]c(=O)[nH]c1=O)cn(c2cccnc2)c3=O)c4"] 
 #      weights: [0.2, 0.4, 0.4]
@@ -54,4 +55,4 @@ rewards:
 
 run:
   random_seed: 42
-  output_dir: /global/scratch/users/ozhang/covid/MPro/frag_3D
+  output_dir: /global/scratch/users/ozhang/covid/MPro/debug

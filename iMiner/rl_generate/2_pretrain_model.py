@@ -5,7 +5,7 @@ from utils import *
 import pandas as pd
 
 #GPU configurations
-cuda_available = torch.cuda.is_available()
+#cuda_available = torch.cuda.is_available()
 num_gpus = torch.cuda.device_count()
 torch.cuda.set_device(0)
 print("GPU availability:", cuda_available)
@@ -18,9 +18,9 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--wd', type=float, default=1e-4)
 parser.add_argument('--lr', type=float, default=1e-3)
-parser.add_argument('--n_epochs', type = int, default=20)
+parser.add_argument('--n_epochs', type = int, default=30)
 parser.add_argument('--dropout', type = float, default=0.2)
-parser.add_argument('--bs', type = int, default=256)
+parser.add_argument('--bs', type = int, default=128)
 parser.add_argument('--representation', type=str, default='SELFIES')
 
 

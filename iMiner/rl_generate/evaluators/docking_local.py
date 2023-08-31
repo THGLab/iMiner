@@ -88,9 +88,16 @@ class docking_score_assigner():
             output_csv=self.output_dir / Path(f"{iteration}.csv"), 
             single_job_timeout=self.timeout, **self.docking_args)
         result_df = self.get_result_df(iteration)
-        print(result_df.head())
         
         if self.frag_restrain is not None:
+            # decay of fragment restraints
+            frag_similarity = self.frag_restrain.get("similarity_threshold", 0.2) + 0.02 * int((iteration + 1) % 10 == 0)
+            self.frag_restrain["similarity_threshold"] = np.minimum(frag_similarity, 0.4)
+            
+            frag_position = self.frag_restrain.get("distance_threshold", 0.8) * 0.99 ** int(iteration > 10)
+            self.frag_restrain["distance_threshold"] = np.maximum(frag_position, 0.4)
+            print("fragment restraints:", self.frag_restrain["similarity_threshold"], self.frag_restrain["distance_threshold"])
+                
             for protocol in self.protocol_name:
                 protocol_name = protocol
                 if protocol == "vina-gpu":

@@ -12,10 +12,8 @@ from iMiner.md.analysis.interaction import analyze_single_frame
 #Distribution of hydrogen bond angles in molecular crystals
 #March 1975 Nature 254(5497):212-212. DOI:10.1038/254212a0
 def hbond_strain(ang, length, clamp_min=0.5):
-    # convert to O-H -- O line difference in rad
-    # scale the angles to spread distribution for scoring
     lscale = 1.
-    if ang < 130:
+    if ang < 135:
         lscale *= 0.5
     if length > 2.8:
         lscale *= 0.5

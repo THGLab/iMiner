@@ -24,32 +24,45 @@ def compute_losses(predicted_prob, target, advantage, old_prob, clipping_epsilon
             
 
 class EntropyScheduler:
-    def __init__(self, schedule="linear", target_entropy = (0.5, 1.5), init_coeff=0.1, learning_rate=0.02):
+    def __init__(self, schedule="linear", target_entropy = (0.5, 1.5), init_coeff=0.1, learning_rate=0.01):
         """
         Initializes the Entropy Scheduler.
         
         Args:
         - schedule (str) : "constant" or "linear" adaptive based on target range
         - target_entropy (Tuple): The lower/upper bound of the desired entropy value.
-        - initial_coefficient (float): Initial value for the entropy coefficient.
+        - initial_coefficient (float): Initial value for the entropy coefficient (a ratio of the entropy term to ppo target)
         - learning_rate (float): Learning rate for adjusting the entropy coefficient.
         """
         self.schedule_type = schedule
+        self.init_coeff = init_coeff
         self.coeff = init_coeff
         self.learning_rate = learning_rate
         if schedule == "linear":
             assert len(target_entropy) > 0, "target entropy should be a tuple with at least lower bound specified"
             self.target_entropy = target_entropy
+        self.initiated = False
         
-
-    def step(self, current_entropy):
+    def step(self, current_entropy, ppo_target):
         """
         Adjusts the entropy coefficient based on the difference between current and target entropy.
         
         Args:
         - current_entropy (torch.Tensor): entropy of sampled distribution from the policy network.
+        - ppo_target: set initial coeff such that the entropy term is in the given ratio (initial entropy coefficient) to the ppo term
         """
+        if ppo_target < 0:
+            return 0
+            
+        if not self.initiated:
+            self.coeff = self.init_coeff * abs(ppo_target) / current_entropy
+            self.initiated = True
+            print("init entropy coeff", self.coeff)
+            return self.coeff
+        
         if self.schedule_type == "constant":
+            if abs(ppo_target) / current_entropy < self.init_coeff / 5:
+                self.coeff = self.init_coeff * abs(ppo_target) / current_entropy
             return self.coeff
             
         if current_entropy <= self.target_entropy[0]:

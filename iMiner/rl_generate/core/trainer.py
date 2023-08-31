@@ -44,6 +44,7 @@ class Trainer():
         self.show_progress = show_progress
         self.output_freq = output_freq
         self.entropy_scheduler = EntropyScheduler(**config["rl_params"]["entropy"])
+        self.entropy_coeff = 0
 
         # Initialize logger title
         self.logger.initialize(["iteration", "loss", "ppo_target", "entropy"] + self.reward_names + ["time_elapsed"])
@@ -105,8 +106,7 @@ class Trainer():
                 advantage = torch.tensor(standardized_advantage[chunk], device=batch_prediction.device)
                 old_probs = torch.tensor(trajs["probabilities"][chunk], device=batch_prediction.device)
                 all_loss_terms = compute_losses(batch_prediction, batch_action, advantage, old_probs, self.rl_params["epsilon"])
-                entropy_coeff = self.entropy_scheduler.step(all_loss_terms["entropy"].item())
-                loss = -(all_loss_terms["ppo_target"] * 10 + entropy_coeff * all_loss_terms["entropy"])
+                loss = - (all_loss_terms["ppo_target"] + self.entropy_coeff * all_loss_terms["entropy"])
                 # For debug: record old parameters
                 state_dict = self.policy_model.model.state_dict().copy()
                 # Do gradient update
@@ -136,6 +136,9 @@ class Trainer():
             mean_loss = np.mean(loss_record)
             mean_ppo_target = np.mean(ppo_target_record)
             mean_entropy = np.mean(entropy_record)
+            # update entropy coeff
+            self.entropy_coeff = self.entropy_scheduler.step(mean_entropy, mean_ppo_target)
+            
             if mean_kl_div > self.rl_params["kl_threshold"]:
                 print(f"Early stopping at step {step} due to KL-divergence exceeding threshold")
                 break
