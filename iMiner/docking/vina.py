@@ -65,6 +65,16 @@ class VinaDocking(AutoDockBaseDocking):
         # exhaustiveness may be None to accomondate Vina-GPU config
         if exhaustiveness is not None:
             lines.append("exhaustiveness = {}".format(exhaustiveness))
+        if kwargs.get("weight_gauss1", None) is not None:
+            lines.append("weight_gauss1 = {}".format(kwargs["weight_gauss1"]))
+        if kwargs.get("weight_gauss2", None) is not None:
+            lines.append("weight_gauss2 = {}".format(kwargs["weight_gauss2"]))
+        if kwargs.get("weight_repulsion", None) is not None:
+            lines.append("weight_repulsion = {}".format(kwargs["weight_repulsion"]))
+        if kwargs.get("weight_hydrophobic", None) is not None:
+            lines.append("weight_hydrophobic = {}".format(kwargs["weight_hydrophobic"]))
+        if kwargs.get("weight_rot", None) is not None:
+            lines.append("weight_rot = {}".format(kwargs["weight_rot"]))
         self.nmodes = num_modes
         with open(config_fp, "w") as f:
             f.write("\n".join(lines))
@@ -88,29 +98,35 @@ class VinaDocking(AutoDockBaseDocking):
         for ligand in ligands:
             ligand_name = Path(ligand).stem
             ligand_work_name = ligand_name + "_" + random_id()
+            # for rescoring molecules generated with vina-gpu
+            #succ = self.convert_sdf_to_pdbqt_rescore(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
             succ = self.convert_sdf_to_pdbqt(ligand, self.working_path / "{}.pdbqt".format(ligand_work_name))
             if not (succ and os.path.exists(self.working_path / "{}.pdbqt".format(ligand_work_name))):
                 continue
             # save the ligand smiles
             ligand_smiles.append(self.convert_sdf_to_smiles(ligand))
             ligand_names.append(ligand_name)
-            ligand_conformation_paths.append(ligand)
 
             # execute vina docking under the working directory
             with set_directory(self.working_path):
                 cmd = f"{VINA_BINARY} --config config.txt --ligand {ligand_work_name}.pdbqt --score_only"
-                code, out, err = run_command(cmd, timeout=100)
+                code, out, err = run_command(cmd, timeout=60, raise_error=False)
 
             # special handling if calculation job times out
             if code == 999:
                 ligand_scores.append(np.nan)
+                ligand_conformation_paths.append("timed out")
+                continue
+            elif code != 0:
+                ligand_scores.append(np.nan)
+                ligand_conformation_paths.append(err)
                 continue
 
             # obtain docking score from the results
-            strings = re.split('Estimated Free Energy of Binding   :', out)
-            line = strings[1].split('\n')[0]
+            line = out.split('Estimated Free Energy of Binding   :')[1].split('\n')[0]
             energy = float(line.strip().split()[0])
             ligand_scores.append(energy)
+            ligand_conformation_paths.append(ligand)
         
         # generate the final pandas dataframe and return
         df = pd.DataFrame({"ligand_names": ligand_names, "smiles": ligand_smiles, "vina_score": ligand_scores,
@@ -239,7 +255,18 @@ class VinaDocking(AutoDockBaseDocking):
             models = [models]
         energies = [m.split("\n")[0].strip().split()[0][:-1] for m in models]
         return [np.nan if e=="NAN" else float(e) for e in energies]
+    
+    
+    def convert_sdf_to_pdbqt_rescore(self, sdf_path, output_path):
+        """
+        for vina-gpu generated sdfs (missing hydrogens) -- LAWRENCIUM only
+        """
+        obConversion = openbabel.OBConversion()
+        obConversion.SetInAndOutFormats("sdf", "pdbqt")
         
+        mol = openbabel.OBMol()
+        obConversion.ReadFile(mol, str(sdf_path))
+        return obConversion.WriteFile(mol, str(output_path))
 
 class VinaGPUDocking(VinaDocking):
     def __init__(self, protein_pdb, docking_box, temp_path: Optional[os.PathLike] = None, logger=None, **kwargs) -> None:

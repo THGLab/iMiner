@@ -13,7 +13,7 @@ from functools import partial
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from concurrent.futures._base import TimeoutError
 import numpy as np
-
+import math
 
 def unpack_helper(func, args):
     '''
@@ -55,7 +55,7 @@ class BaseDocking:
         return zipped_args
 
 
-    def dock_parallel(self, ligands, output_dir, n_jobs=1, single_job_timeout=120, verbose=True, save_df_freq=500, **kwargs):
+    def dock_parallel(self, ligands, output_dir, n_jobs=1, single_job_timeout=90, verbose=True, save_df_freq=500, **kwargs):
         '''
         Dock a list of ligands to the pocket in the protein in parallel
 
@@ -106,6 +106,46 @@ class BaseDocking:
         :return: pd.DataFrame with columns ["index", "smiles", "score"]
         '''
         pass
+    
+    def rescore_parallel(self, ligands, n_jobs=1, n_chunks=5, single_job_timeout=500, verbose=True, **kwargs):
+        '''
+        Rescore a list of ligands in their provided poses with the protein in parallel
+
+        :param ligands: list of ligands, each ligand is a path to the corresponding .sdf file
+        :param n_jobs: int, number of jobs to run in parallel
+        :param n_chunks: int, number of chunks to split the ligands into
+        :param single_job_timeout: int, timeout for each job in seconds
+        :param verbose: bool, whether to show progress bar
+        :param save_df_freq: int, frequency to save the results to the disk (to prevent losing results)
+
+        :return: pd.DataFrame with columns ["original_name", "smiles", "score", "path"], path is the path to the original conformation
+        '''
+        ligands = list(ligands) 
+        pool = ProcessPoolExecutor(n_jobs)
+        chunk_size = math.ceil(len(ligands) / n_chunks)
+        ligands = [[ligands[i * chunk_size: (i + 1) * chunk_size]] for i in range(n_chunks)]
+
+        counter = 0
+        results = []
+        if verbose:
+            pbar = tqdm(total=n_chunks)
+        futures = [pool.submit(self.rescore, *args) for args in ligands]
+        for ligand, future in zip(ligands, futures):
+            try:
+                result = future.result(timeout=single_job_timeout)
+            except TimeoutError:
+                len_lig = len(ligand)
+                result = pd.DataFrame({"ligand_name": ligand, "smiles": ["timeout"] * len_lig,
+                               "vina_score": [np.nan] * len_lig, "vina_path": [""] * len_lig})
+            counter += 1
+            results.append(result)
+            if verbose:
+                pbar.update(1)
+        del pool
+
+        final_results = pd.concat(results)
+        final_results.reset_index(drop=True)
+        return final_results
 
     @staticmethod
     def convert_sdf_to_smiles(sdf_path):

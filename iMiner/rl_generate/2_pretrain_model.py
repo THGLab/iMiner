@@ -6,11 +6,11 @@ import pandas as pd
 
 #GPU configurations
 #cuda_available = torch.cuda.is_available()
-num_gpus = torch.cuda.device_count()
-torch.cuda.set_device(0)
-print("GPU availability:", cuda_available)
-print("Total GPU count:", num_gpus)
-print("Current device:", torch.cuda.get_device_name(torch.cuda.current_device()))
+#num_gpus = torch.cuda.device_count()
+#torch.cuda.set_device(0)
+#print("GPU availability:", cuda_available)
+#print("Total GPU count:", num_gpus)
+#print("Current device:", torch.cuda.get_device_name(torch.cuda.current_device()))
 
 
 # parse inputs

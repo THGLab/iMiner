@@ -84,7 +84,7 @@ if "model_weights" in config["training_specs"]:
 # Prepare rewards
 #####################
 rewards = RewardAssigner(reward_combination_method="sum", tokens=prior_model.tokens,
-     logger=logger, output_path=output_directory + "/docking")
+     logger=logger, output_path=output_directory + "/docking", start_iteration=start_iter)
 for item in config["rewards"]:
     if type(item) is str:
         rewards.add_reward(item)

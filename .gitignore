@@ -137,6 +137,7 @@ covid_project
 # examples
 examples/test
 examples/*.csv
+examples/submit.sh
 
 # local data
 local/

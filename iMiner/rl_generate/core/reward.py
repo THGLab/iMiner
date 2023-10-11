@@ -45,7 +45,7 @@ class RewardAssigner():
     reward_types: list from ["qed", "drug_likeliness", "docking", "fragment_similarity"]
     reward_combination_method: one of {"sum", "arithmetic mean", "geometric mean"}
     '''
-    def __init__(self, reward_combination_method="sum", tokens=None, logger=None, output_path=None) -> None:
+    def __init__(self, reward_combination_method="sum", tokens=None, logger=None, output_path=None, start_iteration=0) -> None:
         self.tokens = tokens
         self.reward_conversion_funcs = []
         self.property_calculators = {}
@@ -58,7 +58,7 @@ class RewardAssigner():
             self.reward_combination = gmean
         self.logger = logger
         self.output_path = output_path
-        self.iteration = 0
+        self.iteration = start_iteration
 
     def add_reward(self, reward_type, weight=1., extra_params=None):
         self.reward_types.append(reward_type)

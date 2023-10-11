@@ -45,7 +45,7 @@ class Trainer():
         self.output_freq = output_freq
         self.entropy_scheduler = EntropyScheduler(**config["rl_params"]["entropy"])
         self.entropy_coeff = 0
-
+        
         # Initialize logger title
         self.logger.initialize(["iteration", "loss", "ppo_target", "entropy"] + self.reward_names + ["time_elapsed"])
 

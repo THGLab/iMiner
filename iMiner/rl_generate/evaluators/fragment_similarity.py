@@ -55,7 +55,7 @@ def extract_substructure(mol, match):
     
     
 def calc_fragment_position(pose_smi, pose_path, fragment_path, 
-            use_scaffold=False, similarity_threshold=0.25, distance_threshold=0.8):
+            use_scaffold=False, similarity_threshold=0.2, distance_threshold=0.8):
     """
     extract the coordinates of the most similar part of a molecule to a given fragment for each poses, 
     and return the pose whose identified fragment-like coordinates are close in shape to the fragment within threshold
@@ -140,7 +140,7 @@ class FragmentScorer():
             fragments = list(BRICSDecompose(mol, keepNonLeafNodes=self.global_substructure_match, returnMols=True))
             mol_fragment_fps = [AllChem.GetMorganFingerprintAsBitVect(frag, 2, nBits=1024, 
                 useFeatures=self.use_features) for frag in fragments]
-        except RuntimeError:
+        except Exception as e:
             return 0
         fragment_scores = [max([self.similarity(frag_fp, mol_frag_fp) for mol_frag_fp in mol_fragment_fps])
                                      for frag_fp in self.fragment_fps]
