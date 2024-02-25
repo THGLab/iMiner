@@ -99,15 +99,9 @@ class Model():
             decoder_return = linear_decoder(encoder_return)
             pred = decoder_return[0][torch.arange(len(input_lens)), torch.tensor(input_lens) - 1]
         else:
-            try:
-                pred = self.model(input)[0][:, -1]
-            except:
-                import pickle
-                with open("error.pkl", "wb") as f:
-                    pickle.dump({"input": input,
-                            "self": self}, f)
-                    print("intermediate results saved to error.pkl")
-                    exit()
+            if type(input) == list:
+                input = input[0][None]
+            pred = self.model(input)[0][:, -1]
         probs = F.softmax(pred, dim=-1)
         return probs
 
