@@ -99,7 +99,15 @@ class Model():
             decoder_return = linear_decoder(encoder_return)
             pred = decoder_return[0][torch.arange(len(input_lens)), torch.tensor(input_lens) - 1]
         else:
-            pred = self.model(input)[0][:, -1]
+            try:
+                pred = self.model(input)[0][:, -1]
+            except:
+                import pickle
+                with open("error.pkl", "wb") as f:
+                    pickle.dump({"input": input,
+                            "self": self}, f)
+                    print("intermediate results saved to error.pkl")
+                    exit()
         probs = F.softmax(pred, dim=-1)
         return probs
 
@@ -107,6 +115,8 @@ class Model():
         '''
         Sample a single sequence using the model. Return the sampled sequence (as the actions taken), total log probability of the sequence, and individual timestep probabilities
         '''
+        current_mode = self.model.training
+        self.model.eval()
         current_seq = torch.tensor([[0]], device=self.device)
         all_probs = []
         selected_action_prob = []
@@ -117,6 +127,7 @@ class Model():
             selected_action_prob.append(torch.log(prob[0][next_action[0]]).item())
             if next_action[0] == 0:
                 break
+        self.model.train(current_mode)
         return current_seq.squeeze(), torch.tensor(selected_action_prob), all_probs
 
     def get_seq_log_prob(self, seq_onehot, return_sum=True):

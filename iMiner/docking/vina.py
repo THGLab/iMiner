@@ -205,11 +205,14 @@ class VinaDocking(AutoDockBaseDocking):
             pose_idx = -1
             strings = out.split("-----+------------+----------+----------\n")[-1].split("\n")
             for line in strings:
+                line = line.strip()
+                if not line:
+                    continue
                 if line.startswith("WARNING"):
                     print("Error in docking")
                     break
-                elif line.strip().split()[0] == "1":
-                    energy = float(line.strip().split()[1])
+                elif line.split()[0] == "1":
+                    energy = float(line.split()[1])
                     break
             #if self.nmodes > 1 and energy != np.nan:
                 # untested; calculates averages of poses clustered with the top pose

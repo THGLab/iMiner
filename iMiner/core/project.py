@@ -167,7 +167,7 @@ class BaseProject:
         if format == 'smiles':
             try:
                 self._process_smiles(smiles_or_path, ligand_path)
-            except RuntimeError:
+            except:
                 return False
         elif format == 'sdf':
             # directly copy the sdf file to the corresponding position

@@ -105,30 +105,33 @@ class Trainer():
                 batch_action = torch.nn.functional.one_hot(torch.tensor(trajs["actions"][chunk], device=batch_prediction.device), num_classes=batch_prediction.shape[1])
                 advantage = torch.tensor(standardized_advantage[chunk], device=batch_prediction.device)
                 old_probs = torch.tensor(trajs["probabilities"][chunk], device=batch_prediction.device)
-                all_loss_terms = compute_losses(batch_prediction, batch_action, advantage, old_probs, self.rl_params["epsilon"])
-                loss = - (all_loss_terms["ppo_target"] + self.entropy_coeff * all_loss_terms["entropy"])
-                # For debug: record old parameters
-                state_dict = self.policy_model.model.state_dict().copy()
+                prior_probs = torch.tensor(trajs["prior_probs"][chunk], device=batch_prediction.device)
+                all_loss_terms = compute_losses(batch_prediction, batch_action, advantage, old_probs, prior_probs, self.rl_params["epsilon"])
+                loss = - (all_loss_terms["ppo_target"] + \
+                          self.entropy_coeff * all_loss_terms["entropy"] - \
+                          self.prior_diff_coef * all_loss_terms["prior_kl_div"])
+                # # For debug: record old parameters
+                # state_dict = self.policy_model.model.state_dict().copy()
                 # Do gradient update
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
-                # For debug: check new parameters
-                new_state_dict = self.policy_model.model.state_dict()
-                new_params = torch.cat([item.flatten() for item in new_state_dict.values()])
-                if torch.any(torch.isnan(new_params)).item():
-                    # NaN found!
-                    torch.save(state_dict, f"{self.output_dir}/last_good_model.sav")
-                    torch.save({
-                        "batch_observation": batch_observation,
-                        "batch_prediction": batch_prediction,
-                        "batch_action": batch_action,
-                        "advantage": advantage,
-                        "old_probs": old_probs,
-                        "all_loss_terms": all_loss_terms
-                    }, f"{self.output_dir}/data.sav")
-                    exit()
-                kl_div_record.append(all_loss_terms["kl_div"].item())
+                # # For debug: check new parameters
+                # new_state_dict = self.policy_model.model.state_dict()
+                # new_params = torch.cat([item.flatten() for item in new_state_dict.values()])
+                # if torch.any(torch.isnan(new_params)).item():
+                #     # NaN found!
+                #     torch.save(state_dict, f"{self.output_dir}/last_good_model.sav")
+                #     torch.save({
+                #         "batch_observation": batch_observation,
+                #         "batch_prediction": batch_prediction,
+                #         "batch_action": batch_action,
+                #         "advantage": advantage,
+                #         "old_probs": old_probs,
+                #         "all_loss_terms": all_loss_terms
+                #     }, f"{self.output_dir}/data.sav")
+                #     exit()
+                kl_div_record.append(all_loss_terms["step_kl_div"].item())
                 loss_record.append(loss.item())
                 ppo_target_record.append(all_loss_terms["ppo_target"].item())
                 entropy_record.append(all_loss_terms["entropy"].item())
@@ -166,15 +169,17 @@ class Trainer():
             individual_metrics = []
             probabilities = []
             prob_diffs = []
+            prior_probs = []
             for _ in range(n_rollouts):
                 final_seq, selected_action_probs, all_probs = self.policy_model.sample_seq()
                 for i in range(len(final_seq) - 1):
                     observations.append(final_seq[:i + 1])
                     actions.append(final_seq[i + 1].item())
+                    prior_probs.append(self.prior_model.get_prediction(final_seq[None,:i + 1]))
                 probabilities.extend(all_probs)
                 selected_prob = selected_action_probs.numpy()
-                prior_prob = np.array(self.prior_model.get_seq_log_prob(final_seq, return_sum=False))
-                prob_diff = np.abs(selected_prob-prior_prob).mean() # This probability difference might be > 0 due to random dropout resulting non-determinate selected_prob
+                selected_prior_prob = np.array(self.prior_model.get_seq_log_prob(final_seq, return_sum=False))
+                prob_diff = np.abs(selected_prob-selected_prior_prob).mean() # This probability difference might be > 0 due to random dropout resulting non-determinate selected_prob
                 prob_diffs.append(prob_diff)
                 final_seq = to_numpy(final_seq)
 
@@ -201,5 +206,6 @@ class Trainer():
                 # "observations": np.array(observations, dtype=object)[index_selector],
                 "actions": np.array(actions)[index_selector],
                 "rewards": np.array(rewards),
-                "probabilities": to_numpy(torch.cat(probabilities))[index_selector]}, individual_metrics, df
+                "probabilities": to_numpy(torch.cat(probabilities))[index_selector],
+                "prior_probs": to_numpy(torch.cat(prior_probs))[index_selector]}, individual_metrics, df
                 

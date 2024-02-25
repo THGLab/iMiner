@@ -9,7 +9,7 @@ from torch.distributions import Categorical
 
 kldiv_loss = torch.nn.KLDivLoss()
 
-def compute_losses(predicted_prob, target, advantage, old_prob, clipping_epsilon):
+def compute_losses(predicted_prob, target, advantage, old_prob, prior_probs, clipping_epsilon):
     target_pred_prob = torch.sum(predicted_prob * target, dim=-1)
     target_old_pred = torch.sum(old_prob * target, dim=-1)
     ratio = target_pred_prob / (target_old_pred + 1e-8)
@@ -17,10 +17,13 @@ def compute_losses(predicted_prob, target, advantage, old_prob, clipping_epsilon
     ppo_target = torch.min(ratio * advantage, clipped_ratio * advantage)
     dist = Categorical(predicted_prob)
     entropy = dist.entropy()
-    kl_div = -kldiv_loss(old_prob, predicted_prob)
+    log_pred_prob = torch.log(predicted_prob + 1e-8)
+    step_kl_div = kldiv_loss(log_pred_prob, old_prob)
+    prior_kl_div = kldiv_loss(log_pred_prob, prior_probs)
     return {"ppo_target": torch.mean(ppo_target),
             "entropy": torch.mean(entropy),
-            "kl_div": kl_div}
+            "step_kl_div": step_kl_div,
+            "prior_kl_div": prior_kl_div}
             
 
 class EntropyScheduler:

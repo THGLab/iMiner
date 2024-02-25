@@ -5,6 +5,7 @@ Date created: Oct 22, 2020
 
 from numpy.core.defchararray import array
 from rdkit import Chem
+from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem import Draw
 from rdkit.Chem.QED import qed
 import numpy as np
@@ -30,15 +31,20 @@ def convert_input_to_selfies(input, tokens):
     return_tokens = ["[%s]" % t for t in token_list]
     return "".join(return_tokens)
 
-def safe_decode_selfies(selfies):
+def safe_load_selfies_as_rdmol(selfies):
     '''
     A helper function to decode SELFIES string into SMILES, return empty string if decoding fails
     '''
     try:
         smiles = sf.decoder(selfies)
+        mol = Chem.MolFromSmiles(smiles)
+        # also do canonical tautomerization to make sure we have the correct tautomer for calculation
+        converted_mol = rdMolStandardize.CanonicalTautomer(mol)
+        converted_smiles = Chem.MolToSmiles(converted_mol)
     except:
-        smiles = ""
-    return smiles
+        converted_mol = None
+        converted_smiles = ""
+    return converted_mol, converted_smiles
 
 class RewardAssigner():
     '''
@@ -109,23 +115,20 @@ class RewardAssigner():
         '''
         self.iteration += 1
         converted_selfies = [convert_input_to_selfies(item, self.tokens) for item in inputs]
-        converted_smiles = [safe_decode_selfies(s) for s in converted_selfies]
+        converted_mols = [safe_load_selfies_as_rdmol(s) for s in converted_selfies]
+        all_smiles = [item[1] for item in converted_mols]
         query_indices = [] # keep record of whether each element from the converted smiles should receive reward query. If not, then these are bad smiles and should receive a very low reward
         plot_mols = []
-        for i in range(len(converted_smiles)):
-            if converted_smiles[i] is None or converted_smiles[i] == "":
-                query_indices.append(False)
-                continue
-            mol = Chem.MolFromSmiles(converted_smiles[i])
+        for mol, smi in converted_mols:
             if mol is None:
                 query_indices.append(False)
                 continue
             plot_mols.append(mol)
             query_indices.append(True)
         query_indices = np.array(query_indices)
-        assert len(query_indices) == len(converted_smiles), "smiles: %s, query_indices: %s" % (str(converted_smiles), str(query_indices))
+        assert len(query_indices) == len(converted_mols), "mols and query indices do not match!"
 
-        valid_smiles = [smile for smile,validity in zip(converted_smiles,query_indices) if validity]
+        valid_smiles = [smile for smile,valid in zip(all_smiles, query_indices) if valid]
 
         metrics, validities, new_names = self.get_metric_values_parallel(valid_smiles)
         if np.sum(validities) == 0:
