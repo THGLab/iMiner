@@ -311,7 +311,25 @@ class MDProject(BaseProject):
         ref_tpr_align = prod_dir / "prod_align.tpr"
         index_file = prod_dir / "index.ndx"
         traj_nopbc_file = prod_dir / "prod_align.xtc"
-
+        
+        # Fix non-standard residue names, in order to make PLIP happy
+        ref_pdb_align = prod_dir / "prod_align.pdb"
+        ref_pdb_plip = prod_dir / "prod_align_plip.pdb"
+        with open(ref_pdb_align) as f:
+            content = f.read()
+            
+        map_to_std = {
+            "HID": "HIS", "HIE": "HIS", "HIP": "HIS",
+            "CYM": "CYS", "CYX": "CYS",
+            "GLH": "GLU",
+            "ASH": "ASP",
+        }
+        for key, value in map_to_std.items():
+            content = content.replace(key, value)
+        
+        with open(ref_pdb_plip, 'w') as f:
+            f.write(content)
+ 
         # rmsd
         f_xvg = prod_dir / "prod_rmsd.xvg"
         f_rmsd_png = prod_dir / "prod_rmsd.png"  
@@ -338,7 +356,7 @@ class MDProject(BaseProject):
             if not trajdir.is_dir():
                 trajdir.mkdir(exist_ok=True)
                 pdbs = xtc_to_pdb(
-                    ref_tpr_align, traj_nopbc_file, trajdir, 
+                    ref_pdb_plip, traj_nopbc_file, trajdir, 
                     self.md_params['interaction_analysis']['dt']
                 )
                 self.logger.info(f"Convert trajectory to seperate pdb files: {trajdir}")
