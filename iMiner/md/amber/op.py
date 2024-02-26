@@ -440,30 +440,36 @@ def fep_workflow(config, wdir):
         )
 
     groupfile = []
-    str_template = "-O -p {prmtop} -c {inpcrd} -i {mdin} -o {mdout} -r {restart} -x {traj} -ref {ref}"
+    str_template = "-O -p {prmtop} -c {inpcrd} -i {mdin} -o {mdout} -r {restart} -x {traj} -ref {ref} -e {mden} -l {mdlog}"
     for i in range(len(lambdas)):
         groupfile.append(str_template.format(
-            prmtop="../../prep/ligand_solvated.prmtop",
+            prmtop="../prep/ligands_solvated.prmtop",
             inpcrd=f"lambda{i}/pre_prod/pre_prod.rst7",
             mdin=f"lambda{i}/prod/prod.in",
             mdout=f"lambda{i}/prod/prod.out",
             restart=f"lambda{i}/prod/prod.rst7",
             traj=f"lambda{i}/prod/prod.mdcrd",
-            ref=f"lambda{i}/pre_prod/pre_prod.rst7"
+            ref=f"lambda{i}/pre_prod/pre_prod.rst7",
+            mden=f"lambda{i}/prod/prod.mden",
+            mdlog=f"lambda{i}/prod/prod.log"
         ))
     with open(wdir / "prod.groupfile", 'w') as f:
         f.write('\n'.join(groupfile))
         
 
 if __name__ == "__main__":
+    lambdas = [i * 0.1 for i in range(11)]
+    wdir = "/global/scratch/users/ericwangyz/avidd/mpro/H2L_RBFE/test_amber/solvated"
+    inpcrd = os.path.join(wdir, "../prep/ligands_solvated.inpcrd")
+    prmtop = os.path.join(wdir, "../prep/ligands_solvated.prmtop")
     config = {
-        "lambdas": [0.0, 0.5, 1.0],
-        "inpcrd": "./inpcrd",
-        "prmtop": "./prmtop",
+        "lambdas": lambdas,
+        "inpcrd": inpcrd,
+        "prmtop": prmtop,
         "noshakemask": "'@1-140'",
         "timask1": "'@1-70'",
-        "timask2": "'@71-140",
+        "timask2": "'@71-140'",
         "scmask1": "'@44-46'",
         "scmask2": "'@71-73'"
     }
-    fep_workflow(config, "/Users/wangyingze/Documents/Berkeley/avidd/mpro/h2l/CDD_1819/CDD_1829~MWAC_2549/solvated")
+    fep_workflow(config, wdir)
