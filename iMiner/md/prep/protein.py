@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 from typing import List, Optional
 
+import parmed
+
 from iMiner.cmd import run_command, find_executable, set_directory
 from iMiner.utils import file_abspath
 
@@ -97,6 +99,27 @@ def fix_cym(in_pdb: os.PathLike, out_pdb: os.PathLike):
     with open(out_pdb, 'w') as f:
         f.write("".join(lines))
 
+
+def determine_his_protonate_state(residue):
+    names = [at.name for at in residue.atoms]
+    has_he = "HE2" in names
+    has_hd = "HD1" in names
+    if has_he and has_hd:
+        return "HIP"
+    elif has_he and (not has_hd):
+        return "HIE"
+    elif has_hd and (not has_he):
+        return "HID"
+    else:
+        raise RuntimeError("Bad HIS residue")
+    
+
+def fix_his(in_pdb: os.PathLike, out_pdb: os.PathLike):
+    struct = parmed.load_file(in_pdb)
+    for res in struct.residues:
+        res.name = determine_his_protonate_state(res)
+    struct.save(out_pdb, overwrite=True)
+    
 
 def run_tleap(
     pdb: os.PathLike,
