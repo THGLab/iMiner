@@ -220,6 +220,91 @@ def pressurize(
         f.write(cmdstr)
 
 
+def prod(
+    wdir: os.PathLike,
+    prmtop: os.PathLike,
+    inpcrd: os.PathLike,
+    pmemd_exec: str = "pmemd.cuda",
+    num_steps: int = 5000,
+    ofreq: Optional[int] = None,
+    dt: float = 0.001,
+    temp0: float = 298.15,
+    pressure: float = 1.01325,
+    restraint_wt: float = 5.0,
+    cutoff: float = 10.0,
+    free_energy: bool = True,
+    clambda: Optional[float] = None,
+    use_mbar: bool = True,
+    lambdas: Optional[List[float]] = None,
+    efreq: Optional[int] = None,
+    numexchg: Optional[int] = None,
+    noshakemask: str = "",
+    timask1: str = "",
+    timask2: str = "",
+    scmask1: str = "",
+    scmask2: str = "",
+    deffnm: str = 'prod'
+):
+    """
+    Energy minimization
+    """
+    wdir = Path(wdir).resolve()
+    wdir.mkdir(exist_ok=True)
+    prmtop = Path(prmtop).resolve()
+    inpcrd = Path(inpcrd).resolve()
+    with open(Path(__file__).parent / 'prod.in') as f:
+        template = f.read()
+    ofreq = int(num_steps // 10) if ofreq is None else ofreq
+    
+    if free_energy:
+        _fe_var_check(noshakemask, "noshakemask")
+        _fe_var_check(timask1, "timask1")
+        _fe_var_check(timask2, "timask2")
+        _fe_var_check(scmask1, "scmask1")
+        _fe_var_check(scmask2, "scmask2")
+        _fe_var_check(clambda, 'clambda')
+        ifsc, icfe = 1, 1
+        ntf = 1
+    else:
+        ifsc, icfe = 0, 0
+        ntf = 2
+    
+    ntr = 1 if restraint_wt != 0 else 0
+
+    if use_mbar:
+        _fe_var_check(lambdas, "lambdas")
+        _fe_var_check(efreq, "efreq")
+        mbar_setting = [
+            "{:<15} = 1".format("ifmbar"), 
+            "{:<15} = {}".format("bar_intervall", efreq),
+            "{:<15} = {}".format("mbar_states", len(lambdas)),
+            "{:<15} = {}".format("mbar_lambda", ",".join(str(x) for x in lambdas))
+        ]
+        mbar_setting = "\n".join(mbar_setting)
+    else:
+        mbar_setting = ""
+        
+    inpstr = template.format(
+        nstlim=num_steps, ofreq=ofreq, dt=dt,
+        ntr=ntr, restraint_wt=restraint_wt,
+        cut=cutoff, 
+        temp0=temp0,
+        ifsc=ifsc, icfe=icfe,
+        clambda=clambda,
+        gti_cut_sc_on=cutoff - 2.0, gti_cut_sc_off=cutoff,
+        ntf=ntf,
+        pres0=pressure,
+        noshakemask=noshakemask, timask1=timask1, timask2=timask2,
+        scmask1=scmask1, scmask2=scmask2,
+        numexchg=numexchg, mbar_setting=mbar_setting
+    )
+    with open(wdir / f'{deffnm}.in', 'w') as f:
+        f.write(inpstr)
+    
+    cmdstr = pmemd_command(pmemd_exec, prmtop, inpcrd, deffnm)
+    with open(wdir / f'{deffnm}.sh', 'w') as f:
+        f.write(cmdstr)
+
 
 def fep_workflow(config, wdir):
     lambdas = config['lambdas']
@@ -339,6 +424,25 @@ def fep_workflow(config, wdir):
             **defaults['pre_prod'],
             **mask_config
         )
+
+        prod_dir = lambda_dir / "prod"
+        defaults['prod'].update(config.get('prod', {}))
+        prod(
+            wdir=prod_dir,
+            prmtop=prmtop,
+            inpcrd=pres_2_dir / "pres_2.rst7",
+            pmemd_exec=pmemd_exec,
+            cutoff=cutoff,
+            pressure=pres,
+            temp0=temp, 
+            free_energy=True, clambda=clambda,
+            use_mbar=True,
+            deffnm='prod',
+            lambdas=lambdas,
+            **defaults['prod'],
+            **mask_config
+        )
+
 
 
 if __name__ == "__main__":

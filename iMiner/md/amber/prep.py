@@ -117,23 +117,3 @@ def create_solvated_box(
         with open("leap.in", 'w') as f:
             f.write('\n'.join(scripts))
         run_tleap("leap.in")
-
-
-def create_fep_simulation_box(
-    wdir: os.PathLike,
-    ligand_mol2: Optional[os.PathLike] = None,
-    ligand_lib: Optional[os.PathLike] = None,
-    ligand_frcmod: Optional[os.PathLike] = None,
-    ligand_ff: str = "gaff2",
-    ligand_name: str = "ligand",
-    protein_pdb: Optional[os.PathLike] = None,
-    protein_ff: str = "ff14SB",
-    protein_name: str = 'protein',
-    water_ff: str = "tip3p",
-    buffer: float = 10.0,
-    ionic_strength: float = 0.0,
-    box_resize: float = 0.75
-):
-    """
-    Create solvated box for ligands and protein-ligand complex
-    """
