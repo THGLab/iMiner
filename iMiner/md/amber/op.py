@@ -300,10 +300,6 @@ def prod(
     )
     with open(wdir / f'{deffnm}.in', 'w') as f:
         f.write(inpstr)
-    
-    cmdstr = pmemd_command(pmemd_exec, prmtop, inpcrd, deffnm)
-    with open(wdir / f'{deffnm}.sh', 'w') as f:
-        f.write(cmdstr)
 
 
 def fep_workflow(config, wdir):
@@ -443,7 +439,21 @@ def fep_workflow(config, wdir):
             **mask_config
         )
 
-
+    groupfile = []
+    str_template = "-O -p {prmtop} -c {inpcrd} -i {mdin} -o {mdout} -r {restart} -x {traj} -ref {ref}"
+    for i in range(len(lambdas)):
+        groupfile.append(str_template.format(
+            prmtop="../../prep/ligand_solvated.prmtop",
+            inpcrd=f"lambda{i}/pre_prod/pre_prod.rst7",
+            mdin=f"lambda{i}/prod/prod.in",
+            mdout=f"lambda{i}/prod/prod.out",
+            restart=f"lambda{i}/prod/prod.rst7",
+            traj=f"lambda{i}/prod/prod.mdcrd",
+            ref=f"lambda{i}/pre_prod/pre_prod.rst7"
+        ))
+    with open(wdir / "prod.groupfile", 'w') as f:
+        f.write('\n'.join(groupfile))
+        
 
 if __name__ == "__main__":
     config = {
