@@ -230,7 +230,7 @@ def prod(
     dt: float = 0.001,
     temp0: float = 298.15,
     pressure: float = 1.01325,
-    restraint_wt: float = 5.0,
+    restraint_wt: float = 0.0,
     cutoff: float = 10.0,
     free_energy: bool = True,
     clambda: Optional[float] = None,
@@ -432,6 +432,7 @@ def fep_workflow(config, wdir):
             pressure=pres,
             temp0=temp, 
             free_energy=True, clambda=clambda,
+            restraint_wt=0.0,
             use_mbar=True,
             deffnm='prod',
             lambdas=lambdas,
@@ -440,10 +441,10 @@ def fep_workflow(config, wdir):
         )
 
     groupfile = []
-    str_template = "-O -p {prmtop} -c {inpcrd} -i {mdin} -o {mdout} -r {restart} -x {traj} -ref {ref} -e {mden} -l {mdlog} -info {mdinfo}"
+    str_template = "-O -p {prmtop} -c {inpcrd} -i {mdin} -o {mdout} -r {restart} -x {traj} -ref {ref} -e {mden} -l {mdlog} -inf {mdinfo}"
     for i in range(len(lambdas)):
         groupfile.append(str_template.format(
-            prmtop="../prep/ligands_solvated.prmtop",
+            prmtop=Path(prmtop).resolve(),
             inpcrd=f"lambda{i}/pre_prod/pre_prod.rst7",
             mdin=f"lambda{i}/prod/prod.in",
             mdout=f"lambda{i}/prod/prod.out",
@@ -456,21 +457,3 @@ def fep_workflow(config, wdir):
         ))
     with open(wdir / "prod.groupfile", 'w') as f:
         f.write('\n'.join(groupfile))
-        
-
-if __name__ == "__main__":
-    lambdas = [i * 0.1 for i in range(11)]
-    wdir = "/global/scratch/users/ericwangyz/avidd/mpro/H2L_RBFE/test_amber/solvated"
-    inpcrd = os.path.join(wdir, "../prep/ligands_solvated.inpcrd")
-    prmtop = os.path.join(wdir, "../prep/ligands_solvated.prmtop")
-    config = {
-        "lambdas": lambdas,
-        "inpcrd": inpcrd,
-        "prmtop": prmtop,
-        "noshakemask": "'@1-140'",
-        "timask1": "'@1-70'",
-        "timask2": "'@71-140'",
-        "scmask1": "'@44-46'",
-        "scmask2": "'@71-73'"
-    }
-    fep_workflow(config, wdir)
