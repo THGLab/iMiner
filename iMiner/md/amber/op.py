@@ -440,7 +440,7 @@ def fep_workflow(config, wdir):
         )
 
     groupfile = []
-    str_template = "-O -p {prmtop} -c {inpcrd} -i {mdin} -o {mdout} -r {restart} -x {traj} -ref {ref} -e {mden} -l {mdlog}"
+    str_template = "-O -p {prmtop} -c {inpcrd} -i {mdin} -o {mdout} -r {restart} -x {traj} -ref {ref} -e {mden} -l {mdlog} -info {mdinfo}"
     for i in range(len(lambdas)):
         groupfile.append(str_template.format(
             prmtop="../prep/ligands_solvated.prmtop",
@@ -451,7 +451,8 @@ def fep_workflow(config, wdir):
             traj=f"lambda{i}/prod/prod.mdcrd",
             ref=f"lambda{i}/pre_prod/pre_prod.rst7",
             mden=f"lambda{i}/prod/prod.mden",
-            mdlog=f"lambda{i}/prod/prod.log"
+            mdlog=f"lambda{i}/prod/prod.log",
+            mdinfo=f"lambda{i}/prod/prod.info"
         ))
     with open(wdir / "prod.groupfile", 'w') as f:
         f.write('\n'.join(groupfile))
