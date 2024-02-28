@@ -282,6 +282,7 @@ def prod(
         ]
         mbar_setting = "\n".join(mbar_setting)
     else:
+        efreq = ofreq if efreq else efreq
         mbar_setting = ""
         
     inpstr = template.format(
@@ -296,7 +297,8 @@ def prod(
         pres0=pressure,
         noshakemask=noshakemask, timask1=timask1, timask2=timask2,
         scmask1=scmask1, scmask2=scmask2,
-        numexchg=numexchg, mbar_setting=mbar_setting
+        numexchg=numexchg, mbar_setting=mbar_setting,
+        efreq=efreq
     )
     with open(wdir / f'{deffnm}.in', 'w') as f:
         f.write(inpstr)

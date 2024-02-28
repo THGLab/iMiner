@@ -4,8 +4,8 @@ irest           = 1,          ! 0 - start from scratch; 1 - restart
 
 nstlim          = {nstlim},      ! Number of steps
 dt              = {dt},      ! Time step (in ps)
-ntpr            = {ofreq},       ! Frequency to dump energies in mdout
-ntwe            = {ofreq},       ! Frequency to dump energies in mden
+ntpr            = {efreq},       ! Frequency to dump energies in mdout
+ntwe            = {efreq},       ! Frequency to dump energies in mden
 ntwr            = {ofreq},       ! Frequency to write restart file
 ntwx            = {ofreq},       ! Frequence to write mdcrd file
 
