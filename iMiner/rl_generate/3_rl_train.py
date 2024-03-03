@@ -58,6 +58,7 @@ if os.path.exists(output_directory):
 os.makedirs(output_directory)
 os.makedirs(output_directory + "/docking")
 os.makedirs(output_directory + "/details")
+os.makedirs(output_directory + "/optimizer_states")
 #os.makedirs(output_directory + "/models")
 print("All results logged in", output_directory)
 logger = Logger(output_directory)
@@ -75,9 +76,17 @@ prior_model.set_as_prior()
 policy_model = Model(config["training_specs"]["starting_policy_model"])
 if "model_weights" in config["training_specs"]:
     prior_weights = config["training_specs"]["model_weights"]
+    prior_weight_folder = os.path.dirname(prior_weights)
+    prior_weight_filename = os.path.basename(prior_weights)
+    optimizer_state = os.path.abspath(os.path.join(prior_weight_folder, "../optimizer_states/", prior_weight_filename))
     if prior_weights.endswith(".pth"):
         prior_weights = prior_weights[:-4]
     policy_model.load_model_chk(prior_weights)
+    optimizer_state = torch.load(optimizer_state)
+else:
+    optimizer_state = None
+
+
 
 
 #####################
@@ -101,7 +110,7 @@ for item in config["rewards"]:
 #####################
 # Set up optimizer, trainer and start training
 #####################
-optimizer = make_optimizer(config["optimizer_specs"], policy_model.get_trainable_parameters())
+optimizer = make_optimizer(config["optimizer_specs"], policy_model.get_trainable_parameters(), state=optimizer_state)
 trainer = Trainer(policy_model, prior_model, rewards, config, optimizer, logger)
 trainer.training_loop(config["training_specs"]["n_iters"], save_each_iteration=True, start_iteration=start_iter)
 

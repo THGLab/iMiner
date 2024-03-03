@@ -34,13 +34,16 @@ def convert_hours_to_time_string(num_hours):
     left_minutes, minutes = math.modf(left_hours * 60)
     return "%dd %02dh %02dm" % (days, hours, minutes)
 
-def make_optimizer(optimizer_specs, params):
+def make_optimizer(optimizer_specs, params, state):
     if optimizer_specs["optimizer"] == "adam":
         from torch.optim import Adam
         opt = Adam(params, lr=optimizer_specs["learning_rate"])
     elif optimizer_specs["optimizer"] == "sgd":
         from torch.optim import SGD
         opt = SGD(params, lr=optimizer_specs["learning_rate"])
+    if state is not None:
+        opt.load_state_dict(state)
+        print("State dict loaded!")
     return opt
 
 class Logger():

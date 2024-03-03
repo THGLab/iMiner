@@ -71,6 +71,7 @@ class Trainer():
             self.logger.log(n + 1, iter_log_contents)
             if save_each_iteration:
                 self.policy_model.save_model(self.output_dir, f"model_{n + 1}")
+                torch.save(self.optimizer.state_dict(), f"{self.output_dir}/optimizer_states/model_{n + 1}.pth")
 
     def run_single_iteration(self, time_start, current_iter):
         print("Collecting trajectories...")
