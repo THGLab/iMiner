@@ -61,6 +61,7 @@ class InteractionScorer():
         self.protein = protein_path
         self.residue = key_residues
         self.weights = coef
+        self.backbone = backbone
         if coef is None:
             self.weights = [1] * len(self.residue)
         if backbone is None:
