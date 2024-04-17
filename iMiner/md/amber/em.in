@@ -7,7 +7,7 @@ ntwe            = {ofreq},      ! Frequency to dump energies in mden
 ntwr            = {ofreq},      ! Frequency to write restart file
 ntwx            = {ofreq},      ! Frequence to write mdcrd file
 
-ntb             = 1,          ! Constant volume
+ntb             = {ntb},          ! Constant volume
 
 cut             = {cut},       ! Non-bonded cutoff
 

@@ -42,6 +42,7 @@ def em(
     scmask1: str = "",
     scmask2: str = "",
     deffnm: str = "em",
+    use_periodic: bool = True,
 ):
     """
     Energy minimization
@@ -66,6 +67,8 @@ def em(
         ifsc, icfe = 0, 0
         clambda = 0.0
 
+    ntb = 1 if use_periodic else 0
+
     inpstr = template.format(
         maxcyc=num_steps, ofreq=ofreq,
         cut=cutoff, 
@@ -73,7 +76,8 @@ def em(
         clambda=clambda,
         gti_cut_sc_on=cutoff - 2.0, gti_cut_sc_off=cutoff,
         noshakemask=noshakemask, timask1=timask1, timask2=timask2,
-        scmask1=scmask1, scmask2=scmask2
+        scmask1=scmask1, scmask2=scmask2,
+        ntb=ntb,
     )
     with open(wdir / f'{deffnm}.in', 'w') as f:
         f.write(inpstr)
@@ -103,10 +107,11 @@ def heat(
     timask2: str = "",
     scmask1: str = "",
     scmask2: str = "",
-    deffnm: str = 'heat'
+    deffnm: str = 'heat',
+    use_periodic: bool = True
 ):
     """
-    Energy minimization
+    Heating the system (NVT equilibrium)
     """
     wdir = Path(wdir).resolve()
     wdir.mkdir(exist_ok=True)
@@ -130,6 +135,7 @@ def heat(
         ntf = 2
     
     ntr = 1 if restraint_wt != 0 else 0
+    ntb = 1 if use_periodic else 0
 
     inpstr = template.format(
         nstlim=num_steps, ofreq=ofreq, dt=dt,
@@ -142,7 +148,8 @@ def heat(
         istep2=int(num_steps // 2),
         ntf=ntf,
         noshakemask=noshakemask, timask1=timask1, timask2=timask2,
-        scmask1=scmask1, scmask2=scmask2
+        scmask1=scmask1, scmask2=scmask2,
+        ntb=ntb
     )
     with open(wdir / f'{deffnm}.in', 'w') as f:
         f.write(inpstr)
@@ -171,10 +178,11 @@ def pressurize(
     timask2: str = "",
     scmask1: str = "",
     scmask2: str = "",
-    deffnm: str = 'pres_0'
+    deffnm: str = 'pres_0',
+    use_periodic: bool = True
 ):
     """
-    Energy minimization
+    Pressurize the system (NPT equilibrium)
     """
     wdir = Path(wdir).resolve()
     wdir.mkdir(exist_ok=True)
@@ -198,6 +206,7 @@ def pressurize(
         ntf = 2
     
     ntr = 1 if restraint_wt != 0 else 0
+    ntb = 2 if use_periodic else 0
 
     inpstr = template.format(
         nstlim=num_steps, ofreq=ofreq, dt=dt,
@@ -210,7 +219,8 @@ def pressurize(
         ntf=ntf,
         pres0=pressure,
         noshakemask=noshakemask, timask1=timask1, timask2=timask2,
-        scmask1=scmask1, scmask2=scmask2
+        scmask1=scmask1, scmask2=scmask2,
+        ntb=ntb
     )
     with open(wdir / f'{deffnm}.in', 'w') as f:
         f.write(inpstr)
@@ -243,10 +253,11 @@ def prod(
     timask2: str = "",
     scmask1: str = "",
     scmask2: str = "",
-    deffnm: str = 'prod'
+    deffnm: str = 'prod',
+    use_periodic: bool = True
 ):
     """
-    Energy minimization
+    Production run
     """
     wdir = Path(wdir).resolve()
     wdir.mkdir(exist_ok=True)
@@ -270,6 +281,7 @@ def prod(
         ntf = 2
     
     ntr = 1 if restraint_wt != 0 else 0
+    ntb = 2 if use_periodic else 0
 
     if use_mbar:
         _fe_var_check(lambdas, "lambdas")
@@ -298,13 +310,14 @@ def prod(
         noshakemask=noshakemask, timask1=timask1, timask2=timask2,
         scmask1=scmask1, scmask2=scmask2,
         numexchg=numexchg, mbar_setting=mbar_setting,
-        efreq=efreq
+        efreq=efreq,
+        ntb=ntb
     )
     with open(wdir / f'{deffnm}.in', 'w') as f:
         f.write(inpstr)
 
 
-def fep_workflow(config, wdir):
+def fep_workflow(config, wdir, gas_phase=False):
     lambdas = config['lambdas']
     inpcrd = config['inpcrd']
     prmtop = config['prmtop']
@@ -340,6 +353,7 @@ def fep_workflow(config, wdir):
             cutoff=cutoff,
             clambda=clambda,
             deffnm="em",
+            use_periodic=(not gas_phase),
             **defaults['em'],
             **mask_config,
         )
@@ -355,70 +369,77 @@ def fep_workflow(config, wdir):
             temp0=temp, 
             free_energy=True,
             clambda=clambda,
+            use_periodic=(not gas_phase),
             **defaults['heat'],
             **mask_config
         )
 
-        pres_0_dir = lambda_dir / 'pres_0'
-        defaults['pres_0'].update(config.get('pres_0', {}))
-        pressurize(
-            wdir=pres_0_dir,
-            prmtop=prmtop,
-            inpcrd=heat_dir / "heat.rst7",
-            pmemd_exec=pmemd_exec,
-            cutoff=cutoff,
-            pressure=pres,
-            temp0=temp, 
-            free_energy=True, clambda=clambda,
-            deffnm='pres_0',
-            **defaults['pres_0'],
-            **mask_config
-        )
+        if not gas_phase:
+            pres_0_dir = lambda_dir / 'pres_0'
+            defaults['pres_0'].update(config.get('pres_0', {}))
+            pressurize(
+                wdir=pres_0_dir,
+                prmtop=prmtop,
+                inpcrd=heat_dir / "heat.rst7",
+                pmemd_exec=pmemd_exec,
+                cutoff=cutoff,
+                pressure=pres,
+                temp0=temp, 
+                free_energy=True, clambda=clambda,
+                deffnm='pres_0',
+                **defaults['pres_0'],
+                **mask_config
+            )
 
-        pres_1_dir = lambda_dir / 'pres_1'
-        defaults['pres_1'].update(config.get('pres_1', {}))
-        pressurize(
-            wdir=pres_1_dir,
-            prmtop=prmtop,
-            inpcrd=pres_0_dir / "pres_0.rst7",
-            pmemd_exec=pmemd_exec,
-            cutoff=cutoff,
-            pressure=pres,
-            temp0=temp, 
-            free_energy=True, clambda=clambda,
-            deffnm='pres_1',
-            **defaults['pres_1'],
-            **mask_config
-        )
+            pres_1_dir = lambda_dir / 'pres_1'
+            defaults['pres_1'].update(config.get('pres_1', {}))
+            pressurize(
+                wdir=pres_1_dir,
+                prmtop=prmtop,
+                inpcrd=pres_0_dir / "pres_0.rst7",
+                pmemd_exec=pmemd_exec,
+                cutoff=cutoff,
+                pressure=pres,
+                temp0=temp, 
+                free_energy=True, clambda=clambda,
+                deffnm='pres_1',
+                **defaults['pres_1'],
+                **mask_config
+            )
 
-        pres_2_dir = lambda_dir / 'pres_2'
-        defaults['pres_2'].update(config.get('pres_2', {}))
-        pressurize(
-            wdir=pres_2_dir,
-            prmtop=prmtop,
-            inpcrd=pres_1_dir / "pres_1.rst7",
-            pmemd_exec=pmemd_exec,
-            cutoff=cutoff,
-            pressure=pres,
-            temp0=temp, 
-            free_energy=True, clambda=clambda,
-            deffnm='pres_2',
-            **defaults['pres_2'],
-            **mask_config
-        )
+            pres_2_dir = lambda_dir / 'pres_2'
+            defaults['pres_2'].update(config.get('pres_2', {}))
+            pressurize(
+                wdir=pres_2_dir,
+                prmtop=prmtop,
+                inpcrd=pres_1_dir / "pres_1.rst7",
+                pmemd_exec=pmemd_exec,
+                cutoff=cutoff,
+                pressure=pres,
+                temp0=temp, 
+                free_energy=True, clambda=clambda,
+                deffnm='pres_2',
+                **defaults['pres_2'],
+                **mask_config
+            )
+
+            pre_prod_inpcrd = pres_2_dir / 'pres_2.rst7'
+        else:
+            pre_prod_inpcrd = heat_dir / 'heat.rst7'
 
         pre_prod_dir = lambda_dir / "pre_prod"
         defaults['pre_prod'].update(config.get('pre_prod', {}))
         pressurize(
             wdir=pre_prod_dir,
             prmtop=prmtop,
-            inpcrd=pres_2_dir / "pres_2.rst7",
+            inpcrd=pre_prod_inpcrd,
             pmemd_exec=pmemd_exec,
             cutoff=cutoff,
             pressure=pres,
             temp0=temp, 
             free_energy=True, clambda=clambda,
             deffnm='pre_prod',
+            use_periodic=(not gas_phase),
             **defaults['pre_prod'],
             **mask_config
         )
@@ -438,6 +459,7 @@ def fep_workflow(config, wdir):
             use_mbar=True,
             deffnm='prod',
             lambdas=lambdas,
+            use_periodic=(not gas_phase)
             **defaults['prod'],
             **mask_config
         )

@@ -9,7 +9,7 @@ ntwe            = {ofreq},       ! Frequency to dump energies in mden
 ntwr            = {ofreq},       ! Frequency to write restart file
 ntwx            = {ofreq},       ! Frequence to write mdcrd file
 
-ntb             = 2,         ! Constant pressure
+ntb             = {ntb},         ! Constant pressure
 
 iwrap           = 1,         ! Process PBC when dump to trajectories
 

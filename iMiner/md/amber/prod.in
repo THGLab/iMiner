@@ -12,7 +12,7 @@ ntwx            = {ofreq},       ! Frequence to write mdcrd file
 numexchg        = {numexchg}
 gremd_acyc      = 1
 
-ntb             = 2,         ! Constant pressure
+ntb             = {ntb},         ! Constant pressure
 
 iwrap           = 1,         ! Process PBC when dump to trajectories
 
