@@ -326,7 +326,7 @@ def fep_workflow(config, wdir, gas_phase=False):
         key: config[key] for key in ['noshakemask', 'timask1', 'timask2', 'scmask1', 'scmask2']
     }
 
-    pmemd_exec = 'pmemd.cuda'
+    pmemd_exec = 'pmemd.cuda' if not gas_phase else "pmemd"
 
     wdir = Path(wdir).resolve()
     wdir.mkdir(exist_ok=True)
