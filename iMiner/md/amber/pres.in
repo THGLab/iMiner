@@ -11,7 +11,7 @@ ntwx            = {ofreq},       ! Frequence to write mdcrd file
 
 ntb             = {ntb},         ! Constant pressure
 
-iwrap           = 1,         ! Process PBC when dump to trajectories
+iwrap           = {iwrap},         ! Process PBC when dump to trajectories
 
 ntt             = 3,         ! Langevin dynamics
 gamma_ln        = 2.0,       ! Collision Frequency, in ps^-1

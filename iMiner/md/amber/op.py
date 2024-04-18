@@ -136,6 +136,7 @@ def heat(
     
     ntr = 1 if restraint_wt != 0 else 0
     ntb = 1 if use_periodic else 0
+    iwrap = 1 if use_periodic else 0
 
     inpstr = template.format(
         nstlim=num_steps, ofreq=ofreq, dt=dt,
@@ -149,7 +150,7 @@ def heat(
         ntf=ntf,
         noshakemask=noshakemask, timask1=timask1, timask2=timask2,
         scmask1=scmask1, scmask2=scmask2,
-        ntb=ntb
+        ntb=ntb, iwrap=iwrap
     )
     with open(wdir / f'{deffnm}.in', 'w') as f:
         f.write(inpstr)
@@ -207,6 +208,7 @@ def pressurize(
     
     ntr = 1 if restraint_wt != 0 else 0
     ntb = 2 if use_periodic else 0
+    iwrap = 1 if use_periodic else 0
 
     inpstr = template.format(
         nstlim=num_steps, ofreq=ofreq, dt=dt,
@@ -220,7 +222,7 @@ def pressurize(
         pres0=pressure,
         noshakemask=noshakemask, timask1=timask1, timask2=timask2,
         scmask1=scmask1, scmask2=scmask2,
-        ntb=ntb
+        ntb=ntb, iwrap=iwrap
     )
     with open(wdir / f'{deffnm}.in', 'w') as f:
         f.write(inpstr)
@@ -282,6 +284,7 @@ def prod(
     
     ntr = 1 if restraint_wt != 0 else 0
     ntb = 2 if use_periodic else 0
+    iwrap = 1 if use_periodic else 0
 
     if use_mbar:
         _fe_var_check(lambdas, "lambdas")
@@ -311,7 +314,7 @@ def prod(
         scmask1=scmask1, scmask2=scmask2,
         numexchg=numexchg, mbar_setting=mbar_setting,
         efreq=efreq,
-        ntb=ntb
+        ntb=ntb, iwrap=iwrap
     )
     with open(wdir / f'{deffnm}.in', 'w') as f:
         f.write(inpstr)
