@@ -18,7 +18,7 @@ gamma_ln        = 2.0,       ! Collision Frequency, in ps^-1
 temp0           = {temp0},    ! Tempeature to be kept
 tempi           = 0.0,        ! Initial temperature
 
-ntp             = 1,         ! Isotropic pressure coupling
+ntp             = {ntp},         ! Isotropic pressure coupling
 barostat        = 2,         ! Monte-carlo pressure coupling
 pres0           = {pres0},     ! Pressure set to 1 bar
 taup            = 5.0,       ! Pressure relaxation time
