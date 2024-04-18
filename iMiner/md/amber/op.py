@@ -259,6 +259,7 @@ def prod(
     deffnm: str = 'prod',
     use_periodic: bool = True,
     use_hremd: bool = True,
+    use_nvt: bool = False
 ):
     """
     Production run
@@ -285,9 +286,15 @@ def prod(
         ntf = 2
     
     ntr = 1 if restraint_wt != 0 else 0
-    ntb = 2 if use_periodic else 0
-    iwrap = 1 if use_periodic else 0
-    ntp = 1 if use_periodic else 0
+
+    if use_periodic:
+        ntb = 1 if use_nvt else 2
+        ntp = 0 if use_nvt else 1
+        iwrap = 1
+    else:
+        ntb = 0
+        ntp = 0
+        iwrap = 0
 
     if use_mbar:
         _fe_var_check(lambdas, "lambdas")
@@ -374,7 +381,6 @@ def fep_workflow(config, wdir, gas_phase=False):
             cutoff=cutoff,
             clambda=clambda,
             deffnm="em",
-            use_periodic=(not gas_phase),
             **defaults['em'],
             **mask_config,
         )
@@ -390,7 +396,6 @@ def fep_workflow(config, wdir, gas_phase=False):
             temp0=temp, 
             free_energy=True,
             clambda=clambda,
-            use_periodic=(not gas_phase),
             **defaults['heat'],
             **mask_config
         )
@@ -444,33 +449,31 @@ def fep_workflow(config, wdir, gas_phase=False):
                 **mask_config
             )
 
-            pre_prod_inpcrd = pres_2_dir / 'pres_2.rst7'
+            pre_prod_dir = lambda_dir / "pre_prod"
+            defaults['pre_prod'].update(config.get('pre_prod', {}))
+            pressurize(
+                wdir=pre_prod_dir,
+                prmtop=prmtop,
+                inpcrd=pres_2_dir / 'pres_2.rst7',
+                pmemd_exec=pmemd_exec,
+                cutoff=cutoff,
+                pressure=pres,
+                temp0=temp, 
+                free_energy=True, clambda=clambda,
+                deffnm='pre_prod',
+                **defaults['pre_prod'],
+                **mask_config
+            )
+            prod_inpcrd = pre_prod_dir / 'pre_prod.rst7'
         else:
-            pre_prod_inpcrd = heat_dir / 'heat.rst7'
-
-        pre_prod_dir = lambda_dir / "pre_prod"
-        defaults['pre_prod'].update(config.get('pre_prod', {}))
-        pressurize(
-            wdir=pre_prod_dir,
-            prmtop=prmtop,
-            inpcrd=pre_prod_inpcrd,
-            pmemd_exec=pmemd_exec,
-            cutoff=cutoff,
-            pressure=pres,
-            temp0=temp, 
-            free_energy=True, clambda=clambda,
-            deffnm='pre_prod',
-            use_periodic=(not gas_phase),
-            **defaults['pre_prod'],
-            **mask_config
-        )
+            prod_inpcrd = heat_dir / 'heat.rst7'
 
         prod_dir = lambda_dir / "prod"
         defaults['prod'].update(config.get('prod', {}))
         prod(
             wdir=prod_dir,
             prmtop=prmtop,
-            inpcrd=pre_prod_dir / "pre_prod.rst7",
+            inpcrd=prod_inpcrd,
             pmemd_exec=pmemd_exec,
             cutoff=cutoff,
             pressure=pres,
@@ -480,7 +483,7 @@ def fep_workflow(config, wdir, gas_phase=False):
             use_mbar=True,
             deffnm='prod',
             lambdas=lambdas,
-            use_periodic=(not gas_phase),
+            use_nvt=gas_phase,
             **defaults['prod'],
             **mask_config
         )
