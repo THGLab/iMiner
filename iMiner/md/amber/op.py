@@ -320,6 +320,11 @@ def prod(
     )
     with open(wdir / f'{deffnm}.in', 'w') as f:
         f.write(inpstr)
+    
+    if not use_periodic:
+        cmdstr = pmemd_command(pmemd_exec, prmtop, inpcrd, deffnm)
+        with open(wdir / f'{deffnm}.sh', 'w') as f:
+            f.write(cmdstr)
 
 
 def fep_workflow(config, wdir, gas_phase=False):
