@@ -449,7 +449,7 @@ def fep_workflow(config, wdir, gas_phase=False):
         prod(
             wdir=prod_dir,
             prmtop=prmtop,
-            inpcrd=pres_2_dir / "pres_2.rst7",
+            inpcrd=pre_prod_dir / "pre_prod.rst7",
             pmemd_exec=pmemd_exec,
             cutoff=cutoff,
             pressure=pres,
@@ -459,7 +459,7 @@ def fep_workflow(config, wdir, gas_phase=False):
             use_mbar=True,
             deffnm='prod',
             lambdas=lambdas,
-            use_periodic=(not gas_phase)
+            use_periodic=(not gas_phase),
             **defaults['prod'],
             **mask_config
         )
