@@ -9,8 +9,7 @@ ntwe            = {efreq},       ! Frequency to dump energies in mden
 ntwr            = {ofreq},       ! Frequency to write restart file
 ntwx            = {ofreq},       ! Frequence to write mdcrd file
 
-numexchg        = {numexchg}
-gremd_acyc      = 1
+{remd_setting}
 
 ntb             = {ntb},         ! Constant pressure
 

@@ -257,7 +257,8 @@ def prod(
     scmask1: str = "",
     scmask2: str = "",
     deffnm: str = 'prod',
-    use_periodic: bool = True
+    use_periodic: bool = True,
+    use_hremd: bool = True,
 ):
     """
     Production run
@@ -301,6 +302,16 @@ def prod(
     else:
         efreq = ofreq if efreq else efreq
         mbar_setting = ""
+    
+    if use_hremd:
+        _fe_var_check(numexchg, "numexchg")
+        remd_setting = [
+            "{:<15} = {},".format("numexchg", numexchg),
+            "{:<15} = 1,".format("gremd_acyc")
+        ]
+        remd_setting = '\n'.join(remd_setting)
+    else:
+        remd_setting = ""
         
     inpstr = template.format(
         nstlim=num_steps, ofreq=ofreq, dt=dt,
@@ -314,7 +325,7 @@ def prod(
         pres0=pressure,
         noshakemask=noshakemask, timask1=timask1, timask2=timask2,
         scmask1=scmask1, scmask2=scmask2,
-        numexchg=numexchg, mbar_setting=mbar_setting,
+        remd_setting=remd_setting, mbar_setting=mbar_setting,
         efreq=efreq,
         ntb=ntb, iwrap=iwrap, ntp=ntp
     )
