@@ -1,5 +1,6 @@
 &cntrl
 imin            = 1
+dx0             = {step_size}
 maxcyc          = {maxcyc}
 ntmin           = 2
 ntpr            = {ofreq},      ! Frequency to dump energies in mdout

@@ -1,0 +1,31 @@
+source leaprc.water.tip3p
+loadAmberParams frcmod.ionsjc_tip3p
+source leaprc.protein.ff14SB
+source leaprc.gaff2
+loadoff ligandA.lib
+loadoff ligandB.lib
+loadamberparams ligandA.frcmod
+loadamberparams ligandB.frcmod
+
+ligandA = loadmol2 ligandA.mol2
+ligandB = loadmol2 ligandB.mol2
+ligands = combine { ligandA ligandB }
+
+protein = loadpdb protein.pdb
+complex = combine { ligands protein }
+
+solvatebox ligands TIP3PBOX @LIGANDS_BUFFER 0.5
+addions ligands Na+ 0
+addions ligands Cl- 0
+savepdb ligands ligands_solvated.pdb
+saveamberparm ligands ligands_solvated.prmtop ligands_solvated.inpcrd
+
+solvatebox complex TIP3PBOX @COMPLEX_BUFFER 0.5
+addions complex Na+ 0
+addions complex Cl- 0
+addionsrand complex Na+ @NUM_IONS
+addionsrand complex Cl- @NUM_IONS
+savepdb complex complex_solvated.pdb
+saveamberparm complex complex_solvated.prmtop complex_solvated.inpcrd
+
+quit

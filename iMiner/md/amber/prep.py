@@ -27,8 +27,29 @@ def get_waterbox_ions_names(water_ff: str):
         raise NotImplementedError(f"Water force field not supported: {water_ff}")
 
 
-def get_num_ions(volume: float, ionic_strength: float):
-    raise NotImplementedError()
+def determine_num_ions_from_leap_log(log, ionic_strength):
+    with open(log) as f:
+        for line in f:
+            if line.strip().startswith('Volume'):
+                volume = float(line.strip().split()[1])
+                density = float(f.readline().strip().split()[-2])
+                break
+    volume *= density
+    num_ions = calc_num_ions(volume, ionic_strength)
+    return num_ions
+
+def calc_num_ions(volume: float, ionic_strength: float = 0.15):
+    """
+    Calculate number of ions needed to be added
+
+    Parameters
+    ----------
+    volume: float
+        Volume of the box, in unit of angstrom^3
+    ionic_strength: float
+        Ionic strength, in unit of mol/L
+    """
+    return int(round(ionic_strength * volume * 6.022e-4, 0))
 
 
 def create_solvated_box(

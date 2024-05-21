@@ -1,0 +1,17 @@
+source leaprc.water.tip3p
+loadAmberParams frcmod.ionsjc_tip3p
+source leaprc.protein.ff14SB
+source leaprc.gaff2
+loadoff ligandA.lib
+loadoff ligandB.lib
+loadamberparams ligandA.frcmod
+loadamberparams ligandB.frcmod
+
+ligandA = loadmol2 ligandA.mol2
+ligandB = loadmol2 ligandB.mol2
+ligands = combine { ligandA ligandB }
+
+setBox ligands "vdw" @GAS_BUFFER
+saveamberparm ligands ligands_gas.prmtop ligands_gas.inpcrd
+
+quit

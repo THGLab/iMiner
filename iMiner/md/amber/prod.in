@@ -11,7 +11,7 @@ ntwx            = {ofreq},       ! Frequence to write mdcrd file
 
 {remd_setting}
 
-ntb             = {ntb},         ! Constant pressure
+ntb             = {ntb}, 
 
 iwrap           = {iwrap},         ! Process PBC when dump to trajectories
 

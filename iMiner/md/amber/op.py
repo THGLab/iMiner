@@ -3,6 +3,16 @@ from pathlib import Path
 from typing import Dict, Optional, Any, List
 import json
 
+run_sh = '''
+prmtop="{prmtop}"
+inpcrd="{inpcrd}"
+deffnm="{deffnm}"
+{pmemd_exec} -O \
+        -i $deffnm.in -o $deffnm.out -p $prmtop -c $inpcrd \
+        -r $deffnm.rst7 -inf $deffnm.info -ref $inpcrd \
+        -x $deffnm.mdcrd -e $deffnm.mden -l $deffnm.log
+ambpdb -p $prmtop -c $deffnm.rst7 > $deffnm.pdb
+'''
 
 def _fe_var_check(var, varname):
     msg = f"{varname} has to be set when run free energy simulation"
@@ -21,9 +31,7 @@ def pmemd_exec(use_cuda: bool = True, use_mpi: bool = False):
 
 
 def pmemd_command(pmemed_exec, prmtop, inpcrd, deffnm):
-    with open(Path(__file__).parent / 'run.sh', 'r') as f:
-        command = f.read()
-    return command.format(prmtop=prmtop, inpcrd=inpcrd, deffnm=deffnm, pmemd_exec=pmemed_exec)
+    return run_sh.format(prmtop=prmtop, inpcrd=inpcrd, deffnm=deffnm, pmemd_exec=pmemed_exec)
 
 
 def em(
@@ -43,6 +51,7 @@ def em(
     scmask2: str = "",
     deffnm: str = "em",
     use_periodic: bool = True,
+    step_size: float = 0.01,
 ):
     """
     Energy minimization
@@ -77,15 +86,19 @@ def em(
         gti_cut_sc_on=cutoff - 2.0, gti_cut_sc_off=cutoff,
         noshakemask=noshakemask, timask1=timask1, timask2=timask2,
         scmask1=scmask1, scmask2=scmask2,
-        ntb=ntb,
+        ntb=ntb, step_size=step_size
     )
     with open(wdir / f'{deffnm}.in', 'w') as f:
         f.write(inpstr)
     
-    cmdstr = pmemd_command(pmemd_exec, prmtop, inpcrd, deffnm)
+    cmdstr = pmemd_command(
+        pmemd_exec, 
+        os.path.relpath(prmtop, wdir), 
+        os.path.relpath(inpcrd, wdir), 
+        deffnm
+    )
     with open(wdir / f'{deffnm}.sh', 'w') as f:
         f.write(cmdstr)
-
 
 
 def heat(
@@ -155,7 +168,12 @@ def heat(
     with open(wdir / f'{deffnm}.in', 'w') as f:
         f.write(inpstr)
     
-    cmdstr = pmemd_command(pmemd_exec, prmtop, inpcrd, deffnm)
+    cmdstr = pmemd_command(
+        pmemd_exec, 
+        os.path.relpath(prmtop, wdir), 
+        os.path.relpath(inpcrd, wdir), 
+        deffnm
+    )
     with open(wdir / f'{deffnm}.sh', 'w') as f:
         f.write(cmdstr)
 
@@ -228,7 +246,12 @@ def pressurize(
     with open(wdir / f'{deffnm}.in', 'w') as f:
         f.write(inpstr)
     
-    cmdstr = pmemd_command(pmemd_exec, prmtop, inpcrd, deffnm)
+    cmdstr = pmemd_command(
+        pmemd_exec, 
+        os.path.relpath(prmtop, wdir), 
+        os.path.relpath(inpcrd, wdir), 
+        deffnm
+    )
     with open(wdir / f'{deffnm}.sh', 'w') as f:
         f.write(cmdstr)
 
@@ -296,7 +319,7 @@ def prod(
         ntp = 0
         iwrap = 0
 
-    if use_mbar:
+    if free_energy and use_mbar:
         _fe_var_check(lambdas, "lambdas")
         _fe_var_check(efreq, "efreq")
         mbar_setting = [
@@ -340,15 +363,23 @@ def prod(
         f.write(inpstr)
     
     if not use_periodic:
-        cmdstr = pmemd_command(pmemd_exec, prmtop, inpcrd, deffnm)
-        with open(wdir / f'{deffnm}.sh', 'w') as f:
-            f.write(cmdstr)
+        cmdstr = pmemd_command(
+            pmemd_exec, 
+            os.path.relpath(prmtop, wdir), 
+            os.path.relpath(inpcrd, wdir), 
+            deffnm
+        )
+    else:
+        cmdstr = f"ambpdb -p {os.path.relpath(prmtop, wdir)} -c {deffnm}.rst7 > {deffnm}.pdb"
+        
+    with open(wdir / f'{deffnm}.sh', 'w') as f:
+        f.write(cmdstr)
 
 
-def fep_workflow(config, wdir, gas_phase=False):
+def fep_workflow(config, wdir, gas_phase: bool = False, use_prev_lambda_as_start: bool = True):
     lambdas = config['lambdas']
-    inpcrd = config['inpcrd']
-    prmtop = config['prmtop']
+    inpcrd = Path(config['inpcrd']).resolve()
+    prmtop = Path(config['prmtop']).resolve()
 
     mask_config = {
         key: config[key] for key in ['noshakemask', 'timask1', 'timask2', 'scmask1', 'scmask2']
@@ -373,9 +404,16 @@ def fep_workflow(config, wdir, gas_phase=False):
         
         em_dir = lambda_dir / "em"
         defaults['em'].update(config.get('em', {}))
+
+        if use_prev_lambda_as_start and i > 0:
+            em_inpcrd = wdir / f'lambda{i - 1}' / 'em.rst7'
+        else:
+            em_inpcrd = inpcrd
+        
         em(
             wdir=em_dir,
-            prmtop=prmtop, inpcrd=inpcrd,
+            prmtop=prmtop, 
+            inpcrd=em_inpcrd,
             pmemd_exec=pmemd_exec,
             free_energy=True,
             cutoff=cutoff,
@@ -491,14 +529,15 @@ def fep_workflow(config, wdir, gas_phase=False):
     groupfile = []
     str_template = "-O -p {prmtop} -c {inpcrd} -i {mdin} -o {mdout} -r {restart} -x {traj} -ref {ref} -e {mden} -l {mdlog} -inf {mdinfo}"
     for i in range(len(lambdas)):
+        prev_stage = "heat" if gas_phase else "pre_prod"
         groupfile.append(str_template.format(
-            prmtop=Path(prmtop).resolve(),
-            inpcrd=f"lambda{i}/pre_prod/pre_prod.rst7",
+            prmtop=os.path.relpath(prmtop, wdir),
+            inpcrd=f"lambda{i}/{prev_stage}/{prev_stage}.rst7",
             mdin=f"lambda{i}/prod/prod.in",
             mdout=f"lambda{i}/prod/prod.out",
             restart=f"lambda{i}/prod/prod.rst7",
             traj=f"lambda{i}/prod/prod.mdcrd",
-            ref=f"lambda{i}/pre_prod/pre_prod.rst7",
+            ref=f"lambda{i}/{prev_stage}/{prev_stage}.rst7",
             mden=f"lambda{i}/prod/prod.mden",
             mdlog=f"lambda{i}/prod/prod.log",
             mdinfo=f"lambda{i}/prod/prod.info"
