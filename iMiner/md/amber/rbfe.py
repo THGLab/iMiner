@@ -283,6 +283,7 @@ class AmberRbfeProject:
         Analyze FEP results
         """
         import numpy as np
+        import pandas as pd
         from tqdm import tqdm
         import alchemlyb
         from alchemlyb.estimators import MBAR
@@ -298,16 +299,17 @@ class AmberRbfeProject:
 
         legs = ['ligands', 'complex'] if skip_gas else ['ligands', 'complex', 'gas']
         for leg in legs:
-            with open(pert_dir / leg / 'config.json') as f:
+            leg_dir = pert_dir / leg
+            with open(leg_dir / 'config.json') as f:
                 T = json.load(f).get('temperature', 298.15)
                 kBT = 8.314 * T / 1000 / 4.184
 
             self.logger.info(f"Performing MBAR for {leg}")
             self.logger.info("Extracting data from output...")
             u_nks = []
-            num_lambda = len(list(pert_dir.glob('*')))
+            num_lambda = len(list(leg_dir.glob('lambda*')))
             for i in tqdm(range(num_lambda), leave=True):
-                out = str(pert_dir / f"{leg}/lambda{i}/prod/prod.out")
+                out = str(leg_dir / f"lambda{i}/prod/prod.out")
                 u_nks.append(extract_u_nk(out, T=T))
             
             # evaluate free energy with MBAR
@@ -322,26 +324,37 @@ class AmberRbfeProject:
             conv_df = forward_backward_convergence(u_nks, "mbar")
             for key in ['Forward', 'Forward_Error', 'Backward', 'Backward_Error']:
                 conv_df[key] *= kBT
-                conv_df.to_csv(pert_dir / leg /"convergence.csv", index=None)
+                conv_df.to_csv(leg_dir /"convergence.csv", index=None)
                 conv_ax = plot_convergence(conv_df)
                 conv_ax.set_ylabel("$\Delta G$ (kcal/mol)")
                 conv_ax.set_title(f"Convergence Analysis - {leg.capitalize()}")
-                conv_ax.figure.savefig(str(pert_dir / leg /"convergence.png"), dpi=300)
+                conv_ax.figure.savefig(str(leg_dir /"convergence.png"), dpi=300)
 
             # overlap matrix
             self.logger.info("Plotting overlap matrix...")
             overlap_ax = plot_mbar_overlap_matrix(mbarEstimator.overlap_matrix)
-            overlap_ax.figure.savefig(str(pert_dir / leg /"overlap.png"), dpi=300)
+            overlap_ax.figure.savefig(str(leg_dir /"overlap.png"), dpi=300)
 
-        dG['total'] = dG['complex'] - dG['ligands']
-        dG_std['total'] = np.linalg.norm([dG_std['ligands'], dG_std['complex']])
+        convergence = {leg: pd.read_csv(str(leg_dir / 'convergence.csv')) for leg in legs}
 
-        if not skip_gas:
-            dG['solvation'] = dG['ligands'] - dG['gas']
-            dG_std['solvation'] = np.linalg.norm([dG_std['gas'], dG_std['ligands']])
+        pairs = [('complex', 'ligands'), ('ligands', 'gas'), ('complex', 'gas')]
+        names = ['total', 'solvation', 'complex']
 
-            dG['complex'] = dG['complex'] - dG['gas']
-            dG_std['complex'] = np.linalg.norm([dG_std['gas'], dG_std['complex']])
+        for (leg1, leg2), name in zip(pairs, names):
+            dG[name] = dG[leg1] - dG[leg2]
+            dG_std[name] = np.linalg.norm([dG_std[leg1], dG_std[leg2]])
+
+            ddG_conv_df = convergence['complex'].copy()
+            for tag in ['Forward', 'Backward']:
+                ddG_conv_df[tag] = convergence[leg1][tag] - convergence[leg2][tag]
+                ddG_conv_df[f'{tag}_Error'] = np.sqrt(
+                    convergence[leg1][f'{tag}_Error'] ** 2 + convergence[leg2][f'{tag}_Error'] ** 2
+                )
+            ddG_conv_df.to_csv(pert_dir / f"{name}_convergence.csv", index=None)
+            conv_ax = plot_convergence(ddG_conv_df)
+            conv_ax.set_ylabel("$\Delta\Delta G$ (kcal/mol)")
+            conv_ax.set_title(f"Convergence Analysis")
+            conv_ax.figure.savefig(str(pert_dir / f"{name}_convergence.png"), dpi=300)
 
         with open(pert_dir / 'result.json', 'w') as f: 
             json.dump({"dG": dG, "std": dG_std}, f)
