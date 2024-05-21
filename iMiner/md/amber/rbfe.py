@@ -360,5 +360,5 @@ class AmberRbfeProject:
                 break
 
         with open(pert_dir / 'result.json', 'w') as f: 
-            json.dump({"dG": dG, "std": dG_std}, f)
+            json.dump({"dG": dG, "std": dG_std}, f, indent=4)
         self.logger.info("Finished!")
