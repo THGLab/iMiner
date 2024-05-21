@@ -406,7 +406,7 @@ def fep_workflow(config, wdir, gas_phase: bool = False, use_prev_lambda_as_start
         defaults['em'].update(config.get('em', {}))
 
         if use_prev_lambda_as_start and i > 0:
-            em_inpcrd = wdir / f'lambda{i - 1}' / 'em.rst7'
+            em_inpcrd = wdir / f'lambda{i - 1}/em/em.rst7'
         else:
             em_inpcrd = inpcrd
         
