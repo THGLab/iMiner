@@ -36,7 +36,18 @@ quit
 
 
 class AmberRbfeProject:
+    """
+    Project for a Amber Relative Binding Free Energy Calculation
+    """
     def __init__(self, wdir: os.PathLike = '.'):
+        """
+        Initialize a AmberRbfeProject instance
+
+        Parameters
+        ----------
+        wdir: os.PathLike
+            Working directory of the project
+        """
         self.wdir = Path(wdir).resolve()
         self.ligands_dir = self.wdir / 'ligands'
         self.proteins_dir = self.wdir / 'proteins'
@@ -48,11 +59,39 @@ class AmberRbfeProject:
         self.proteins_dir.mkdir(exist_ok=True)
         self.rbfe_dir.mkdir(exist_ok=True)
 
-    def add_ligand(self, fpath: os.PathLike, name: str, parametrize: bool = True, forcefield: str = 'gaff2', charge_method: str = 'bcc', net_charge: Union[str, int] = 'auto'):
+    def add_ligand(
+        self, 
+        fpath: os.PathLike, 
+        name: Optional[str] = None, 
+        parametrize: bool = True, 
+        forcefield: str = 'gaff2', 
+        charge_method: str = 'bcc', 
+        net_charge: Union[str, int] = 'auto'
+    ):
         """
-        Add ligand and parametrize it
+        Add ligand to the project and use ACPYPE parametrize it
+
+        Parameters
+        ----------
+        fpath: os.PathLike
+            Path to the ligand file. Only sdf format is supported now
+        name: str
+            Name of the ligand. If None, will be inferred from the input path
+        parametrize: bool
+            Whether to parameterize the ligand.
+        forcefield: str
+            Force field used to parametrize the ligand, i.e. "-a" option in acpype.
+            'gaff' or 'gaff2' is accecpted. Default is 'gaff2'. 
+        charge_method: str
+            Method to assign atomic charges, i.e. "-c" option in acpype.
+            'gas' or 'bcc' is accepted. Default is 'bcc'
+        net_charge: str or int
+            Net charge of the ligand, i.e. '-n' option in acpype.
+            If 'auto', rdkit will be used to calculate the total net charge of the molecule.
+            Default is 'auto'
         """
         suffix = Path(fpath).suffix
+        name = Path(fpath).stem if name is None else name
         assert suffix == '.sdf', 'Only sdf format is supported'
         lig_dir = self.ligands_dir / name
         lig_dir.mkdir()
@@ -73,11 +112,21 @@ class AmberRbfeProject:
             run_acpype(f'{name}.sdf', 'MOL', charge_method, forcefield, net_charge)
         self.logger.info(f"Ligand {name} is parametrized with {forcefield} and charge method {charge_method}")
 
-    def add_protein(self, fpath: os.PathLike, name: str, check_ff: bool = True):
+    def add_protein(self, fpath: os.PathLike, name: Optional[str] = None, check_ff: bool = True):
         """
-        Add protein
+        Add protein to the project
+
+        Parameters
+        ----------
+        fpath: os.PathLike
+            Path to the protein file to be added. Only pdb format is supported
+        name: str
+            Name of the protein. If None, will be inferred from the input path
+        check_ff: bool
+            Whether to check the protein can be parametrized by Amber14SB force field.
         """
         suffix = Path(fpath).suffix
+        name = Path(fpath).stem if name is None else name
         assert suffix == '.pdb', 'Only PDB format is supported'
         prot_dir = self.proteins_dir / name
         prot_dir.mkdir()
@@ -113,13 +162,37 @@ class AmberRbfeProject:
         skip_gas: bool = True
     ):
         """
-        Create a perturbation pair and set up simulations
+        Create a perturbation pair (relative binding free energy between ligand A and ligand B) 
+        and set up FEP simulation
+
+        Parameters
+        ----------
+        ligandA_name: str
+            Name of ligand A
+        ligandB__name: str
+            Name of ligand B
+        protein_name: str
+            Name of the protein
+        pert_name: str
+            Name of this perturbation. If None, will use `ligandA_name`~`ligandB_name`
+        mcs: str or os.PathLike
+            Maximum common structure (MCS) between ligand A and B. If a sdf file or a SMARTS string is provided, rdkit will be used 
+            to parse it. If None, will use rdkit to determine the MCS. Manually provided MCS is highly recommended.
+        config: dict or os.PathLike
+            JSON-formatted configuration file or dictionary. Must be provided.
+        submit: bool
+            Whether to use SLURM (sbatch command) to submit the simulation job. Default False.
+        skip_gas: bool
+            Whether to skip the gas-phase FEP simulation, only useful when `submit=True`. Default True.
         """
         from rdkit import Chem
         from .mcs import find_mcs, get_common_core, generate_mask, check_common_core
         from .op import fep_workflow
         from .prep import determine_num_ions_from_leap_log
 
+        if config is None:
+            raise RuntimeError("Configuration file must be provided")
+        
         if pert_name is None:
             pert_name = f"{ligandA_name}~{ligandB_name}"
         
@@ -280,7 +353,17 @@ class AmberRbfeProject:
         
     def analyze(self, pert_name: str, skip_gas: bool = True):
         """
-        Analyze FEP results
+        Analyze FEP simulation results using `alchemlyb` package.
+        Free energy will be estimated using MBAR, overlap matrix and convergence analysis are also performed.
+
+        For details, one can refer to: J Comput Aided Mol Des (2015) 29:397-411
+
+        Parameters
+        ----------
+        pert_name: str
+            Name of the perturbation to analyze
+        skip_gas: bool
+            Whether to skip gas-phase simulation analysis. Default is True.
         """
         import numpy as np
         import pandas as pd
