@@ -153,6 +153,8 @@ class AmberRbfeProject:
         self.logger.info(f'MCS written to {pert_dir / "mcs.sdf"}')
         
         cc = get_common_core(molA, molB, mcs_struct)
+        with open(pert_dir / 'common_core.txt', 'w') as f:
+            f.write(f"{cc[0]} {cc[1]}\n")
         check_common_core(posA, posB, cc)
         mask = generate_mask(molA.GetNumAtoms(), molB.GetNumAtoms(), cc[:, 0], cc[:, 1])
 
@@ -253,7 +255,7 @@ class AmberRbfeProject:
                             slurm = slurm.replace('@NUM_LAMBDA', str(len(config[leg]['lambdas'])))
                             slurm = slurm.replace(
                                 '@STAGES', 
-                                '("em" "heat" "pres_0" "pres_1" "pres_2" "pre_prod")' if leg != 'gas' else '$("em" "heat")'
+                                '("em" "heat" "pres_0" "pres_1" "pres_2" "pre_prod")' if leg != 'gas' else '("em" "heat")'
                             )
                         
                         with open('run.slurm', 'w') as f:
