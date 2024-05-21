@@ -216,7 +216,7 @@ class AmberRbfeProject:
         if mcs is None:
             self.logger.info("No MCS file is provided. Try to use RDKit to find MCS")
             mcs_struct = find_mcs(molA, molB)
-        if os.path.isfile(mcs):
+        elif os.path.isfile(mcs):
             self.logger.info(f"Reading mcs from {mcs}")
             assert Path(mcs).suffix == '.sdf', 'Only sdf format is supported'
             mcs_struct = Chem.SDMolSupplier(str(mcs))[0]
@@ -378,6 +378,9 @@ class AmberRbfeProject:
         dG = {}
         dG_std = {}
 
+        ddG = {}
+        ddG_std = {}
+
         pert_dir = self.rbfe_dir / pert_name
 
         legs = ['ligands', 'complex'] if skip_gas else ['ligands', 'complex', 'gas']
@@ -424,8 +427,8 @@ class AmberRbfeProject:
         names = ['total', 'solvation', 'complex']
 
         for (leg1, leg2), name in zip(pairs, names):
-            dG[name] = dG[leg1] - dG[leg2]
-            dG_std[name] = np.linalg.norm([dG_std[leg1], dG_std[leg2]])
+            ddG[name] = dG[leg1] - dG[leg2]
+            ddG_std[name] = np.linalg.norm([dG_std[leg1], dG_std[leg2]])
 
             ddG_conv_df = convergence['complex'].copy()
             for tag in ['Forward', 'Backward']:
@@ -443,5 +446,5 @@ class AmberRbfeProject:
                 break
 
         with open(pert_dir / 'result.json', 'w') as f: 
-            json.dump({"dG": dG, "std": dG_std}, f, indent=4)
+            json.dump({"dG": dG, "dG_std": dG_std, 'ddG': ddG, 'ddG_std': ddG_std}, f, indent=4)
         self.logger.info("Finished!")
