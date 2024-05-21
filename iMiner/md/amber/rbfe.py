@@ -335,7 +335,7 @@ class AmberRbfeProject:
             overlap_ax = plot_mbar_overlap_matrix(mbarEstimator.overlap_matrix)
             overlap_ax.figure.savefig(str(leg_dir /"overlap.png"), dpi=300)
 
-        convergence = {leg: pd.read_csv(str(leg_dir / 'convergence.csv')) for leg in legs}
+        convergence = {leg: pd.read_csv(str(pert_dir / leg / 'convergence.csv')) for leg in legs}
 
         pairs = [('complex', 'ligands'), ('ligands', 'gas'), ('complex', 'gas')]
         names = ['total', 'solvation', 'complex']
@@ -355,6 +355,9 @@ class AmberRbfeProject:
             conv_ax.set_ylabel("$\Delta\Delta G$ (kcal/mol)")
             conv_ax.set_title(f"Convergence Analysis")
             conv_ax.figure.savefig(str(pert_dir / f"{name}_convergence.png"), dpi=300)
+
+            if skip_gas:
+                break
 
         with open(pert_dir / 'result.json', 'w') as f: 
             json.dump({"dG": dG, "std": dG_std}, f)
