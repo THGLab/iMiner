@@ -154,7 +154,8 @@ class AmberRbfeProject:
         
         cc = get_common_core(molA, molB, mcs_struct)
         with open(pert_dir / 'common_core.txt', 'w') as f:
-            f.write(f"{cc[0]} {cc[1]}\n")
+            for c in cc:
+                f.write(f"{c[0]} {c[1]}\n")
         check_common_core(posA, posB, cc)
         mask = generate_mask(molA.GetNumAtoms(), molB.GetNumAtoms(), cc[:, 0], cc[:, 1])
 
@@ -176,7 +177,7 @@ class AmberRbfeProject:
                 os.symlink(list(glob.glob('../ligandA/MOL.acpype/*mol2'))[0], "ligandA.mol2")
                 os.symlink("../ligandB/MOL.acpype/MOL_AC.frcmod", "ligandB.frcmod")
                 os.symlink("../ligandB/MOL.acpype/MOL_AC.lib", "ligandB.lib")
-                os.symlink(list(glob.glob('../ligandA/MOL.acpype/*mol2'))[0], "ligandB.mol2")
+                os.symlink(list(glob.glob('../ligandB/MOL.acpype/*mol2'))[0], "ligandB.mol2")
                 os.symlink(f"../../../proteins/{protein_name}/{protein_name}.pdb", "protein.pdb")
                 
                 # Calculate ions
