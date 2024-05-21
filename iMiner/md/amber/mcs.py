@@ -77,8 +77,8 @@ def check_common_core(posA, posB, cc, pos_tol=1e-4, check_order=True, check_pos=
     cc.sort(key=lambda x: x[0])
     last = -1
     for a, b in cc:
-        if check_order: assert b > last
-        if check_pos: assert np.allclose(posA[a], posB[b], atol=pos_tol)
+        if check_order: assert b > last, "Orders are different. Please check common_core."
+        if check_pos: assert np.allclose(posA[a], posB[b], atol=pos_tol), f"Positions don't match for atom {a} and {b}"
         last = b
 
         

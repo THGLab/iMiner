@@ -3,7 +3,7 @@ from pathlib import Path
 import json
 from typing import Union, Optional, Dict, Any
 
-from iMiner.cmd import set_directory
+from iMiner.cmd import set_directory, run_command
 from iMiner.log import init_logger
 from .prep import run_tleap
 
@@ -21,6 +21,7 @@ saveamberparm protein protein.prmtop protein.inpcrd
 quit
 '''
 
+
 leap_ions_str = '''
 source leaprc.water.tip3p
 loadAmberParams frcmod.ionsjc_tip3p
@@ -32,6 +33,7 @@ solvatebox protein TIP3PBOX {buffer:.1f} 0.5
 
 quit
 '''
+
 
 class AmberRbfeProject:
     def __init__(self, wdir: os.PathLike = '.'):
@@ -106,7 +108,9 @@ class AmberRbfeProject:
         ligandA_name: str, ligandB_name: str, protein_name: str, 
         pert_name: Optional[str] = None, 
         mcs: Optional[Union[str, os.PathLike]] = None, 
-        config: Optional[Union[Dict[str, Any], os.PathLike]] = None
+        config: Optional[Union[Dict[str, Any], os.PathLike]] = None,
+        submit: bool = False,
+        skip_gas: bool = True
     ):
         """
         Create a perturbation pair and set up simulations
@@ -129,7 +133,6 @@ class AmberRbfeProject:
             with open(config) as f:
                 config = json.load(f)
             
-
         # Read ligands
         molA = Chem.SDMolSupplier(str(self.ligands_dir / f'{ligandA_name}/{ligandA_name}.sdf'), removeHs=False)[0]
         molB = Chem.SDMolSupplier(str(self.ligands_dir / f'{ligandB_name}/{ligandB_name}.sdf'), removeHs=False)[0]
@@ -156,7 +159,13 @@ class AmberRbfeProject:
         with open(pert_dir / 'common_core.txt', 'w') as f:
             for c in cc:
                 f.write(f"{c[0]} {c[1]}\n")
-        check_common_core(posA, posB, cc)
+        self.logger.info(f'Write common core indices to: {pert_dir / "common_core.txt"}')
+        try:
+            check_common_core(posA, posB, cc)
+        except Exception as e:
+            self.logger.error(f"Common core checking failed: {e}")
+            sys.exit(1)
+
         mask = generate_mask(molA.GetNumAtoms(), molB.GetNumAtoms(), cc[:, 0], cc[:, 1])
 
         with open(pert_dir / 'mask.json', 'w') as f:
@@ -261,3 +270,79 @@ class AmberRbfeProject:
                         
                         with open('run.slurm', 'w') as f:
                             f.write(slurm)
+                        
+                        if skip_gas:
+                            continue
+
+                        if submit:
+                            _, out, _ = run_command(['sbatch', 'run.slurm'])
+                            self.logger.info(f"Job submitted for {leg}: {out.split()[-1]}")
+        
+    def analyze(self, pert_name: str, skip_gas: bool = True):
+        """
+        Analyze FEP results
+        """
+        import numpy as np
+        from tqdm import tqdm
+        import alchemlyb
+        from alchemlyb.estimators import MBAR
+        from alchemlyb.parsing.amber import extract_u_nk
+        from alchemlyb.convergence import forward_backward_convergence
+        from alchemlyb.visualisation.convergence import plot_convergence
+        from alchemlyb.visualisation.mbar_matrix import plot_mbar_overlap_matrix
+
+        dG = {}
+        dG_std = {}
+
+        pert_dir = self.rbfe_dir / pert_name
+
+        legs = ['ligands', 'complex'] if skip_gas else ['ligands', 'complex', 'gas']
+        for leg in legs:
+            with open(pert_dir / leg / 'config.json') as f:
+                T = json.load(f).get('temperature', 298.15)
+                kBT = 8.314 * T / 1000 / 4.184
+
+            self.logger.info(f"Performing MBAR for {leg}")
+            self.logger.info("Extracting data from output...")
+            u_nks = []
+            num_lambda = len(list(pert_dir.glob('*')))
+            for i in tqdm(range(num_lambda), leave=True):
+                out = str(pert_dir / f"{leg}/lambda{i}/prod/prod.out")
+                u_nks.append(extract_u_nk(out, T=T))
+            
+            # evaluate free energy with MBAR
+            self.logger.info("Running MBAR estimator...")
+            mbarEstimator = MBAR()
+            mbarEstimator.fit(alchemlyb.concat(u_nks))
+            dG[leg] = mbarEstimator.delta_f_.iloc[0, -1] * kBT
+            dG_std[leg] = mbarEstimator.d_delta_f_.iloc[0, -1] * kBT
+            
+            # convergence analysis
+            self.logger.info("Running convergence analysis...")
+            conv_df = forward_backward_convergence(u_nks, "mbar")
+            for key in ['Forward', 'Forward_Error', 'Backward', 'Backward_Error']:
+                conv_df[key] *= kBT
+                conv_df.to_csv(pert_dir / leg /"convergence.csv", index=None)
+                conv_ax = plot_convergence(conv_df)
+                conv_ax.set_ylabel("$\Delta G$ (kcal/mol)")
+                conv_ax.set_title(f"Convergence Analysis - {leg.capitalize()}")
+                conv_ax.figure.savefig(str(pert_dir / leg /"convergence.png"), dpi=300)
+
+            # overlap matrix
+            self.logger.info("Plotting overlap matrix...")
+            overlap_ax = plot_mbar_overlap_matrix(mbarEstimator.overlap_matrix)
+            overlap_ax.figure.savefig(str(pert_dir / leg /"overlap.png"), dpi=300)
+
+        dG['total'] = dG['complex'] - dG['ligands']
+        dG_std['total'] = np.linalg.norm([dG_std['ligands'], dG_std['complex']])
+
+        if not skip_gas:
+            dG['solvation'] = dG['ligands'] - dG['gas']
+            dG_std['solvation'] = np.linalg.norm([dG_std['gas'], dG_std['ligands']])
+
+            dG['complex'] = dG['complex'] - dG['gas']
+            dG_std['complex'] = np.linalg.norm([dG_std['gas'], dG_std['complex']])
+
+        with open(pert_dir / 'result.json', 'w') as f: 
+            json.dump({"dG": dG, "std": dG_std}, f)
+        self.logger.info("Finished!")
