@@ -1,3 +1,6 @@
+'''
+This file is deprecated!
+'''
 from pathlib import Path
 import pytest
 from iMiner.md.rbfe import GromacsTopologyFilePerturb
