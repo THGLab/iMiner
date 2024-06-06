@@ -344,7 +344,7 @@ class AmberRbfeProject:
                         with open('run.slurm', 'w') as f:
                             f.write(slurm)
                         
-                        if skip_gas:
+                        if leg == 'gas' and skip_gas:
                             continue
 
                         if submit:
