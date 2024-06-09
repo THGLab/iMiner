@@ -66,7 +66,8 @@ class AmberRbfeProject:
         parametrize: bool = True, 
         forcefield: str = 'gaff2', 
         charge_method: str = 'bcc', 
-        net_charge: Union[str, int] = 'auto'
+        net_charge: Union[str, int] = 'auto',
+        overwrite: bool = False,
     ):
         """
         Add ligand to the project and use ACPYPE parametrize it
@@ -89,11 +90,16 @@ class AmberRbfeProject:
             Net charge of the ligand, i.e. '-n' option in acpype.
             If 'auto', rdkit will be used to calculate the total net charge of the molecule.
             Default is 'auto'
+        overwrite: bool
+            Whether to overwrite existing ligand directory. Default False.
         """
         suffix = Path(fpath).suffix
         name = Path(fpath).stem if name is None else name
         assert suffix == '.sdf', 'Only sdf format is supported'
         lig_dir = self.ligands_dir / name
+        if overwrite and lig_dir.is_dir():
+            shutil.rmtree(lig_dir)
+            self.logger.warn(f'Will overwrite all files in {lig_dir}')
         lig_dir.mkdir()
         flig = lig_dir / f'{name}{suffix}'
         shutil.copyfile(fpath, flig)
@@ -112,7 +118,7 @@ class AmberRbfeProject:
             run_acpype(f'{name}.sdf', 'MOL', charge_method, forcefield, net_charge)
         self.logger.info(f"Ligand {name} is parametrized with {forcefield} and charge method {charge_method}")
 
-    def add_protein(self, fpath: os.PathLike, name: Optional[str] = None, check_ff: bool = True):
+    def add_protein(self, fpath: os.PathLike, name: Optional[str] = None, check_ff: bool = True, overwrite: bool = False):
         """
         Add protein to the project
 
@@ -124,11 +130,16 @@ class AmberRbfeProject:
             Name of the protein. If None, will be inferred from the input path
         check_ff: bool
             Whether to check the protein can be parametrized by Amber14SB force field.
+        overwrite: bool
+            Whether overwrite existing protein directory. Default False.
         """
         suffix = Path(fpath).suffix
         name = Path(fpath).stem if name is None else name
         assert suffix == '.pdb', 'Only PDB format is supported'
         prot_dir = self.proteins_dir / name
+        if overwrite and prot_dir.is_dir():
+            shutil.rmtree(prot_dir)
+            self.logger.warn(f'Will overwrite all files in {prot_dir}')
         prot_dir.mkdir()
         fprot = prot_dir / f'{name}{suffix}'
         shutil.copyfile(fpath, fprot)
@@ -159,7 +170,8 @@ class AmberRbfeProject:
         mcs: Optional[Union[str, os.PathLike]] = None, 
         config: Optional[Union[Dict[str, Any], os.PathLike]] = None,
         submit: bool = False,
-        skip_gas: bool = True
+        skip_gas: bool = True,
+        overwrite: bool = False
     ):
         """
         Create a perturbation pair (relative binding free energy between ligand A and ligand B) 
@@ -184,6 +196,8 @@ class AmberRbfeProject:
             Whether to use SLURM (sbatch command) to submit the simulation job. Default False.
         skip_gas: bool
             Whether to skip the gas-phase FEP simulation, only useful when `submit=True`. Default True.
+        overwrite: bool
+            Whether to overwrite existing perturbation directory. Default False.
         """
         from rdkit import Chem
         from .mcs import find_mcs, get_common_core, generate_mask, check_common_core
@@ -197,6 +211,9 @@ class AmberRbfeProject:
             pert_name = f"{ligandA_name}~{ligandB_name}"
         
         pert_dir = self.rbfe_dir / pert_name
+        if overwrite and pert_dir.is_dir():
+            shutil.rmtree(pert_dir)
+            self.logger.warn(f'Will overwrite all files in {pert_dir}')
         pert_dir.mkdir()
         self.logger.info(f'Creating dirctory: {pert_dir}')
 
