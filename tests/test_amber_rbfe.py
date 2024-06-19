@@ -20,7 +20,7 @@ Dependencies:
 
 def test_amber_rbfe():
     data_dir = Path(__file__).parent / 'data/rbfe'
-    wdir = Path(__file__).parent / 'test_rbfe_project'
+    wdir = Path(__file__).parent / '_test_rbfe_project'
     '''
     1. Initialize a RBFE Project directory
        The program will create three directories under the project directory (`wdir`):

@@ -162,3 +162,6 @@ slurm*.out
 # setup tmp
 */_date.py
 */_version.py
+
+# test cache
+tests/_*
