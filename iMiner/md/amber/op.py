@@ -337,7 +337,7 @@ def prod(
         _fe_var_check(numexchg, "numexchg")
         remd_setting = [
             "{:<15} = {},".format("numexchg", numexchg),
-            "{:<15} = {},".format("gremd_acyc", len(lambdas) // 2)
+            "{:<15} = {},".format("gremd_acyc", len(lambdas) % 2)
         ]
         remd_setting = '\n'.join(remd_setting)
     else:
