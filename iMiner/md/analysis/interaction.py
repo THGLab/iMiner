@@ -22,7 +22,8 @@ PLIP_LOGGER.propagate = False
 def analyze_single_frame(
     pdbpath: os.PathLike, 
     add_hydrogen: bool = False,
-    resnr_renum: Optional[Dict[int, int]] = None
+    resnr_renum: Optional[Dict[int, int]] = None,
+    write_xml: bool = False
 ) -> Dict[str, int]:
     """
     Analyze a single ligand-complex structure
@@ -58,8 +59,9 @@ def analyze_single_frame(
     report.write_xml(True)
     sys.stdout = tmp
     xmlstr.seek(0)
+    xmlstr = xmlstr.read()
 
-    xmlobj = ET.fromstring(xmlstr.read())
+    xmlobj = ET.fromstring(xmlstr)
 
     binding_sites = xmlobj.findall("./bindingsite")
     bs = [bs for bs in binding_sites if bs.findall("identifiers/longname")[0].text == "MOL"][0]
@@ -77,7 +79,10 @@ def analyze_single_frame(
             cnt = interact_count_frame.get(sig, 0)
             if cnt == 0:
                 interact_count_frame.update({sig: cnt+1})
-
+    if write_xml:
+        f_xml = Path(pdbpath).with_suffix('.xml')
+        with open(f_xml, 'w') as f:
+            f.write(xmlstr)
     return interact_count_frame
 
 
@@ -87,7 +92,8 @@ def analyze_multiple_frames(
     add_hydrogen: bool = False,
     resnr_renum: Optional[Dict[int, int]] = None,
     use_mpi: bool = True, 
-    chunksize: int = 1
+    chunksize: int = 1,
+    write_xml: bool = False
 ) -> pd.DataFrame:
     """
     Analyze multiple frames and write results to a csv file
@@ -96,7 +102,8 @@ def analyze_multiple_frames(
     analyze_single_frame_func = partial(
         analyze_single_frame, 
         add_hydrogen=add_hydrogen,
-        resnr_renum=resnr_renum
+        resnr_renum=resnr_renum,
+        write_xml=write_xml
     )   
     if not use_mpi:
         for pdbpath in tqdm(pdbpaths):
