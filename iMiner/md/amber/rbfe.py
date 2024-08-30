@@ -1,7 +1,7 @@
 import os, sys, glob, shutil
 from pathlib import Path
 import json
-from typing import Union, Optional, Dict, Any
+from typing import Union, Optional, Dict, Any, Callable
 
 from iMiner.cmd import set_directory, run_command
 from iMiner.log import init_logger
@@ -171,7 +171,8 @@ class AmberRbfeProject:
         config: Optional[Union[Dict[str, Any], os.PathLike]] = None,
         submit: bool = False,
         skip_gas: bool = True,
-        overwrite: bool = False
+        overwrite: bool = False,
+        patch_func: Optional[Callable] = None
     ):
         """
         Create a perturbation pair (relative binding free energy between ligand A and ligand B) 
@@ -198,6 +199,8 @@ class AmberRbfeProject:
             Whether to skip the gas-phase FEP simulation, only useful when `submit=True`. Default True.
         overwrite: bool
             Whether to overwrite existing perturbation directory. Default False.
+        patch_func: Callable
+            Function to modify the regular behavior of this function, used for modifying force field parameters
         """
         from rdkit import Chem
         from .mcs import find_mcs, get_common_core, generate_mask, check_common_core
@@ -360,13 +363,17 @@ class AmberRbfeProject:
                         
                         with open('run.slurm', 'w') as f:
                             f.write(slurm)
-                        
-                        if leg == 'gas' and skip_gas:
-                            continue
-
-                        if submit:
+                
+                # force field patch
+                if patch_func is not None:
+                    patch_func(self, pert_name)
+                
+                if submit:
+                    legs = ['ligands', 'complex'] if skip_gas else ['ligands', 'complex', 'gas']
+                    for leg in legs:
+                        with set_directory(pert_dir / leg):
                             _, out, _ = run_command(['sbatch', 'run.slurm'])
-                            self.logger.info(f"Job submitted for {leg}: {out.split()[-1]}")
+                        self.logger.info(f"Job submitted for {leg}: {out.split()[-1]}")
         
     def analyze(self, pert_name: str, skip_gas: bool = True):
         """
