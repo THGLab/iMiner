@@ -107,10 +107,4 @@ def test_amber_rbfe():
 
        The RBFE value is in ddG/total in result.json
     '''
-    # proj.analyze(
-    #     pert_name='CDD_1845~CDD_1819',
-    #     skip_gas=True # set to False if you want to analyze solvation effects. 
-    #                   # To do so, the gas-phase simulation must also be performed (setting skip_gas to False in `add_perturbation`)
-    # )
-
-
+    # proj.analyze_pert(pert_name='CDD_1845~CDD_1819')
