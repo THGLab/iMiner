@@ -389,10 +389,10 @@ class AmberRbfeProject:
                 status = {leg: Path.is_file(pert / f'{leg}/done.tag') for leg in ['ligands', 'complex', 'gas']}
                 
                 if (status['ligands']) and (status['complex']):
-                    msg = 'Need to run analysis workflow' + 'w/' if status['gas'] else 'w/o' + 'solvation contribution analysis'
+                    msg = 'Need to run analysis workflow ' + 'w/' if status['gas'] else 'w/o' + ' solvation contribution analysis'
                     perts_to_analyze.append(pert.name)
                 else:
-                    msg = 'and'.join([key for key in status if not status[key]]) + ' not finished.'
+                    msg = ' and '.join([key.capitalize() for key in status if not status[key]]) + ' not finished.'
             
             perts.append(pert.name)
             msgs.append(msg)
@@ -459,7 +459,7 @@ class AmberRbfeProject:
 
         pert_dir = self.rbfe_dir / pert_name
 
-        skip_gas = os.path.isfile(self.pert_dir / 'gas' / 'done.tag')
+        skip_gas = os.path.isfile(pert_dir / 'gas' / 'done.tag')
         self.logger.info("Found gas-pahse simulation")
 
         legs = ['ligands', 'complex'] if skip_gas else ['ligands', 'complex', 'gas']
