@@ -459,7 +459,7 @@ class AmberRbfeProject:
 
         pert_dir = self.rbfe_dir / pert_name
 
-        skip_gas = os.path.isfile(pert_dir / 'gas' / 'done.tag')
+        skip_gas = not os.path.isfile(pert_dir / 'gas' / 'done.tag')
         self.logger.info("Found gas-pahse simulation")
 
         legs = ['ligands', 'complex'] if skip_gas else ['ligands', 'complex', 'gas']
