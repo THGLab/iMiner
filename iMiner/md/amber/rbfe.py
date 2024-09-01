@@ -374,8 +374,60 @@ class AmberRbfeProject:
                         with set_directory(pert_dir / leg):
                             _, out, _ = run_command(['sbatch', 'run.slurm'])
                         self.logger.info(f"Job submitted for {leg}: {out.split()[-1]}")
+    
+    def analyze(self):
+        perts = []
+        perts_to_analyze = []
+        msgs = []
         
-    def analyze(self, pert_name: str, skip_gas: bool = True):
+        for pert in self.rbfe_dir.glob('*'):
+            if not os.path.isdir(pert):
+                continue
+            if Path.is_file(pert / 'result.json'):
+                msg = 'Finished'
+            else:
+                status = {leg: Path.is_file(pert / f'{leg}/done.tag') for leg in ['ligands', 'complex', 'gas']}
+                
+                if (status['ligands']) and (status['complex']):
+                    msg = 'Need to run analysis workflow' + 'w/' if status['gas'] else 'w/o' + 'solvation contribution analysis'
+                    perts_to_analyze.append(pert.name)
+                else:
+                    msg = 'and'.join([key for key in status if not status[key]]) + ' not finished.'
+            
+            perts.append(pert.name)
+            msgs.append(msg)
+                    
+        print(f"Found {len(perts)} perturbations")
+        for i in range(len(perts)):
+            print(f'{i+1}.', perts[i], '-', msgs[i])
+
+        inp = input("Enter 'y' to start analyze all perturbations that require to be analyzed OR choose the perturbation with number or name: ")
+        if inp == 'y':
+            for pert in perts_to_analyze:
+                self.analyze_pert(pert)
+        elif inp in perts:
+            self.analyze_pert(inp)
+        else:
+            try:
+                inp = int(inp)
+                assert inp <= len(perts)
+            except:
+                print(f'Invalid input: {inp}\n')
+            self.analyze_pert(perts[inp - 1])
+        
+        if input('Enter "q" to quit the analyze program: ') == 'q':
+            sys.exit(0)
+        else:
+            self.analyze()
+        
+    def analyze_pert(self, pert_name: str):
+        self.logger.info('Start - free energy evaulation')
+        self.evaluate_free_energy(pert_name)
+        self.logger.info('Start - processing trajectory')
+        self.process_traj(pert_name)
+        self.logger.info(f"Finished analyzing {pert_name}")
+
+    def evaluate_free_energy(self, pert_name: str):
         """
         Analyze FEP simulation results using `alchemlyb` package.
         Free energy will be estimated using MBAR, overlap matrix and convergence analysis are also performed.
@@ -406,6 +458,9 @@ class AmberRbfeProject:
         ddG_std = {}
 
         pert_dir = self.rbfe_dir / pert_name
+
+        skip_gas = os.path.isfile(self.pert_dir / 'gas' / 'done.tag')
+        self.logger.info("Found gas-pahse simulation")
 
         legs = ['ligands', 'complex'] if skip_gas else ['ligands', 'complex', 'gas']
         for leg in legs:
@@ -471,4 +526,66 @@ class AmberRbfeProject:
 
         with open(pert_dir / 'result.json', 'w') as f: 
             json.dump({"dG": dG, "dG_std": dG_std, 'ddG': ddG, 'ddG_std': ddG_std}, f, indent=4)
-        self.logger.info("Finished!")
+        
+        self.logger.info(f"Finished - free energy evaulation. Results written to {pert_name}/result.json")
+
+    def process_traj(self, pert_name: str):
+        """
+        Processing trajectory of RBFE simulation endpoints: remove unphysical atoms, remove PBC, alignment 
+        """
+        from tqdm import tqdm
+        import MDAnalysis as mda
+        from MDAnalysis.analysis import align
+        
+        perturb_dir = self.rbfe_dir / pert_name
+        
+        for leg in ['ligands', 'complex']:
+            num_lambdas = len(glob.glob(os.path.join(perturb_dir, f'{leg}/lambda*/')))
+
+            for lmd, resid in zip([0, num_lambdas - 1], [1, 2]):
+
+                # prmtop = os.path.join(perturb_dir, f'prep/{leg}_solvated.prmtop')
+                in_top = os.path.join(perturb_dir, f'{leg}/lambda{lmd}/prod/prod.pdb')
+                in_trj = os.path.join(perturb_dir, f'{leg}/lambda{lmd}/prod/prod.mdcrd')
+
+                out_pdb = os.path.join(perturb_dir, f'{leg}/lambda{lmd}/prod/prod_traj.pdb')
+                out_trj = os.path.join(perturb_dir, f'{leg}/lambda{lmd}/prod/prod_traj.xtc')
+                trj_dir = os.path.join(perturb_dir, f'{leg}/lambda{lmd}/prod/traj')
+                if leg == 'complex' and not os.path.isdir(trj_dir):
+                    os.mkdir(trj_dir)
+
+                if leg == 'complex':
+                    sele_str = f'protein or resid {resid}'
+                else:
+                    sele_str = f'resid {resid}'
+
+                u = mda.Universe(in_top, in_trj, format='NCDF')
+                u_ref = mda.Universe(in_top, in_trj, format='NCDF')
+
+                alignment = align.AlignTraj(u, u_ref, select=sele_str, in_memory=True)
+                alignment.run()
+
+                selection = u.select_atoms(sele_str)
+                with mda.Writer(out_trj, n_atoms=selection.n_atoms) as W:
+                    for i, ts in tqdm(enumerate(u.trajectory), total=len(u.trajectory)):
+                        W.write(selection)
+                        if leg == 'complex':
+                            selection.write(os.path.join(trj_dir, f'traj{i}.pdb'))
+                        if i == 0:
+                            selection.write(out_pdb)
+    
+    # def analyze_interaction(self, pert_name: str):
+    #     """
+    #     Analyze protein-ligand interactions
+    #     """
+    #     # raise NotImplementedError('To be implemented')
+
+    #     map_to_std = {
+    #         "HID": "HIS", "HIE": "HIS", "HIP": "HIS",
+    #         "CYM": "CYS", "CYX": "CYS",
+    #         "GLH": "GLU",
+    #         "ASH": "ASP",
+    #     }
+
+    #     dirname = self.rbfe_dir / pert_name / 'complex'
+    #     num_lambdas = len(glob.glob(os.path.join(dirname, f'lambda*/')))
