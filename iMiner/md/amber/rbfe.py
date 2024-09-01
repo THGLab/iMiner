@@ -381,7 +381,7 @@ class AmberRbfeProject:
         msgs = []
         
         for pert in self.rbfe_dir.glob('*'):
-            if not os.path.isdir(pert):
+            if not os.path.isdir(pert) or pert.name.startswith('.'):
                 continue
             if Path.is_file(pert / 'result.json'):
                 msg = 'Finished'
@@ -389,10 +389,10 @@ class AmberRbfeProject:
                 status = {leg: Path.is_file(pert / f'{leg}/done.tag') for leg in ['ligands', 'complex', 'gas']}
                 
                 if (status['ligands']) and (status['complex']):
-                    msg = 'Need to run analysis workflow ' + 'w/' if status['gas'] else 'w/o' + ' solvation contribution analysis'
+                    msg = 'Need to run analysis workflow.' + '' if status['gas'] else ' without solvation contribution analysis'
                     perts_to_analyze.append(pert.name)
                 else:
-                    msg = ' and '.join([key.capitalize() for key in status if not status[key]]) + ' not finished.'
+                    msg = ' and '.join([key.capitalize() for key in ["ligands", "complex"] if not status[key]]) + ' not finished.'
             
             perts.append(pert.name)
             msgs.append(msg)
