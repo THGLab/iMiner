@@ -334,7 +334,7 @@ class MDProject(BaseProject):
         f_xvg = prod_dir / "prod_rmsd.xvg"
         f_rmsd_png = prod_dir / "prod_rmsd.png"  
         gmx_rms(
-            ref_pdb_align,
+            ref_tpr_align,
             traj_nopbc_file,
             f_xvg,
             index_file,
