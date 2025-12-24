@@ -108,8 +108,7 @@ class RewardAssigner():
         Calculate reward from the given list of inputs, do parallel assignment of scores, and return rewards together with whether each generated smiles string should contribute to training
         '''
         self.iteration += 1
-        converted_selfies = [convert_input_to_selfies(item, self.tokens) for item in inputs]
-        converted_smiles = [safe_decode_selfies(s) for s in converted_selfies]
+        converted_smiles = inputs
         query_indices = [] # keep record of whether each element from the converted smiles should receive reward query. If not, then these are bad smiles and should receive a very low reward
         plot_mols = []
         for i in range(len(converted_smiles)):
