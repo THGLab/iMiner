@@ -11,7 +11,7 @@ import selfies as sf
 from rdkit import Chem
 
 #defaults.text_spec_tok = [BOS, PAD]
-
+'''
 def split_selfies(selfies: str):
 
     left_idx = selfies.find("[")
@@ -170,7 +170,7 @@ class SELFIES_Sampler(ModelSampler):
         sampled_contents = super(SELFIES_Sampler, self).sample(count, maximal_len, do_batch, batch_size)
         sampled_contents = [self.convert_tokens_to_SELFIES(tok) for tok in sampled_contents]
         return sampled_contents
-
+'''
 
 def get_gpu_count():
     names = subprocess.Popen(["nvidia-smi", "--query-gpu=name", "--format=csv"], stdout=subprocess.PIPE)
