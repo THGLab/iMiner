@@ -3,9 +3,8 @@ import os
 iMiner_path = Path(__file__).parent
 
 # (LAWRENCIUM)
-ADFR_install_path = '/global/scratch/users/jerry-li1996/src/ADFRsuite_x86_64Linux_1.0/bin'
-meeko_install_path = '/global/scratch/users/ozhang/env/iminer-rl/bin'
-ad4gpu_path = '/global/scratch/users/jerry-li1996/bins/AutoDock-GPU/bin/autodock_gpu_128wi'
+ADFR_install_path = '/path/to/ADFRsuite_x86_64Linux_1.0/bin'
+meeko_install_path = '/path/to/vina/env/bin'
 
 protein_prep_path = f'{ADFR_install_path}/prepare_receptor'
 meeko_ligprep_path = f"{meeko_install_path}/mk_prepare_ligand.py"
