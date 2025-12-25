@@ -1,9 +1,4 @@
 #from fastai import *
-from fastai.text import (
-  BaseTokenizer, 
-  BOS, PAD,
-  defaults
-)
 from typing import List
 import torch.nn.functional as F
 import torch
