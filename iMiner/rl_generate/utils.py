@@ -10,7 +10,7 @@ import subprocess
 import selfies as sf
 from rdkit import Chem
 
-defaults.text_spec_tok = [BOS, PAD]
+#defaults.text_spec_tok = [BOS, PAD]
 
 def split_selfies(selfies: str):
 
