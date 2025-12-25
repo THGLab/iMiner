@@ -1,8 +1,8 @@
 #from fastai import *
 from typing import List
-import torch.nn.functional as F
-import torch
-from torch.distributions import Categorical
+#import torch.nn.functional as F
+#import torch
+#from torch.distributions import Categorical
 import numpy as np
 import subprocess
 #from multiprocessing import Pool
